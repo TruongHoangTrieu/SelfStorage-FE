@@ -19,6 +19,9 @@ export default function Navbar() {
             <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Pricing</Link>
             <Link href="/support" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Support</Link>
             <Link href="/dashboard" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Dashboard</Link>
+            <Link href="/staff" className="text-sm font-semibold text-[#4f39f6] hover:text-[#432fe0] transition-colors flex items-center gap-1">
+              Staff Portal
+            </Link>
           </div>
 
           {/* Right Actions */}
