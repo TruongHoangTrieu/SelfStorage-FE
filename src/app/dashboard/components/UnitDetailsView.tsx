@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
 import {
   ArrowLeft,
   Calendar,
@@ -45,14 +46,36 @@ export default function UnitDetailsView({
   // Tabs: 'overview' (Tab 1), 'access' (Tab 2), 'history' (Tab 3)
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'access' | 'history'>('overview');
   const [unlockStatus, setUnlockStatus] = useState<'idle' | 'unlocking' | 'unlocked'>('idle');
+  const [fetchedPin, setFetchedPin] = useState<string>('Đang tải...');
 
-  const handleRemoteUnlock = () => {
-    if (unlockStatus === 'unlocking') return;
+  useEffect(() => {
+    async function fetchSmartLock() {
+      if (!unit.rawContractId || !unit.rawUnitId) return;
+      try {
+        const data = await api.get(`/contracts/${unit.rawContractId}/units/${unit.rawUnitId}/smart-lock`);
+        setFetchedPin(data.accessCode || data.pin || 'Chưa cấu hình');
+      } catch (e) {
+        console.error('Failed to fetch smart lock data', e);
+        setFetchedPin('Lỗi kết nối');
+      }
+    }
+    fetchSmartLock();
+  }, [unit.rawContractId, unit.rawUnitId]);
+
+  const handleRemoteUnlock = async () => {
+    if (unlockStatus === 'unlocking' || !unit.rawContractId || !unit.rawUnitId) return;
     setUnlockStatus('unlocking');
-    setTimeout(() => {
+    try {
+      await api.patch(`/contracts/${unit.rawContractId}/units/${unit.rawUnitId}/smart-lock/status`, {
+        status: 'UNLOCKED'
+      });
       setUnlockStatus('unlocked');
       setTimeout(() => setUnlockStatus('idle'), 5000);
-    }, 1200);
+    } catch (e) {
+      console.error('Unlock failed', e);
+      setUnlockStatus('idle');
+      alert('Không thể kết nối đến Smart Lock. Vui lòng thử lại sau.');
+    }
   };
 
   return (
@@ -294,7 +317,7 @@ export default function UnitDetailsView({
 
                 <div className="pt-2 flex items-center gap-3">
                   <div className="text-xs text-slate-400">
-                    Mã PIN cá nhân: <span className="font-mono text-lg font-bold text-white ml-1">{unit.mainPin}</span>
+                    Mã PIN cá nhân: <span className="font-mono text-lg font-bold text-white ml-1">{fetchedPin}</span>
                   </div>
                 </div>
               </div>

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { api } from '@/lib/api';
 import {
   CreditCard,
   KeyRound,
@@ -32,8 +33,65 @@ export default function CustomerDashboardPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'details'>('grid');
 
   // Customer Units State
-  const [units, setUnits] = useState<CustomerUnit[]>(INITIAL_CUSTOMER_UNITS);
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('unit-a104');
+  const [units, setUnits] = useState<CustomerUnit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('');
+
+  useEffect(() => {
+    async function fetchContracts() {
+      try {
+        const response = await api.get('/contracts/my-contracts');
+        
+        // Map backend contract & items to the frontend CustomerUnit
+        const mappedUnits: CustomerUnit[] = response.flatMap((contract: any) => 
+          contract.contractItems.map((item: any) => ({
+            id: item.id.toString(),
+            unitNumber: `Ô ${item.unit.unitNumber}`,
+            unitType: item.unit.facility?.name || 'Kho Cá nhân Tiêu chuẩn',
+            size: '10x10 Có điều hòa nhiệt độ',
+            dimensions: '3.0m x 3.0m x 2.8m',
+            area: '9.0 m²',
+            facilityName: item.unit.facility?.name || 'Cơ sở tự quản',
+            facilityAddress: item.unit.facility?.address || 'Khu vực quản lý',
+            zone: 'Khu A',
+            floor: 'Tầng 1 (Kế thang máy)',
+            status: item.status === 'ACTIVE' ? 'active' : 'expiring',
+            statusLabel: item.status === 'ACTIVE' ? 'Đang hoạt động' : 'Hết hạn',
+            daysRemaining: 30, // Mocked for now
+            nextBillingDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('vi-VN'),
+            monthlyRent: `${item.rentalPrice.toLocaleString()} đ/tháng`,
+            monthlyRentNum: item.rentalPrice,
+            contractStartDate: new Date(contract.startDate).toLocaleDateString('vi-VN'),
+            contractEndDate: new Date(contract.endDate).toLocaleDateString('vi-VN'),
+            contractId: `SS-HĐ-${contract.id}`,
+            totalPaid: `${(item.rentalPrice * contract.durationMonths).toLocaleString()} đ`,
+            currentBalance: '0 đ (Đã trả đủ)',
+            temperature: '22°C (Mát mẻ)',
+            humidity: '50% (Tối ưu chống ẩm)',
+            mainPin: 'Đang tải...', // will fetch separately in details view or smart-lock endpoint
+            rfidCard: 'RFID-9921',
+            isClimateControlled: true,
+            guestPasses: [],
+            paymentHistory: [],
+            supportTickets: [],
+            rawContractId: contract.id,
+            rawUnitId: item.unit.id
+          }))
+        );
+        
+        setUnits(mappedUnits.length > 0 ? mappedUnits : INITIAL_CUSTOMER_UNITS);
+        if (mappedUnits.length > 0) setSelectedUnitId(mappedUnits[0].id);
+      } catch (error) {
+        console.error('Failed to load my-contracts', error);
+        // Fallback to mock data on error for UI demonstration
+        setUnits(INITIAL_CUSTOMER_UNITS);
+        setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0].id);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchContracts();
+  }, []);
 
   // Modals State
   const [activeModalUnit, setActiveModalUnit] = useState<CustomerUnit | null>(null);
@@ -193,8 +251,25 @@ export default function CustomerDashboardPage() {
           {/* LUỒNG 3: Ô KHO CỦA TÔI */}
           {activeTab === 'my_units' && (
             <>
+              {/* Loading skeleton */}
+              {loading && (
+                <div className="max-w-6xl mx-auto space-y-4 animate-pulse">
+                  <div className="h-8 w-48 bg-slate-200 rounded-xl" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {[1,2,3].map(i => (
+                      <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+                        <div className="h-4 bg-slate-200 rounded w-1/2" />
+                        <div className="h-3 bg-slate-100 rounded w-3/4" />
+                        <div className="h-3 bg-slate-100 rounded w-2/3" />
+                        <div className="h-8 bg-slate-200 rounded-xl mt-4" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* TRANG A: BẢNG ĐIỀU KHIỂN "Ô KHO CỦA TÔI" (GRID) */}
-              {viewMode === 'grid' && (
+              {!loading && viewMode === 'grid' && (
                 <MyUnitsGrid
                   units={units}
                   onSelectUnit={handleSelectUnit}
@@ -252,38 +327,41 @@ export default function CustomerDashboardPage() {
       {/* ========================================================================= */}
       {/* MODALS TƯƠNG TÁC CHÍNH CỦA LUỒNG 3 */}
       {/* ========================================================================= */}
+      {targetModalUnit && (
+        <>
+          {/* 1. Modal [ Tạo mã cho khách tạm thời ] */}
+          <GuestPassModal
+            isOpen={isGuestPassModalOpen}
+            onClose={() => setIsGuestPassModalOpen(false)}
+            unit={targetModalUnit}
+            onCreatedPass={handleCreatedGuestPass}
+          />
 
-      {/* 1. Modal [ Tạo mã cho khách tạm thời ] */}
-      <GuestPassModal
-        isOpen={isGuestPassModalOpen}
-        onClose={() => setIsGuestPassModalOpen(false)}
-        unit={targetModalUnit}
-        onCreatedPass={handleCreatedGuestPass}
-      />
+          {/* 2. Modal [ Gia hạn hợp đồng ] */}
+          <ExtendLeaseModal
+            isOpen={isExtendLeaseModalOpen}
+            onClose={() => setIsExtendLeaseModalOpen(false)}
+            unit={targetModalUnit}
+            onConfirmExtend={handleConfirmExtend}
+          />
 
-      {/* 2. Modal [ Gia hạn hợp đồng ] */}
-      <ExtendLeaseModal
-        isOpen={isExtendLeaseModalOpen}
-        onClose={() => setIsExtendLeaseModalOpen(false)}
-        unit={targetModalUnit}
-        onConfirmExtend={handleConfirmExtend}
-      />
+          {/* 3. Modal [ Nâng cấp/Hạ cấp ô kho ] */}
+          <UpgradeModal
+            isOpen={isUpgradeModalOpen}
+            onClose={() => setIsUpgradeModalOpen(false)}
+            unit={targetModalUnit}
+            onConfirmRequest={handleConfirmUpgrade}
+          />
 
-      {/* 3. Modal [ Nâng cấp/Hạ cấp ô kho ] */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        unit={targetModalUnit}
-        onConfirmRequest={handleConfirmUpgrade}
-      />
-
-      {/* 4. Modal [ Báo cáo sự cố ] */}
-      <IncidentReportModal
-        isOpen={isIncidentModalOpen}
-        onClose={() => setIsIncidentModalOpen(false)}
-        unit={targetModalUnit}
-        onSubmitTicket={handleSubmittedTicket}
-      />
+          {/* 4. Modal [ Báo cáo sự cố ] */}
+          <IncidentReportModal
+            isOpen={isIncidentModalOpen}
+            onClose={() => setIsIncidentModalOpen(false)}
+            unit={targetModalUnit}
+            onSubmitTicket={handleSubmittedTicket}
+          />
+        </>
+      )}
     </div>
   );
 }

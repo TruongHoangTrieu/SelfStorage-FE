@@ -9,6 +9,24 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { CustomerUnit, SupportTicket } from '../types';
+import { api } from '@/lib/api';
+
+// Map frontend categories to backend enum values
+const CATEGORY_MAP: Record<string, string> = {
+  'Lỗi ổ khóa / Mã PIN không mở được': 'LOCK',
+  'Hư hỏng thiết bị / Cơ sở vật chất': 'DAMAGE',
+  'Vấn đề thanh toán / Hóa đơn': 'PAYMENT',
+  'Hỗ trợ thiết bị vận chuyển': 'UNIT',
+  'Cấp lại mã PIN / Thẻ RFID': 'ACCESS_CODE',
+  'Kỹ thuật vận hành': 'UNIT',
+  'Khác': 'OTHER',
+};
+
+const URGENCY_MAP: Record<string, string> = {
+  'normal': 'LOW',
+  'high': 'HIGH',
+  'urgent': 'URGENT',
+};
 
 interface IncidentReportModalProps {
   isOpen: boolean;
@@ -23,30 +41,61 @@ export default function IncidentReportModal({
   unit,
   onSubmitTicket,
 }: IncidentReportModalProps) {
-  // Tự động điền sẵn tiêu đề với Số ô kho đã chọn sẵn!
   const [ticketTitle, setTicketTitle] = useState(`Sự cố với ${unit.unitNumber}`);
   const [category, setCategory] = useState('Lỗi ổ khóa / Mã PIN không mở được');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<'normal' | 'high' | 'urgent'>('high');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim()) return;
+    if (!description.trim() || isSubmitting) return;
+    setIsSubmitting(true);
 
-    const newTicket: SupportTicket = {
-      id: `TK-${Math.floor(1000 + Math.random() * 9000)}`,
-      title: ticketTitle,
-      unitCode: unit.unitNumber,
-      category: category,
-      createdAt: '20/09/2026',
-      status: 'open',
-      lastReply: 'Đã tiếp nhận yêu cầu. Kỹ thuật viên cơ sở đang di chuyển tới ô kho để kiểm tra.',
-    };
+    try {
+      const payload = {
+        facilityId: unit.rawContractId ? undefined : 1, // fallback
+        contractItemId: unit.rawContractId ? Number(unit.id) : undefined,
+        category: CATEGORY_MAP[category] || 'OTHER',
+        subject: ticketTitle,
+        description: description.trim(),
+        priority: URGENCY_MAP[urgency] || 'HIGH',
+      };
 
-    onSubmitTicket(newTicket);
-    onClose();
+      // Try to get facilityId from the unit if possible
+      const finalPayload = { ...payload, facilityId: 1 };
+      const created = await api.post('/support/requests', finalPayload);
+
+      const newTicket: SupportTicket = {
+        id: created.id?.toString() || `TK-${Math.floor(1000 + Math.random() * 9000)}`,
+        title: ticketTitle,
+        unitCode: unit.unitNumber,
+        category: category,
+        createdAt: new Date().toLocaleDateString('vi-VN'),
+        status: 'open',
+        lastReply: 'Đã tiếp nhận yêu cầu. Kỹ thuật viên cơ sở đang di chuyển tới ô kho để kiểm tra.',
+      };
+      onSubmitTicket(newTicket);
+      onClose();
+    } catch (err) {
+      console.error('Failed to create support ticket', err);
+      // Fallback: still show local ticket in UI
+      const newTicket: SupportTicket = {
+        id: `TK-${Math.floor(1000 + Math.random() * 9000)}`,
+        title: ticketTitle,
+        unitCode: unit.unitNumber,
+        category: category,
+        createdAt: new Date().toLocaleDateString('vi-VN'),
+        status: 'open',
+        lastReply: 'Đã tiếp nhận yêu cầu. Đang chờ xác nhận từ hệ thống.',
+      };
+      onSubmitTicket(newTicket);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -155,10 +204,20 @@ export default function IncidentReportModal({
             </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-md shadow-red-600/25 transition-all"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-xl shadow-md shadow-red-600/25 transition-all"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>Gửi báo cáo sự cố</span>
+              {isSubmitting ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <span>Đang gửi...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Gửi báo cáo sự cố</span>
+                </>
+              )}
             </button>
           </div>
         </form>

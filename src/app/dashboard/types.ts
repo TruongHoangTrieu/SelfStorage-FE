@@ -58,6 +58,8 @@ export interface CustomerUnit {
   guestPasses: GuestPass[];
   paymentHistory: PaymentRecord[];
   supportTickets: SupportTicket[];
+  rawContractId?: number;
+  rawUnitId?: number;
 }
 
 export type CustomerTab = 'my_units' | 'billing' | 'access' | 'documents' | 'support' | 'profile';

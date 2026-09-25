@@ -114,6 +114,78 @@ export default function Home() {
         </div>
       </section>
 
+      {/* How It Works Section */}
+      <section className="py-24 bg-slate-50 border-y border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16 animate-slide-up-fade">
+            <h2 className="text-4xl sm:text-5xl font-black text-[#1e1b4b] tracking-tight mb-4">How it works</h2>
+            <p className="text-lg text-slate-600 font-medium">Three simple steps to secure your belongings.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center relative">
+            <div className="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-0.5 bg-slate-200 -z-10"></div>
+            
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 animate-slide-up-fade delay-100">
+              <div className="w-16 h-16 bg-[#7E22CE] text-white rounded-2xl flex items-center justify-center text-2xl font-black mx-auto mb-6 shadow-lg shadow-purple-500/30">1</div>
+              <h3 className="text-xl font-black text-[#1e1b4b] mb-3">Book Online</h3>
+              <p className="text-slate-600 font-medium">Choose your location and unit size. Complete your reservation in under 2 minutes.</p>
+            </div>
+            
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 animate-slide-up-fade delay-200">
+              <div className="w-16 h-16 bg-[#7E22CE] text-white rounded-2xl flex items-center justify-center text-2xl font-black mx-auto mb-6 shadow-lg shadow-purple-500/30">2</div>
+              <h3 className="text-xl font-black text-[#1e1b4b] mb-3">Get Digital Key</h3>
+              <p className="text-slate-600 font-medium">Download our app to receive your secure Bluetooth access key instantly.</p>
+            </div>
+            
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 animate-slide-up-fade delay-300">
+              <div className="w-16 h-16 bg-[#7E22CE] text-white rounded-2xl flex items-center justify-center text-2xl font-black mx-auto mb-6 shadow-lg shadow-purple-500/30">3</div>
+              <h3 className="text-xl font-black text-[#1e1b4b] mb-3">Move In</h3>
+              <p className="text-slate-600 font-medium">Access your unit 24/7. Your phone is your key, your dashboard is your manager.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl sm:text-5xl font-black text-[#1e1b4b] tracking-tight mb-4">Loved by tenants</h2>
+            <p className="text-lg text-slate-600 font-medium">Don't just take our word for it.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-slate-50 rounded-[2rem] p-10 border border-slate-100 relative">
+              <div className="text-[#7E22CE] text-6xl font-serif absolute top-4 left-6 opacity-20">"</div>
+              <p className="text-xl text-slate-700 font-medium relative z-10 mb-8 italic">
+                "The app access is a game-changer. I completely forgot my code once, but it didn't matter because my phone just unlocked the door as I walked up. Incredible."
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-purple-200 flex items-center justify-center text-[#7E22CE] font-black text-lg">AJ</div>
+                <div>
+                  <p className="font-bold text-[#1e1b4b]">Alex Johnson</p>
+                  <p className="text-sm text-slate-500 font-medium">Tenant since 2024</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-slate-50 rounded-[2rem] p-10 border border-slate-100 relative">
+              <div className="text-[#7E22CE] text-6xl font-serif absolute top-4 left-6 opacity-20">"</div>
+              <p className="text-xl text-slate-700 font-medium relative z-10 mb-8 italic">
+                "I needed temporary storage while moving. The pricing was completely transparent, no weird admin fees, and cancelling was a one-tap process in the dashboard."
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-purple-200 flex items-center justify-center text-[#7E22CE] font-black text-lg">SW</div>
+                <div>
+                  <p className="font-bold text-[#1e1b4b]">Sarah Williams</p>
+                  <p className="text-sm text-slate-500 font-medium">Tenant since 2025</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Massive Bottom CTA */}
       <section className="py-32 bg-[#1e1b4b] text-center px-4">
         <div className="max-w-4xl mx-auto">

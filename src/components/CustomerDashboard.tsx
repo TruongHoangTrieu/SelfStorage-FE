@@ -1,5 +1,6 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
 import { 
   Box, 
   ShoppingCart, 
@@ -33,10 +34,15 @@ const LOGS = [
 
 export default function CustomerDashboard() {
   const [activeTab, setActiveTab] = useState('storage');
-  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  
+  // Contracts and Unit Selection
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loadingContracts, setLoadingContracts] = useState(true);
+  const [selectedUnit, setSelectedUnit] = useState<any | null>(null);
   
   // Smart Key States
-  const [pin, setPin] = useState('3 4 1 8 8 2');
+  const [pin, setPin] = useState('Loading...');
+  const [logs, setLogs] = useState<any[]>([]);
   const [isCopied, setIsCopied] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [unlockText, setUnlockText] = useState('Tap to Unlock Bay Door');
@@ -46,27 +52,77 @@ export default function CustomerDashboard() {
   const [leaseDuration, setLeaseDuration] = useState('1 Mo');
   const [moveOutDate, setMoveOutDate] = useState('2026-11-30');
 
+  // Load User's Contracts on mount
+  useEffect(() => {
+    async function loadContracts() {
+      try {
+        const data = await api.get('/contracts/my-contracts');
+        // Filter only ACTIVE contracts or map over all
+        setContracts(data);
+      } catch (err) {
+        console.error('Failed to load contracts:', err);
+      } finally {
+        setLoadingContracts(false);
+      }
+    }
+    loadContracts();
+  }, []);
+
+  // When a unit is selected, fetch its PIN and Logs
+  useEffect(() => {
+    if (!selectedUnit) return;
+    async function loadUnitDetails() {
+      try {
+        const { contractId, unitId } = selectedUnit;
+        const codeData = await api.get(`/contracts/${contractId}/units/${unitId}/access-code`);
+        setPin(codeData.accessCode || 'No PIN Issued');
+        
+        const logsData = await api.get(`/contracts/${contractId}/units/${unitId}/access-logs`);
+        setLogs(logsData || []);
+      } catch (err) {
+        console.error('Failed to load unit details:', err);
+        setPin('Error');
+      }
+    }
+    loadUnitDetails();
+  }, [selectedUnit]);
+
   const handleCopy = () => {
     navigator.clipboard.writeText(pin.replace(/\s/g, ''));
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleUnlock = () => {
-    if (isUnlocking) return;
+  const handleUnlock = async () => {
+    if (isUnlocking || !selectedUnit) return;
     setIsUnlocking(true);
     setUnlockText('Transmitting Token...');
     
-    setTimeout(() => {
+    try {
+      const { contractId, unitId } = selectedUnit;
+      await api.post(`/contracts/${contractId}/units/${unitId}/access-logs`, {
+        accessMethod: 'SMART_APP',
+        status: 'SUCCESS',
+        notes: 'Unlocked via Web Dashboard'
+      });
+      
       setUnlockText('Door Released (30s)');
       setUnlockFeedback(true);
       
-      setTimeout(() => {
-        setUnlockText('Tap to Unlock Bay Door');
-        setUnlockFeedback(false);
-        setIsUnlocking(false);
-      }, 5000);
-    }, 1000);
+      // Refresh logs
+      const logsData = await api.get(`/contracts/${contractId}/units/${unitId}/access-logs`);
+      setLogs(logsData || []);
+      
+    } catch (err) {
+      console.error('Failed to unlock:', err);
+      setUnlockText('Unlock Failed');
+    }
+
+    setTimeout(() => {
+      setUnlockText('Tap to Unlock Bay Door');
+      setUnlockFeedback(false);
+      setIsUnlocking(false);
+    }, 5000);
   };
 
   return (
@@ -83,8 +139,8 @@ export default function CustomerDashboard() {
                   JD
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-[#1e1b4b]">Jane Doe</p>
-                  <p className="text-xs text-slate-500 font-medium">Customer</p>
+                  <p className="text-sm font-bold text-[#1e1b4b]">Customer Account</p>
+                  <p className="text-xs text-slate-500 font-medium">Verified Tenant</p>
                 </div>
               </div>
 
@@ -110,7 +166,14 @@ export default function CustomerDashboard() {
               </nav>
 
               <div className="mt-12 pt-6 border-t border-slate-100 px-2">
-                <button className="flex items-center text-slate-400 font-bold hover:text-red-500 transition-colors">
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                  }}
+                  className="flex items-center text-slate-400 font-bold hover:text-red-500 transition-colors"
+                >
                   <LogOut className="w-5 h-5 mr-4" />
                   Sign Out
                 </button>
@@ -128,39 +191,48 @@ export default function CustomerDashboard() {
                   <h1 className="text-4xl font-black text-[#1e1b4b] mb-2 tracking-tight">My Storage Units</h1>
                   <p className="text-slate-500 font-medium mb-10 text-lg">Select a unit to manage access, billing, and services.</p>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <button 
-                      onClick={() => setSelectedUnit('412')} 
-                      className="text-left bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200 hover:border-[#1e1b4b] hover:shadow-lg transition-all duration-300 group relative overflow-hidden"
-                    >
-                      <div className="absolute -right-10 -top-10 w-40 h-40 bg-[#7E22CE]/5 rounded-full blur-3xl group-hover:bg-[#7E22CE]/10 transition-colors"></div>
-                      <div className="flex justify-between items-start mb-8 relative z-10">
-                        <div className="w-14 h-14 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center group-hover:bg-[#1e1b4b] group-hover:text-white transition-colors duration-300">
-                          <Box className="w-7 h-7" />
-                        </div>
-                        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 text-xs font-bold rounded-full flex items-center">
-                          <CheckCircle2 className="w-3 h-3 mr-1" /> Active
-                        </span>
-                      </div>
-                      <h2 className="text-2xl font-black text-[#1e1b4b] mb-1 relative z-10">Unit #412</h2>
-                      <p className="text-slate-500 font-medium mb-8 relative z-10">Level 2 North Wing • Facility 3</p>
+                  {loadingContracts ? (
+                    <div className="text-slate-500 font-medium">Loading your contracts...</div>
+                  ) : contracts.length === 0 ? (
+                    <div className="text-slate-500 font-medium">You have no active storage unit contracts. <a href="/locations" className="text-[#7E22CE] font-bold">Book one here.</a></div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {contracts.map(contract => (
+                        contract.contractItems.map((item: any) => (
+                          <button 
+                            key={item.id}
+                            onClick={() => setSelectedUnit({ contractId: contract.id, unitId: item.unit.id, ...item })} 
+                            className="text-left bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200 hover:border-[#1e1b4b] hover:shadow-lg transition-all duration-300 group relative overflow-hidden"
+                          >
+                            <div className="absolute -right-10 -top-10 w-40 h-40 bg-[#7E22CE]/5 rounded-full blur-3xl group-hover:bg-[#7E22CE]/10 transition-colors"></div>
+                            <div className="flex justify-between items-start mb-8 relative z-10">
+                              <div className="w-14 h-14 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center group-hover:bg-[#1e1b4b] group-hover:text-white transition-colors duration-300">
+                                <Box className="w-7 h-7" />
+                              </div>
+                              <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center ${item.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'} border`}>
+                                <CheckCircle2 className="w-3 h-3 mr-1" /> {item.status}
+                              </span>
+                            </div>
+                            <h2 className="text-2xl font-black text-[#1e1b4b] mb-1 relative z-10">Unit #{item.unit.unitNumber}</h2>
+                            <p className="text-slate-500 font-medium mb-8 relative z-10">Monthly Rate: ${item.rentalPrice}</p>
+                            
+                            <div className="flex items-center text-[#7E22CE] font-bold text-sm group-hover:text-[#1e1b4b] transition-colors relative z-10">
+                              Manage Smart Key & Access <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                          </button>
+                        ))
+                      ))}
                       
-                      <div className="flex items-center text-[#7E22CE] font-bold text-sm group-hover:text-[#1e1b4b] transition-colors relative z-10">
-                        Manage Smart Key & Access <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </button>
-                    
-                    {/* Placeholder for an upcoming reservation if any */}
-                    <button 
-                      className="text-left bg-slate-50/50 p-8 rounded-[2rem] border-2 border-dashed border-slate-200 hover:border-slate-300 transition-all duration-300 group flex flex-col items-center justify-center text-center"
-                    >
-                      <div className="w-14 h-14 bg-white text-slate-300 rounded-full flex items-center justify-center mb-4 shadow-sm group-hover:text-[#1e1b4b] transition-colors">
-                        <ShoppingCart className="w-6 h-6" />
-                      </div>
-                      <h2 className="text-lg font-bold text-slate-600 mb-1 group-hover:text-[#1e1b4b]">Need more space?</h2>
-                      <p className="text-slate-400 font-medium text-sm">Rent an additional unit today.</p>
-                    </button>
-                  </div>
+                      {/* Placeholder for an upcoming reservation if any */}
+                      <a href="/locations" className="text-left bg-slate-50/50 p-8 rounded-[2rem] border-2 border-dashed border-slate-200 hover:border-slate-300 transition-all duration-300 group flex flex-col items-center justify-center text-center">
+                        <div className="w-14 h-14 bg-white text-slate-300 rounded-full flex items-center justify-center mb-4 shadow-sm group-hover:text-[#1e1b4b] transition-colors">
+                          <ShoppingCart className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-lg font-bold text-slate-600 mb-1 group-hover:text-[#1e1b4b]">Need more space?</h2>
+                        <p className="text-slate-400 font-medium text-sm">Rent an additional unit today.</p>
+                      </a>
+                    </div>
+                  )}
                 </div>
               ) : (
                 // --- TENANT SMART KEY & ACCESS HUB ---
@@ -171,7 +243,7 @@ export default function CustomerDashboard() {
                     <button onClick={() => setSelectedUnit(null)} className="inline-flex items-center text-slate-400 font-bold text-sm hover:text-[#1e1b4b] transition-colors mb-6 group">
                       <ChevronLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" /> Back to My Units
                     </button>
-                    <p className="text-sm font-bold text-[#7E22CE] uppercase tracking-widest mb-3">Unit {selectedUnit} • Level 2 North Wing</p>
+                    <p className="text-sm font-bold text-[#7E22CE] uppercase tracking-widest mb-3">Unit {selectedUnit?.unit?.unitNumber} • {selectedUnit?.unit?.floor || 'Level 1'}</p>
                     <h1 className="text-4xl md:text-5xl font-black text-[#1e1b4b] tracking-tight mb-4">Tenant Smart Key & Access Hub</h1>
                     <p className="text-lg text-slate-500 font-medium max-w-3xl">Instant contactless gate opening, digital PIN management, and real-time unit telemetry.</p>
                   </div>
@@ -306,7 +378,7 @@ export default function CustomerDashboard() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 pb-6 border-b border-slate-100">
                       <div>
                         <h3 className="text-2xl font-black text-[#1e1b4b] mb-2">Recent Access Logs</h3>
-                        <p className="text-slate-500 font-medium">Complete telemetry audit for Unit {selectedUnit} credentials.</p>
+                        <p className="text-slate-500 font-medium">Complete telemetry audit for Unit {selectedUnit?.unit?.unitNumber} credentials.</p>
                       </div>
                       <div className="mt-4 sm:mt-0 px-4 py-2 bg-slate-50 rounded-full border border-slate-200 flex items-center">
                         <ShieldCheck className="w-4 h-4 text-green-500 mr-2" />
@@ -326,19 +398,19 @@ export default function CustomerDashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {LOGS.map((log, idx) => (
+                          {logs.map((log: any, idx: number) => (
                             <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                              <td className="py-5 text-sm font-bold text-[#1e1b4b] whitespace-nowrap">{log.time}</td>
-                              <td className="py-5 px-6 text-sm font-medium text-slate-500 whitespace-nowrap">{log.terminal}</td>
+                              <td className="py-5 text-sm font-bold text-[#1e1b4b] whitespace-nowrap">{new Date(log.accessedAt).toLocaleString()}</td>
+                              <td className="py-5 px-6 text-sm font-medium text-slate-500 whitespace-nowrap">Smart App Access</td>
                               <td className="py-5 px-6 whitespace-nowrap">
                                 <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
-                                  {log.method}
+                                  {log.accessMethod}
                                 </span>
                               </td>
-                              <td className="py-5 px-6 text-sm font-medium text-slate-500 whitespace-nowrap">{log.credential}</td>
+                              <td className="py-5 px-6 text-sm font-medium text-slate-500 whitespace-nowrap">{log.notes || 'Authenticated'}</td>
                               <td className="py-5 text-right whitespace-nowrap">
-                                <span className="text-sm font-bold text-green-600 flex items-center justify-end">
-                                  <Check className="w-3 h-3 mr-1" />
+                                <span className={`text-sm font-bold flex items-center justify-end ${log.status === 'SUCCESS' ? 'text-green-600' : 'text-red-500'}`}>
+                                  {log.status === 'SUCCESS' ? <Check className="w-3 h-3 mr-1" /> : null}
                                   {log.status}
                                 </span>
                               </td>
