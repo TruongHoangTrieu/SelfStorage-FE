@@ -9,17 +9,34 @@ import {
   MapPin,
   LifeBuoy,
   Settings,
-  Boxes
+  Boxes,
+  LogOut,
+  UserCheck,
+  LogIn
 } from 'lucide-react';
-import { StaffTab } from '../types';
+import { StaffTab, StaffUser } from '../types';
 
 interface SidebarProps {
   activeTab: StaffTab;
   onSelectTab: (tab: StaffTab) => void;
   pendingCount: number;
+  currentUser?: StaffUser | null;
+  onOpenLoginModal?: () => void;
+  onLogout?: () => void;
 }
 
-export default function Sidebar({ activeTab, onSelectTab, pendingCount }: SidebarProps) {
+export default function Sidebar({
+  activeTab,
+  onSelectTab,
+  pendingCount,
+  currentUser,
+  onOpenLoginModal,
+  onLogout,
+}: SidebarProps) {
+  const staffName = currentUser?.fullName || 'Trần Hùng (NV04)';
+  const staffRole = currentUser?.role ? currentUser.role.replace('FACILITY_', '') : 'STAFF';
+  const facilityName = currentUser?.facilityName || 'Cơ sở Landmark 81';
+
   return (
     <aside className="w-64 bg-slate-950 text-slate-300 flex flex-col border-r border-slate-800 shrink-0 sticky top-0 h-screen z-40">
       {/* Brand Header */}
@@ -32,7 +49,7 @@ export default function Sidebar({ activeTab, onSelectTab, pendingCount }: Sideba
             <div className="font-bold text-base tracking-tight text-white flex items-center gap-1.5">
               SelfStorage
               <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-[#4f39f6]/20 text-[#818cf8] border border-[#4f39f6]/30">
-                Staff
+                {staffRole}
               </span>
             </div>
             <p className="text-xs text-slate-400">Cổng Vận Hành Cơ Sở</p>
@@ -42,8 +59,8 @@ export default function Sidebar({ activeTab, onSelectTab, pendingCount }: Sideba
         {/* Chi nhánh hiện tại */}
         <div className="mt-4 p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center gap-2.5">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <div className="overflow-hidden">
-            <div className="text-xs font-semibold text-white truncate">Cơ sở Landmark 81</div>
+          <div className="overflow-hidden flex-1">
+            <div className="text-xs font-semibold text-white truncate">{facilityName}</div>
             <div className="text-[10px] text-slate-400 truncate">Khu B - Bình Thạnh, TP.HCM</div>
           </div>
         </div>
@@ -144,17 +161,42 @@ export default function Sidebar({ activeTab, onSelectTab, pendingCount }: Sideba
 
       {/* Staff Profile & Shift Info at Bottom */}
       <div className="p-4 border-t border-slate-800/80 bg-slate-900/50">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center font-bold text-white text-sm border border-slate-700">
-              TH
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="relative shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center font-bold text-white text-sm border border-slate-700">
+                {staffName.split(' ').slice(-2).map(n => n[0]).join('') || 'NV'}
+              </div>
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-950" />
             </div>
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-950" />
+            <div className="overflow-hidden">
+              <div className="text-sm font-semibold text-white truncate" title={staffName}>
+                {staffName}
+              </div>
+              <div className="text-xs text-slate-400 flex items-center gap-1">
+                <UserCheck className="w-3 h-3 text-emerald-400" />
+                {currentUser?.email ? 'Đã xác thực JWT' : 'Ca trực hôm nay'}
+              </div>
+            </div>
           </div>
-          <div className="overflow-hidden">
-            <div className="text-sm font-semibold text-white truncate">Trần Hùng (NV04)</div>
-            <div className="text-xs text-slate-400">Ca sáng: 08:00 - 16:30</div>
-          </div>
+
+          {currentUser ? (
+            <button
+              onClick={onLogout}
+              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+              title="Đăng xuất"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={onOpenLoginModal}
+              className="p-1.5 text-slate-400 hover:text-[#4f39f6] hover:bg-slate-800 rounded-lg transition-colors"
+              title="Đăng nhập Staff Backend"
+            >
+              <LogIn className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </aside>

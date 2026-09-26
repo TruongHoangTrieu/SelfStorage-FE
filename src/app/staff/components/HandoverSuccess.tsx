@@ -61,7 +61,14 @@ export default function HandoverSuccess({
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Trạng thái Cập nhật Hệ thống:
             </span>
-            <span className="text-xs font-mono text-slate-500">Mã đơn: {appointment.id}</span>
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-slate-500">Mã đơn: {appointment.id}</span>
+              {appointment.contractCode && (
+                <span className="text-[#4f39f6] font-bold bg-[#4f39f6]/10 px-2 py-0.5 rounded">
+                  HĐ: {appointment.contractCode}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

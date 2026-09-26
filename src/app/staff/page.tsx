@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Clock,
@@ -10,12 +10,19 @@ import {
   MapPin,
   LifeBuoy,
   Settings,
-  Inbox
+  Inbox,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  LogIn,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 // Import Types & Mock Data
-import { CheckInAppointment, AvailableUnit, StaffTab, FlowStep } from './types';
+import { CheckInAppointment, AvailableUnit, StaffTab, FlowStep, StaffUser } from './types';
 import { INITIAL_APPOINTMENTS, INITIAL_AVAILABLE_UNITS } from './mockData';
+import { handoversApi } from '../../lib/api/handovers';
 
 // Import Sub-Components
 import Sidebar from './components/Sidebar';
@@ -24,11 +31,19 @@ import HandoverProcess from './components/HandoverProcess';
 import HandoverSuccess from './components/HandoverSuccess';
 import ContractModal from './components/ContractModal';
 import PrintModal from './components/PrintModal';
+import StaffLoginModal from './components/StaffLoginModal';
 
 export default function StaffPortalPage() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<StaffTab>('queue');
   const [flowStep, setFlowStep] = useState<FlowStep>('queue');
+
+  // Backend Connection & Auth State
+  const [isBackendOnline, setIsBackendOnline] = useState<boolean | null>(null);
+  const [usingLiveApi, setUsingLiveApi] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoadingQueue, setIsLoadingQueue] = useState(false);
 
   // Appointments & Units State
   const [appointments, setAppointments] = useState<CheckInAppointment[]>(INITIAL_APPOINTMENTS);
@@ -39,11 +54,20 @@ export default function StaffPortalPage() {
   const [selectedUnitCode, setSelectedUnitCode] = useState<string>('');
   const [customPin, setCustomPin] = useState<string>('');
   const [customRfid, setCustomRfid] = useState<string>('');
+  const [handoverCondition, setHandoverCondition] = useState('Kho sạch sẽ, không hư hỏng, khóa cửa hoạt động tốt');
+  const [handoverNotes, setHandoverNotes] = useState('Đã bàn giao mã PIN và hướng dẫn khách sử dụng cửa');
+  const [isSubmittingCheckIn, setIsSubmittingCheckIn] = useState(false);
 
   // Modals & Feedback State
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Helper hiển thị thông báo nhanh
+  const triggerToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  }, []);
 
   // Cuộc hẹn đang được xử lý
   const currentAppointment = useMemo(() => {
@@ -55,11 +79,49 @@ export default function StaffPortalPage() {
     return appointments.filter(a => a.status !== 'completed').length;
   }, [appointments]);
 
-  // Helper hiển thị thông báo nhanh
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
+  // Hàm tải dữ liệu từ Backend API
+  const loadBackendData = useCallback(async () => {
+    setIsLoadingQueue(true);
+    try {
+      const isOnline = await handoversApi.checkHealth();
+      setIsBackendOnline(isOnline);
+
+      if (isOnline) {
+        // Lấy queue đơn đặt chỗ từ Backend API
+        const queueRes = await handoversApi.fetchCheckInQueue();
+        if (queueRes.items && queueRes.items.length > 0) {
+          setAppointments(queueRes.items);
+          setSelectedAppointmentId(queueRes.items[0].id);
+          setUsingLiveApi(true);
+        } else {
+          // Backend trả về mảng rỗng -> giữ mock data hoặc hiển thị trống
+          setUsingLiveApi(true);
+        }
+
+        // Lấy danh sách ô kho trống khả dụng từ Backend API
+        const unitsRes = await handoversApi.fetchAvailableUnits();
+        if (unitsRes && unitsRes.length > 0) {
+          setAvailableUnits(unitsRes);
+        }
+      } else {
+        setUsingLiveApi(false);
+      }
+    } catch (err: any) {
+      setIsBackendOnline(false);
+      setUsingLiveApi(false);
+    } finally {
+      setIsLoadingQueue(false);
+    }
+  }, []);
+
+  // Khởi tạo kiểm tra kết nối & auth khi load trang
+  useEffect(() => {
+    const stored = handoversApi.getStoredUser();
+    if (stored) {
+      setCurrentUser(stored);
+    }
+    loadBackendData();
+  }, [loadBackendData]);
 
   // Đồng bộ ô kho & mã pin khi chọn một cuộc hẹn
   const handleSelectAppointment = (appointment: CheckInAppointment) => {
@@ -70,21 +132,78 @@ export default function StaffPortalPage() {
   };
 
   // Action 1: [ Bắt đầu nhận kho ]
-  const handleStartCheckIn = (apt: CheckInAppointment) => {
+  const handleStartCheckIn = async (apt: CheckInAppointment) => {
     handleSelectAppointment(apt);
+
+    // Cập nhật trạng thái sang in_progress
     setAppointments(prev => prev.map(item =>
       item.id === apt.id ? { ...item, status: 'in_progress' } : item
     ));
     setFlowStep('handover');
-    triggerToast(`Đã bắt đầu làm thủ tục nhận kho cho khách hàng: ${apt.customerName}`);
+    triggerToast(`Đã bắt đầu làm thủ tục nhận kho cho: ${apt.customerName}`);
+
+    // Nếu đơn có rawId từ backend, thử fetch thêm thông tin chi tiết
+    if (apt.rawId && isBackendOnline) {
+      try {
+        const detail = await handoversApi.fetchReservationForCheckIn(apt.rawId);
+        setAppointments(prev => prev.map(item => item.id === apt.id ? { ...item, ...detail } : item));
+      } catch (err: any) {
+        // Dùng dữ liệu hiện tại
+      }
+    }
   };
 
   // Action 2: [ Hoàn tất bàn giao ]
-  const handleCompleteHandover = () => {
+  const handleCompleteHandover = async () => {
     const nowTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const finalUnit = selectedUnitCode || currentAppointment.assignedUnit;
 
-    // Cập nhật trạng thái đơn hẹn
+    // Nếu có backend online và có rawId
+    if (isBackendOnline && currentAppointment.rawId) {
+      setIsSubmittingCheckIn(true);
+      try {
+        const response = await handoversApi.performCheckIn({
+          reservationId: currentAppointment.rawId,
+          condition: handoverCondition,
+          notes: handoverNotes,
+        });
+
+        // Lấy mã PIN Smart Lock và mã hợp đồng từ Backend response
+        const backendAccessCode = response.contractItems?.[0]?.accessCode || customPin;
+        const backendContractCode = response.contract?.contractCode;
+
+        setAppointments(prev => prev.map(item => {
+          if (item.id === currentAppointment.id) {
+            return {
+              ...item,
+              status: 'completed',
+              assignedUnit: finalUnit,
+              accessPin: backendAccessCode,
+              contractCode: backendContractCode,
+              rfidCard: customRfid,
+              completedAt: nowTime,
+            };
+          }
+          return item;
+        }));
+
+        // Cập nhật trạng thái ô kho thành occupied
+        setAvailableUnits(prev => prev.map(u =>
+          u.code === finalUnit ? { ...u, status: 'occupied' } : u
+        ));
+
+        setCustomPin(backendAccessCode);
+        setFlowStep('success');
+        triggerToast(`Bàn giao thành công ô kho ${finalUnit}! Mã HĐ: ${backendContractCode || 'Mới'}`);
+        return;
+      } catch (err: any) {
+        triggerToast(`Lỗi gọi API Backend: ${err.message || 'Thất bại'}. Lưu vào dữ liệu tạm.`);
+      } finally {
+        setIsSubmittingCheckIn(false);
+      }
+    }
+
+    // Fallback: Hoàn tất cục bộ (nếu backend offline hoặc dùng mock data)
     setAppointments(prev => prev.map(item => {
       if (item.id === currentAppointment.id) {
         return {
@@ -93,13 +212,13 @@ export default function StaffPortalPage() {
           assignedUnit: finalUnit,
           accessPin: customPin,
           rfidCard: customRfid,
+          contractCode: `CON-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-LOCAL`,
           completedAt: nowTime,
         };
       }
       return item;
     }));
 
-    // Cập nhật ô kho thành 'occupied' (Đang thuê)
     setAvailableUnits(prev => prev.map(u =>
       u.code === finalUnit ? { ...u, status: 'occupied' } : u
     ));
@@ -115,6 +234,13 @@ export default function StaffPortalPage() {
     setTimeout(() => {
       window.print();
     }, 400);
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    handoversApi.logout();
+    setCurrentUser(null);
+    triggerToast('Đã đăng xuất tài khoản nhân viên');
   };
 
   return (
@@ -136,6 +262,9 @@ export default function StaffPortalPage() {
           if (tab === 'queue') setFlowStep('queue');
         }}
         pendingCount={pendingCount}
+        currentUser={currentUser}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* 2. MAIN CONTENT AREA */}
@@ -153,12 +282,49 @@ export default function StaffPortalPage() {
                 {flowStep === 'success' && 'Hoàn tất bàn giao kho'}
               </h1>
               <p className="text-xs text-slate-500">
-                Hôm nay, 20 Tháng 09, 2026 • Mục tiêu: Bàn giao ô kho nhanh chóng, chính xác
+                Hôm nay, 26 Tháng 09, 2026 • Mục tiêu: Bàn giao ô kho nhanh chóng, chính xác
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Live Backend Connection Indicator */}
+            {isBackendOnline ? (
+              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-xs font-semibold">
+                <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Backend API: Online ({usingLiveApi ? 'Dữ liệu thật' : 'Đã kết nối'})</span>
+              </div>
+            ) : isBackendOnline === false ? (
+              <div className="flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1.5 rounded-full text-xs font-medium">
+                <WifiOff className="w-3.5 h-3.5 text-amber-600" />
+                <span>Backend API: Offline (Dữ liệu dự phòng)</span>
+                <button
+                  onClick={loadBackendData}
+                  className="hover:underline font-bold text-[#4f39f6] flex items-center gap-1 ml-1"
+                  title="Thử kết nối lại"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isLoadingQueue ? 'animate-spin' : ''}`} />
+                  Thử lại
+                </button>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-400 flex items-center gap-1.5">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                Đang kiểm tra kết nối...
+              </div>
+            )}
+
+            {/* Staff Auth Button */}
+            {!currentUser && (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-lg shadow-xs transition-colors"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Đăng nhập Staff
+              </button>
+            )}
+
             {flowStep !== 'queue' && (
               <button
                 onClick={() => setFlowStep('queue')}
@@ -170,11 +336,6 @@ export default function StaffPortalPage() {
             )}
 
             <div className="h-6 w-px bg-slate-200" />
-
-            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-xs font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Smart Lock: Trực tuyến
-            </div>
 
             <Link
               href="/"
@@ -207,6 +368,11 @@ export default function StaffPortalPage() {
               onChangeCustomPin={setCustomPin}
               customRfid={customRfid}
               onChangeCustomRfid={setCustomRfid}
+              condition={handoverCondition}
+              onChangeCondition={setHandoverCondition}
+              notes={handoverNotes}
+              onChangeNotes={setHandoverNotes}
+              isSubmitting={isSubmittingCheckIn}
               onBackToQueue={() => setFlowStep('queue')}
               onOpenContractModal={() => setIsContractModalOpen(true)}
               onOpenPrintModal={() => setIsPrintModalOpen(true)}
@@ -278,6 +444,17 @@ export default function StaffPortalPage() {
         assignedUnit={selectedUnitCode}
         customPin={customPin}
         onConfirmPrint={handleExecuteNativePrint}
+      />
+
+      {/* MODAL 3: ĐĂNG NHẬP NHÂN VIÊN VỚI BACKEND JWT */}
+      <StaffLoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          triggerToast(`Đăng nhập thành công: ${user.fullName} (${user.role})`);
+          loadBackendData();
+        }}
       />
     </div>
   );

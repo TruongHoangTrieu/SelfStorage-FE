@@ -27,6 +27,11 @@ interface HandoverProcessProps {
   onChangeCustomPin: (pin: string) => void;
   customRfid: string;
   onChangeCustomRfid: (rfid: string) => void;
+  condition?: string;
+  onChangeCondition?: (val: string) => void;
+  notes?: string;
+  onChangeNotes?: (val: string) => void;
+  isSubmitting?: boolean;
   onBackToQueue: () => void;
   onOpenContractModal: () => void;
   onOpenPrintModal: () => void;
@@ -42,6 +47,11 @@ export default function HandoverProcess({
   onChangeCustomPin,
   customRfid,
   onChangeCustomRfid,
+  condition = 'Kho sạch sẽ, không hư hỏng, khóa cửa hoạt động tốt',
+  onChangeCondition,
+  notes = 'Đã bàn giao mã PIN và hướng dẫn khách sử dụng cửa',
+  onChangeNotes,
+  isSubmitting = false,
   onBackToQueue,
   onOpenContractModal,
   onOpenPrintModal,
@@ -96,10 +106,24 @@ export default function HandoverProcess({
           {/* [ NÚT HOÀN TẤT BÀN GIAO ] */}
           <button
             onClick={onCompleteHandover}
-            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl transition-all shadow-lg shadow-[#4f39f6]/30 active:scale-95"
+            disabled={isSubmitting}
+            className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-lg active:scale-95 ${
+              isSubmitting
+                ? 'bg-[#4f39f6]/70 cursor-not-allowed'
+                : 'bg-[#4f39f6] hover:bg-[#432fe0] shadow-[#4f39f6]/30'
+            }`}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Hoàn tất bàn giao</span>
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Đang xử lý Backend...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Hoàn tất bàn giao</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -440,10 +464,24 @@ export default function HandoverProcess({
               {/* [ Nút Hoàn tất bàn giao ] */}
               <button
                 onClick={onCompleteHandover}
-                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl transition-all shadow-lg shadow-[#4f39f6]/30 active:scale-95"
+                disabled={isSubmitting}
+                className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-lg active:scale-95 ${
+                  isSubmitting
+                    ? 'bg-[#4f39f6]/70 cursor-not-allowed'
+                    : 'bg-[#4f39f6] hover:bg-[#432fe0] shadow-[#4f39f6]/30'
+                }`}
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Hoàn tất bàn giao</span>
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Đang xử lý Backend...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Hoàn tất bàn giao</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
