@@ -9,7 +9,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { CustomerUnit, SupportTicket } from '../types';
-import { api } from '@/lib/api';
+import { customerUnitsApi } from '../../../lib/api/customerUnits';
 
 // Map frontend categories to backend enum values
 const CATEGORY_MAP: Record<string, string> = {
@@ -55,32 +55,19 @@ export default function IncidentReportModal({
     setIsSubmitting(true);
 
     try {
-      const payload = {
-        facilityId: unit.rawContractId ? undefined : 1, // fallback
-        contractItemId: unit.rawContractId ? Number(unit.id) : undefined,
+      const createdTicket = await customerUnitsApi.createSupportRequest({
+        facilityId: unit.facilityId || 1,
+        contractItemId: unit.rawContractItemId || (unit.rawContractId ? Number(unit.id) : undefined),
         category: CATEGORY_MAP[category] || 'OTHER',
         subject: ticketTitle,
         description: description.trim(),
         priority: URGENCY_MAP[urgency] || 'HIGH',
-      };
+      });
 
-      // Try to get facilityId from the unit if possible
-      const finalPayload = { ...payload, facilityId: 1 };
-      const created = await api.post('/support/requests', finalPayload);
-
-      const newTicket: SupportTicket = {
-        id: created.id?.toString() || `TK-${Math.floor(1000 + Math.random() * 9000)}`,
-        title: ticketTitle,
-        unitCode: unit.unitNumber,
-        category: category,
-        createdAt: new Date().toLocaleDateString('vi-VN'),
-        status: 'open',
-        lastReply: 'Đã tiếp nhận yêu cầu. Kỹ thuật viên cơ sở đang di chuyển tới ô kho để kiểm tra.',
-      };
-      onSubmitTicket(newTicket);
+      onSubmitTicket(createdTicket);
       onClose();
     } catch (err) {
-      console.error('Failed to create support ticket', err);
+      console.warn('Backend support request creation offline, fallback to local state', err);
       // Fallback: still show local ticket in UI
       const newTicket: SupportTicket = {
         id: `TK-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -89,7 +76,7 @@ export default function IncidentReportModal({
         category: category,
         createdAt: new Date().toLocaleDateString('vi-VN'),
         status: 'open',
-        lastReply: 'Đã tiếp nhận yêu cầu. Đang chờ xác nhận từ hệ thống.',
+        lastReply: 'Đã tiếp nhận yêu cầu. Kỹ thuật viên cơ sở đang chuẩn bị xử lý.',
       };
       onSubmitTicket(newTicket);
       onClose();

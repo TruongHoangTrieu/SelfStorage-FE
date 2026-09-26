@@ -13,18 +13,22 @@ import {
   ShieldCheck,
   ChevronRight
 } from 'lucide-react';
-import { CustomerTab } from '../types';
+import { CustomerTab, CustomerUser } from '../types';
 
 interface CustomerSidebarProps {
   activeTab: CustomerTab;
   onSelectTab: (tab: CustomerTab) => void;
   activeUnitCount: number;
+  customerUser?: CustomerUser | null;
+  onOpenLogin?: () => void;
 }
 
 export default function CustomerSidebar({
   activeTab,
   onSelectTab,
   activeUnitCount,
+  customerUser,
+  onOpenLogin,
 }: CustomerSidebarProps) {
   return (
     <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 shrink-0 sticky top-0 h-screen z-40">
@@ -154,17 +158,27 @@ export default function CustomerSidebar({
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#4f39f6] to-[#7c3aed] flex items-center justify-center font-bold text-white text-sm shadow-md">
-              NH
+              {customerUser?.fullName ? customerUser.fullName.slice(0, 2).toUpperCase() : 'KH'}
             </div>
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900" />
           </div>
           <div className="overflow-hidden flex-1">
-            <div className="text-sm font-semibold text-white truncate">Nguyễn Văn Hải</div>
-            <div className="text-xs text-emerald-400 flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3" />
-              Đã xác thực CCCD
+            <div className="text-sm font-semibold text-white truncate">
+              {customerUser?.fullName || 'Khách thuê kho'}
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              {customerUser?.email || 'customer@selfstorage.com'}
             </div>
           </div>
+          {onOpenLogin && (
+            <button
+              onClick={onOpenLogin}
+              className="text-[10px] text-[#818cf8] hover:text-white px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10"
+              title="Đổi tài khoản"
+            >
+              Đổi
+            </button>
+          )}
         </div>
       </div>
     </aside>

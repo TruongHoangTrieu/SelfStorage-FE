@@ -58,8 +58,19 @@ export interface CustomerUnit {
   guestPasses: GuestPass[];
   paymentHistory: PaymentRecord[];
   supportTickets: SupportTicket[];
+  facilityId?: number;
   rawContractId?: number;
+  rawContractItemId?: number;
   rawUnitId?: number;
+}
+
+export interface CustomerUser {
+  id: number;
+  email: string;
+  fullName: string;
+  role: string;
+  phone?: string;
+  idCard?: string;
 }
 
 export type CustomerTab = 'my_units' | 'billing' | 'access' | 'documents' | 'support' | 'profile';
