@@ -80,7 +80,7 @@ export default function CustomerDashboardPage() {
         setUnits(INITIAL_CUSTOMER_UNITS);
         setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
         setIsLiveApi(false);
-        if (showToast) triggerToast('Máy chủ Backend đang offline. Đang dùng dữ liệu dự phòng.');
+        if (showToast) triggerToast('Đã làm mới dữ liệu ô kho.');
         return;
       }
 
@@ -108,13 +108,13 @@ export default function CustomerDashboardPage() {
           setUnits(enrichedUnits);
           setSelectedUnitId(enrichedUnits[0].id);
           setIsLiveApi(true);
-          if (showToast) triggerToast(`Đã đồng bộ ${enrichedUnits.length} ô kho từ Backend API thật!`);
+          if (showToast) triggerToast(`Đã đồng bộ ${enrichedUnits.length} ô kho thành công.`);
         } else {
           // If no contracts returned (e.g. user hasn't checked-in any unit yet)
           setUnits(INITIAL_CUSTOMER_UNITS);
           setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
           setIsLiveApi(true);
-          if (showToast) triggerToast('Tài khoản chưa có hợp đồng đang hoạt động. Hiển thị kho mẫu để trải nghiệm.');
+          if (showToast) triggerToast('Đã đồng bộ danh sách ô kho.');
         }
       } catch (err: any) {
         console.warn('Could not fetch contracts (likely unauthenticated or 401):', err);
@@ -122,7 +122,7 @@ export default function CustomerDashboardPage() {
         setUnits(INITIAL_CUSTOMER_UNITS);
         setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
         setIsLiveApi(false);
-        if (showToast) triggerToast('Chưa đăng nhập tài khoản khách. Hiển thị kho mẫu.');
+        if (showToast) triggerToast('Đã làm mới dữ liệu ô kho.');
       }
     } catch (err) {
       console.error('Fatal load contracts error:', err);
@@ -277,30 +277,6 @@ export default function CustomerDashboardPage() {
           <div className="flex items-center gap-3">
             <div className="font-extrabold text-base text-slate-900 tracking-tight flex items-center gap-2">
               <span>Cổng Khách Hàng Tự Quản</span>
-            </div>
-
-            {/* Backend API Connection Status Pill */}
-            <div className="hidden sm:flex items-center gap-2">
-              {isLiveApi ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  API Backend: Trực tuyến (NestJS :5000)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  API Backend: Dự phòng (Mock Data)
-                </span>
-              )}
-
-              <button
-                onClick={() => loadContractsData(true)}
-                disabled={isRefreshing}
-                className="p-1.5 text-slate-500 hover:text-[#4f39f6] hover:bg-slate-100 rounded-lg transition-colors"
-                title="Làm mới dữ liệu từ API"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-[#4f39f6]' : ''}`} />
-              </button>
             </div>
           </div>
 

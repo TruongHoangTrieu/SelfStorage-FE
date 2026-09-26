@@ -54,9 +54,9 @@ export default function CustomerLoginModal({
             </div>
             <div>
               <h3 className="font-bold text-sm text-slate-900">
-                Đăng Nhập Cổng Khách Hàng (Customer JWT)
+                Đăng Nhập Cổng Khách Hàng
               </h3>
-              <p className="text-xs text-slate-500">Kết nối NestJS Backend API thật</p>
+              <p className="text-xs text-slate-500">Cổng dịch vụ quản lý ô kho tự phục vụ</p>
             </div>
           </div>
           <button

@@ -387,15 +387,31 @@ export default function HandoverProcess({
             </div>
 
             {/* Trích đoạn tóm tắt hợp đồng */}
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs space-y-2 font-mono text-slate-600">
-              <div className="flex justify-between text-slate-800 font-bold border-b border-slate-200 pb-1">
-                <span>HỢP ĐỒNG THUÊ KHO SỐ: HĐTK-{appointment.id.replace('SS-BK-', '')}</span>
-                <span className="text-emerald-600">CHỮ KÝ SỐ HỢP LỆ</span>
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs space-y-2.5 font-sans text-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200 pb-2">
+                <div>
+                  <span className="font-mono font-bold text-slate-900 block">
+                    HỢP ĐỒNG CHO THUÊ KHO BÃI & NHÀ XƯỞNG
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    Số: SS-HĐ-{appointment.id.replace(/[^a-zA-Z0-9]/g, '')}/2026
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f39f6] border border-indigo-200">
+                    Mẫu Luật Việt Nam 2026
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Chữ ký số hợp lệ
+                  </span>
+                </div>
               </div>
-              <p>Bên A (Cho thuê): CÔNG TY CP DỊCH VỤ LƯU TRỮ TỰ QUẢN SELFSTORAGE VN</p>
-              <p>Bên B (Khách thuê): <strong>{appointment.customerName}</strong> (CCCD: {appointment.idCard})</p>
-              <p>Ô kho bàn giao: <strong>#{activeUnit}</strong> - {appointment.unitSize}</p>
-              <p>Thời hạn thuê: Từ {appointment.startDate} ({appointment.durationMonths} tháng)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <p>• <strong>Bên A (Cho thuê):</strong> CÔNG TY CP SELFSTORAGE VN</p>
+                <p>• <strong>Bên B (Khách thuê):</strong> <strong className="text-slate-900">{appointment.customerName}</strong> (CCCD: {appointment.idCard})</p>
+                <p>• <strong>Ngăn kho bàn giao:</strong> <strong className="text-[#4f39f6]">Ô #{activeUnit}</strong> ({appointment.unitSize})</p>
+                <p>• <strong>Thời hạn thuê:</strong> {appointment.durationMonths} tháng (Từ {appointment.startDate})</p>
+              </div>
             </div>
 
             {/* Danh mục kiểm tra tại chỗ (Checklist) */}

@@ -54,9 +54,9 @@ export default function StaffLoginModal({
             </div>
             <div>
               <h3 className="font-bold text-sm text-slate-900">
-                Đăng Nhập Cổng Vận Hành (Staff JWT)
+                Đăng Nhập Cổng Nhân Viên
               </h3>
-              <p className="text-xs text-slate-500">Kết nối NestJS Backend API thật</p>
+              <p className="text-xs text-slate-500">Hệ thống điều hành và bàn giao cơ sở</p>
             </div>
           </div>
           <button
