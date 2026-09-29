@@ -127,7 +127,7 @@ export default function CustomerDashboard() {
 
   return (
     <section className="py-12 bg-slate-50 min-h-screen">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
         
         <div className="flex flex-col lg:flex-row gap-10">
           

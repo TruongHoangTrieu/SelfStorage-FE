@@ -18,8 +18,6 @@ export default function Navbar() {
   const [user, setUser] = useState<UserType | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [currentLang, setCurrentLang] = useState<"VI" | "EN">("VI");
 
   useEffect(() => {
     function readAuth() {
@@ -60,8 +58,7 @@ export default function Navbar() {
 
   const navLinks = [
     { label: "Dịch Vụ", href: "/#services" },
-    { label: "B2B", href: "/#b2b" },
-    { label: "Địa Điểm Kho", href: "/#locations" },
+    { label: "Địa Điểm Kho", href: "/locations" },
     { label: "Về Chúng Tôi", href: "/#how-it-works" },
     { label: "Xem giá", href: "/locations" },
     { label: "Liên Hệ", href: "/#contact" },
@@ -70,16 +67,16 @@ export default function Navbar() {
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-white/98 backdrop-blur-md border-b border-slate-100 shadow-sm transition-all">
-      <div className="w-full mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between xl:justify-center xl:gap-5 2xl:gap-6 h-20">
+      <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
+        <div className="flex items-center justify-between xl:justify-center xl:gap-6 2xl:gap-8 h-20 sm:h-22">
           
-          {/* Logo */}
+          {/* Logo (Enlarged) */}
           <div className="flex items-center shrink-0">
             <Link href="/" className="inline-flex items-center group">
               <img
                 src="/logo.png"
                 alt="SelfStorage Logo"
-                className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105"
+                className="h-12 sm:h-14 md:h-16 w-auto object-contain transition-transform group-hover:scale-105"
               />
             </Link>
           </div>
@@ -115,38 +112,8 @@ export default function Navbar() {
             )}
           </nav>
 
-          {/* Right Action Items: Language, Phone, Auth, CTA Button */}
+          {/* Right Action Items: Phone, Auth, CTA Button */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
-            {/* Language Picker */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setLangMenuOpen(!langMenuOpen)}
-                className="flex items-center gap-1 text-sm font-bold text-slate-700 hover:text-blue-600 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition"
-              >
-                <span className="text-base">{currentLang === "VI" ? "🇻🇳" : "🇬🇧"}</span>
-                <span>{currentLang}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              {langMenuOpen && (
-                <div className="absolute right-0 mt-1 w-28 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 text-xs font-semibold animate-in fade-in">
-                  <button
-                    onClick={() => { setCurrentLang("VI"); setLangMenuOpen(false); }}
-                    className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-50 ${currentLang === "VI" ? "text-blue-600 font-bold" : "text-slate-700"}`}
-                  >
-                    <span>🇻🇳</span> Tiếng Việt
-                  </button>
-                  <button
-                    onClick={() => { setCurrentLang("EN"); setLangMenuOpen(false); }}
-                    className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-50 ${currentLang === "EN" ? "text-blue-600 font-bold" : "text-slate-700"}`}
-                  >
-                    <span>🇬🇧</span> English
-                  </button>
-                </div>
-              )}
-            </div>
-
             {/* Phone Number */}
             <div>
               <a

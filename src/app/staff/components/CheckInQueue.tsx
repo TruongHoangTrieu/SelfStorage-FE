@@ -52,7 +52,7 @@ export default function CheckInQueue({
   }, [filteredAppointments]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto animate-slide-up-fade">
+    <div className="space-y-6 w-full max-w-[1800px] mx-auto animate-slide-up-fade">
       {/* 1. Thanh đo lường nhanh (Metrics Bar) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">

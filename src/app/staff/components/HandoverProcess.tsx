@@ -67,7 +67,7 @@ export default function HandoverProcess({
   const activeUnit = selectedUnitCode || appointment.assignedUnit;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-slide-up-fade">
+    <div className="w-full max-w-[1800px] mx-auto space-y-6 animate-slide-up-fade">
       {/* Back breadcrumb & action bar */}
       <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-3">

@@ -42,7 +42,7 @@ export default function MyUnitsGrid({
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto animate-slide-up-fade">
+    <div className="space-y-8 w-full max-w-[1800px] mx-auto animate-slide-up-fade">
       {/* Top Welcome & Account Summary Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-[#4f39f6]/20 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />

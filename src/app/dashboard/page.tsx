@@ -329,7 +329,7 @@ export default function CustomerDashboardPage() {
             <>
               {/* Loading skeleton */}
               {loading && (
-                <div className="max-w-6xl mx-auto space-y-4 animate-pulse">
+                <div className="w-full max-w-[1800px] mx-auto space-y-4 animate-pulse">
                   <div className="h-8 w-48 bg-slate-200 rounded-xl" />
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {[1, 2, 3].map(i => (

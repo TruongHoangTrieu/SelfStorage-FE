@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import Footer from "@/components/Footer";
 import { api } from "@/lib/api";
 import {
   ArrowLeft, CheckCircle2, ChevronRight, Shield, CreditCard,
@@ -366,21 +367,23 @@ export default function BookingFlow() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="bg-white border-b border-slate-200 py-5 px-8 flex items-center justify-between sticky top-0 z-10 shadow-xs">
-        <Link
-          href="/locations"
-          className="group flex items-center text-sm font-bold text-slate-500 hover:text-slate-950 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-          BACK
-        </Link>
-        <div className="text-xl font-black tracking-tight text-slate-950">
-          Self<span className="text-[#7E22CE]">Storage</span>
+      <header className="bg-white border-b border-slate-200 py-5 px-6 sm:px-10 lg:px-12 xl:px-16 sticky top-0 z-10 shadow-xs">
+        <div className="w-full max-w-[1800px] mx-auto flex items-center justify-between">
+          <Link
+            href="/locations"
+            className="group flex items-center text-sm font-bold text-slate-500 hover:text-slate-950 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+            BACK
+          </Link>
+          <div className="text-xl font-black tracking-tight text-slate-950">
+            Self<span className="text-[#7E22CE]">Storage</span>
+          </div>
+          <div className="w-16" />
         </div>
-        <div className="w-16" />
       </header>
 
-      <main className="flex-grow flex flex-col lg:flex-row max-w-7xl w-full mx-auto">
+      <main className="flex-grow flex flex-col lg:flex-row w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
         <div className="flex-grow p-6 lg:p-12">
           <div className="flex items-center space-x-2 mb-12">
             {[1, 2, 3].map((s) => (
@@ -806,6 +809,7 @@ export default function BookingFlow() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
