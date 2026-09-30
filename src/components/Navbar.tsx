@@ -62,7 +62,6 @@ export default function Navbar() {
     { label: "Về Chúng Tôi", href: "/#how-it-works" },
     { label: "Xem giá", href: "/locations" },
     { label: "Liên Hệ", href: "/#contact" },
-    { label: "Theo dõi ngay", href: "/#reviews" },
   ];
 
   return (

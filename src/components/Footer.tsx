@@ -22,7 +22,7 @@ export default function Footer() {
             </Link>
 
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Hệ thống cho thuê và quản lý kho tự quản thông minh hàng đầu tại TP. Hồ Chí Minh. Tự do ra vào 24/7 bằng mã Smart Key độc lập.
+              Hệ thống cho thuê và quản lý kho tự quản thông minh hàng đầu. Tự do ra vào 24/7 bằng mã Smart Key độc lập.
             </p>
 
             <div className="pt-2">
@@ -33,7 +33,7 @@ export default function Footer() {
                 <Phone className="w-5 h-5 text-orange-400" />
                 <span>028 7770 0117</span>
               </a>
-              <p className="text-xs text-slate-500 mt-1">Hỗ trợ khách hàng 24/7 tại TP.HCM</p>
+              <p className="text-xs text-slate-500 mt-1">Hỗ trợ khách hàng 24/7</p>
             </div>
           </div>
 
@@ -54,20 +54,19 @@ export default function Footer() {
             <h4 className="text-xs font-bold uppercase tracking-widest text-white mb-4">Quy Trình &amp; Hỗ Trợ</h4>
             <ul className="space-y-2.5 text-xs sm:text-sm text-slate-400">
               <li><Link href="/#how-it-works" className="hover:text-white transition">Hành trình thuê kho 6 bước</Link></li>
-              <li><Link href="/#services" className="hover:text-white transition">Dịch vụ kho tự quản TP.HCM</Link></li>
+              <li><Link href="/#services" className="hover:text-white transition">Dịch vụ kho tự quản 24/7</Link></li>
               <li><Link href="/#faq" className="hover:text-white transition">Câu hỏi thường gặp (FAQ)</Link></li>
               <li><Link href="/#contact" className="hover:text-white transition">Đăng ký tư vấn &amp; báo giá</Link></li>
-              <li><Link href="/locations" className="text-orange-400 font-bold hover:underline">Xem bảng giá trực tuyến</Link></li>
             </ul>
           </div>
 
-          {/* Col 4: Hệ thống cơ sở TP.HCM */}
+          {/* Col 4: Hệ thống cơ sở */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-white mb-4">Hệ Thống Cơ Sở TP.HCM</h4>
+            <h4 className="text-xs font-bold uppercase tracking-widest text-white mb-4">Hệ Thống Cơ Sở</h4>
             <ul className="space-y-2.5 text-xs sm:text-sm text-slate-400">
               <li className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-                <span>Chi nhánh kho phủ sóng toàn TP. Hồ Chí Minh</span>
+                <span>Chi nhánh kho tại các vị trí thuận tiện</span>
               </li>
               <li className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -77,21 +76,13 @@ export default function Footer() {
                 <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
                 <span>Camera AI giám sát đa tầng 24/7</span>
               </li>
-              <li className="pt-2">
-                <Link
-                  href="/locations"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-blue-400 hover:text-blue-300"
-                >
-                  <span>Tra cứu chi nhánh gần bạn →</span>
-                </Link>
-              </li>
             </ul>
           </div>
 
         </div>
 
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© 2026 SelfStorage Việt Nam (TP. Hồ Chí Minh). Bản quyền đã được bảo lưu.</p>
+          <p>© 2026 SelfStorage Việt Nam. Bản quyền đã được bảo lưu.</p>
           <div className="flex items-center gap-4">
             <span>Bảo mật dữ liệu chuẩn ISO/IEC</span>
             <span>•</span>

@@ -67,7 +67,7 @@ export function normalizeCustomerContract(contract: any): CustomerUnit[] {
       area,
       facilityId: facility.id || unit.facilityId || 1,
       facilityName: facility.name || 'Cơ sở Landmark 81 - Chi nhánh Bình Thạnh',
-      facilityAddress: facility.address || 'Khu B, Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh, TP.HCM',
+      facilityAddress: facility.address || 'Khu B, Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh',
       zone: unit.zone || 'Khu A',
       floor: unit.floor || 'Tầng 1 (Kế thang máy)',
       status: uiStatus,

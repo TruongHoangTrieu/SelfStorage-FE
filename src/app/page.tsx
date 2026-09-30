@@ -57,6 +57,7 @@ interface ApiFacility {
   phone?: string;
   email?: string;
   status?: string;
+  images?: string[];
   totalUnits?: number;
   availableUnits?: number;
   totalUnitTypes?: number;
@@ -64,16 +65,19 @@ interface ApiFacility {
 
 // Fallback images for facility cards
 const facilityImages = [
-  "/climate_control.jpg",
-  "/smart_access.jpg",
-  "/security_camera.jpg"
+  "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1565118531796-763e5082d113?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1549194388-f61be84a6e9e?auto=format&fit=crop&w=1200&q=80"
 ];
 
 // FAQs Data (100% Focused on Self-Storage)
 const FAQS = [
   {
     q: "Quy trình thuê kho tự quản trên hệ thống diễn ra như thế nào?",
-    a: "Quy trình 100% trực tuyến: Bạn chỉ cần (1) Chọn cơ sở kho tại TP.HCM & kích thước box phù hợp; (2) Chọn ngày bắt đầu và thời hạn thuê; (3) Thanh toán tiền cọc/tiền thuê tự động qua VietQR; (4) Đến cơ sở theo lịch hẹn, nhân viên hỗ trợ check-in và nhận mã Smart Key để tự do ra vào 24/7."
+    a: "Quy trình 100% trực tuyến: Bạn chỉ cần (1) Chọn cơ sở kho & kích thước box phù hợp; (2) Chọn ngày bắt đầu và thời hạn thuê; (3) Thanh toán tiền cọc/tiền thuê tự động qua VietQR; (4) Đến cơ sở theo lịch hẹn, nhân viên hỗ trợ check-in và nhận mã Smart Key để tự do ra vào 24/7."
   },
   {
     q: "Tôi có thể ra vào kho tự quản vào thời gian nào?",
@@ -89,7 +93,7 @@ const FAQS = [
   },
   {
     q: "Nhiệt độ và độ ẩm trong kho có được đảm bảo cho đồ gỗ, điện tử không?",
-    a: "Tất cả các kho tự quản của SelfStorage tại TP.HCM đều trang bị hệ thống máy lạnh duy trì nhiệt độ 23°C – 25°C cùng máy hút ẩm công nghiệp hoạt động liên tục 24/7, giúp bảo vệ đồ gỗ nội thất, nệm, tài liệu và thiết bị điện tử khỏi ẩm mốc."
+    a: "Tất cả các kho tự quản của SelfStorage đều trang bị hệ thống máy lạnh duy trì nhiệt độ 23°C – 25°C cùng máy hút ẩm công nghiệp hoạt động liên tục 24/7, giúp bảo vệ đồ gỗ nội thất, nệm, tài liệu và thiết bị điện tử khỏi ẩm mốc."
   },
   {
     q: "Khi gặp sự cố quên mã PIN hoặc sự cố phòng kho, tôi cần làm gì?",
@@ -109,7 +113,7 @@ const REVIEWS = [
   {
     name: "Phúc Lê",
     rating: 5,
-    role: "Chủ shop TMĐT TP.HCM · Google Review",
+    role: "Chủ shop TMĐT · Google Review",
     comment: "Kho máy lạnh sạch sẽ, xuất nhập hàng lúc nào cũng được. Trên hệ thống có thể quản lý nhiều box và xem hạn gia hạn rất rõ ràng. Đáng tin cậy 100%!",
     avatarBg: "bg-orange-600"
   },
@@ -197,23 +201,19 @@ export default function LandingPage() {
             {/* Left Content */}
             <div className="lg:col-span-7 space-y-6">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-semibold tracking-wide backdrop-blur-md">
-                <span className="w-2 h-2 rounded-full bg-orange-400 animate-ping"></span>
-                <span>Hệ Thống Kho Tự Quản Thông Minh 24/7 · TP. Hồ Chí Minh</span>
-              </div>
+            
 
               {/* Main Headline */}
               <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-[62px] font-black tracking-tight leading-[1.1] text-white">
                 Dịch vụ cho thuê <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-400">
                   kho tự quản thông minh
-                </span>{" "}
-                tại TP.HCM
+                </span>
               </h1>
 
               {/* Subtitle */}
               <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed font-normal">
-                Nền tảng cho thuê và quản lý kho tự quản chuẩn Âu - Mỹ tại TP. Hồ Chí Minh. Khách hàng chủ động đặt phòng trực tuyến, thanh toán cọc tự động, check-in nhận phòng và tự do mở cửa bằng Smart Key 24/7.
+                Nền tảng cho thuê và quản lý kho tự quản thông minh. Khách hàng chủ động đặt phòng trực tuyến, thanh toán cọc tự động, check-in nhận phòng và tự do mở cửa bằng Smart Key 24/7.
               </p>
 
               {/* Key Specs Pills */}
@@ -269,16 +269,11 @@ export default function LandingPage() {
                   <div className="relative aspect-[16/10] w-full overflow-hidden">
                     <img
                       src="/climate_control.jpg"
-                      alt="Cơ sở kho tự quản SelfStorage hiện đại máy lạnh tại TP.HCM"
+                      alt="Cơ sở kho tự quản SelfStorage hiện đại máy lạnh"
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
-                    
-                    {/* Live Status Badge */}
-                    <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-semibold backdrop-blur">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Kho tự quản hoạt động 24/7 tại TP.HCM
-                    </div>
+                  
 
                     <div className="absolute bottom-4 left-4 right-4 text-white">
                       <p className="text-xs text-orange-400 font-bold uppercase tracking-wider">Hệ sinh thái thông minh khép kín</p>
@@ -336,7 +331,7 @@ export default function LandingPage() {
               Hành Trình Thuê Kho Tự Quản 100% Khép Kín &amp; Tự Động
             </h2>
             <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed">
-              Từ bước chọn cơ sở kho tại TP.HCM đến lúc check-in nhận phòng, thanh toán cọc và quản lý kho lưu trữ — mọi thao tác đều được tối ưu hóa trực tuyến.
+              Từ bước chọn cơ sở kho đến lúc check-in nhận phòng, thanh toán cọc và quản lý kho lưu trữ — mọi thao tác đều được tối ưu hóa trực tuyến.
             </p>
           </div>
 
@@ -351,7 +346,7 @@ export default function LandingPage() {
                   Khám Phá Cơ Sở &amp; Kích Thước Kho
                 </h3>
                 <p className="mt-3 text-slate-600 text-sm leading-relaxed">
-                  Xem danh sách cơ sở kho tại TP.HCM, so sánh các loại box từ 1m³ đến 23m³+, xem số phòng trống và bảng giá thuê niêm yết công khai.
+                  Xem danh sách cơ sở kho, so sánh các loại box từ 1m³ đến 23m³+, xem số phòng trống và bảng giá thuê niêm yết công khai.
                 </p>
               </div>
               <div className="mt-6 pt-4 border-t border-slate-200/80 text-xs font-bold text-blue-600 flex items-center gap-1">
@@ -452,19 +447,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 4. DYNAMIC FACILITY LOCATIONS FROM API (TP.HCM ONLY) */}
+      {/* 4. DYNAMIC FACILITY LOCATIONS FROM API */}
       <section id="locations" className="py-20 sm:py-28 bg-white border-b border-slate-200">
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
           <div className="w-full mb-12 sm:mb-16">
             <p className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-extrabold text-blue-600 bg-blue-100/70 px-3 py-1 rounded-full mb-3">
               <MapPin className="w-3.5 h-3.5 text-orange-500" />
-              Mạng Lưới Cơ Sở Kho Tại TP.HCM
+              Mạng Lưới Cơ Sở Kho
             </p>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Hệ Thống Cơ Sở Kho Tự Quản
             </h2>
             <p className="mt-3 text-slate-600 text-base sm:text-lg">
-              Danh sách các cơ sở kho tự quản đang hoạt động tại TP. Hồ Chí Minh. Dữ liệu phòng kho và tình trạng sẵn sàng được đồng bộ từ API hệ thống.
+              Danh sách các cơ sở kho tự quản đang hoạt động trên hệ thống.
             </p>
           </div>
 
@@ -497,33 +492,35 @@ export default function LandingPage() {
                 >
                   <div>
                     {/* Top status bar */}
-                    <div className="flex items-center justify-between gap-2 mb-4">
-                      <span className="px-3 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs">
-                        {fac.code || `FAC_${fac.id}`}
-                      </span>
+                    <div className="flex items-center justify-end gap-2 mb-4">
                       <span className="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700">
                         ● {fac.status === "ACTIVE" ? "Đang hoạt động" : fac.status || "Còn phòng"}
                       </span>
                     </div>
 
                     {/* Facility Image preview */}
-                    <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden mb-5 bg-slate-200">
+                    <Link
+                      href={`/locations/${fac.id}`}
+                      className="block relative aspect-[16/9] w-full rounded-2xl overflow-hidden mb-5 bg-slate-200 cursor-pointer"
+                    >
                       <img
-                        src={facilityImages[idx % facilityImages.length]}
+                        src={(fac.images && fac.images.length > 0 ? fac.images[0] : null) || facilityImages[idx % facilityImages.length]}
                         alt={fac.name || "Cơ sở kho tự quản"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">
                         Kho Tự Quản 24/7
                       </div>
-                    </div>
+                    </Link>
 
-                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition">
-                      {fac.name}
-                    </h3>
+                    <Link href={`/locations/${fac.id}`} className="block group/title">
+                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition">
+                        {fac.name}
+                      </h3>
+                    </Link>
                     <p className="mt-2 text-sm text-slate-500 flex items-start gap-2 leading-relaxed">
                       <MapPin className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                      <span>{fac.address || "Địa chỉ tại TP. Hồ Chí Minh"}</span>
+                      <span>{fac.address || "Địa chỉ cơ sở kho"}</span>
                     </p>
 
                     {fac.description && (
@@ -551,15 +548,15 @@ export default function LandingPage() {
 
                   <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between">
                     <Link
-                      href="/locations"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 group-hover:text-blue-700"
+                      href={`/locations/${fac.id}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700"
                     >
-                      <span>Xem phòng trống</span>
+                      <span>Xem kho &amp; bảng giá</span>
                       <ChevronRight className="w-4 h-4" />
                     </Link>
                     <Link
-                      href="/locations"
-                      className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-sm transition"
+                      href={`/book/${fac.id}`}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-sm transition hover:-translate-y-0.5"
                     >
                       Đặt Phòng Ngay
                     </Link>
@@ -585,7 +582,7 @@ export default function LandingPage() {
               Tôi Có Thể Lưu Trữ Những Gì Trong Kho Tự Quản?
             </h2>
             <p className="mt-3 text-slate-600 text-base sm:text-lg">
-              Hệ thống phòng kho tự quản máy lạnh tại TP.HCM đáp ứng trọn vẹn mọi nhu cầu lưu trữ từ đồ dùng gia đình đến hàng hóa kinh doanh.
+              Hệ thống phòng kho tự quản máy lạnh đáp ứng trọn vẹn mọi nhu cầu lưu trữ từ đồ dùng gia đình đến hàng hóa kinh doanh.
             </p>
           </div>
 
@@ -595,7 +592,7 @@ export default function LandingPage() {
               <div className="aspect-[16/10] bg-slate-200 overflow-hidden relative">
                 <img
                   src="/climate_control.jpg"
-                  alt="Lưu trữ nội thất khi chuyển nhà TP.HCM"
+                  alt="Lưu trữ nội thất khi chuyển nhà"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute top-3 left-3 px-3 py-1 rounded-lg bg-slate-900/80 backdrop-blur text-white text-xs font-bold">
@@ -715,14 +712,14 @@ export default function LandingPage() {
               “Quy trình đặt kho và check-in tự động rất chuyên nghiệp. Kho sạch sẽ, bảo mật cao và quản lý hạn thuê trên điện thoại cực kỳ tiện lợi!”
             </blockquote>
             <p className="mt-6 text-xs sm:text-sm uppercase tracking-widest font-bold text-orange-400">
-              Trương Huỳnh Hiếu · Khách hàng thực tế tại TP. Hồ Chí Minh
+              Trương Huỳnh Hiếu · Khách hàng thực tế
             </p>
           </div>
 
           <div className="text-center w-full mx-auto mb-12">
             <h3 className="text-2xl sm:text-3xl font-bold">Hàng Ngàn Khách Hàng Đã Tin Tưởng &amp; Hài Lòng</h3>
             <p className="mt-2 text-slate-400 text-sm sm:text-base">
-              Đánh giá <strong className="text-white">4.9 / 5.0 ⭐ EXCELLENT</strong> dựa trên hơn <strong>675+</strong> nhận xét thực tế từ khách hàng tại TP.HCM.
+              Đánh giá <strong className="text-white">4.9 / 5.0 ⭐ EXCELLENT</strong> dựa trên hơn <strong>675+</strong> nhận xét từ khách hàng thực tế.
             </p>
           </div>
 
@@ -770,7 +767,7 @@ export default function LandingPage() {
               Những Câu Hỏi Thường Gặp Về Kho Tự Quản
             </h2>
             <p className="mt-3 text-slate-600 text-base sm:text-lg">
-              Giải đáp mọi thắc mắc về quy định ra vào 24/7, chính sách đặt cọc, thanh toán và bảng giá thuê kho tự quản tại SelfStorage TP.HCM.
+              Giải đáp mọi thắc mắc về quy định ra vào 24/7, chính sách đặt cọc, thanh toán và bảng giá thuê kho tự quản tại SelfStorage.
             </p>
           </div>
 
@@ -848,7 +845,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <div className="font-bold text-slate-900">Khu vực phục vụ:</div>
-                    <span>Toàn bộ hệ thống cơ sở kho tự quản tại TP. Hồ Chí Minh</span>
+                    <span>Toàn bộ hệ thống cơ sở kho tự quản</span>
                   </div>
                 </div>
               </div>
@@ -908,7 +905,7 @@ export default function LandingPage() {
 
                     <div>
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                        Cơ Sở Kho (TP.HCM)
+                        Cơ Sở Kho
                       </label>
                       <select
                         value={contactForm.facilityId}
@@ -922,7 +919,7 @@ export default function LandingPage() {
                             </option>
                           ))
                         ) : (
-                          <option value="">Tất cả cơ sở tại TP.HCM</option>
+                          <option value="">Tất cả cơ sở</option>
                         )}
                       </select>
                     </div>

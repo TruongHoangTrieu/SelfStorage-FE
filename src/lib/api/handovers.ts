@@ -104,7 +104,7 @@ export function normalizeReservation(item: any): CheckInAppointment {
     rawId: item.id,
     facilityId: item.facilityId || item.facility?.id,
     facilityName: item.facility?.name || 'Cơ sở Landmark 81',
-    facilityAddress: item.facility?.address || 'Khu B, Bình Thạnh, TP.HCM',
+    facilityAddress: item.facility?.address || 'Khu B, Bình Thạnh',
     customerName: item.customer?.fullName || 'Khách hàng',
     phone: item.customer?.phone || '0900 000 000',
     email: item.customer?.email || 'customer@selfstorage.com',

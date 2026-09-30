@@ -61,7 +61,7 @@ export default function Sidebar({
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <div className="overflow-hidden flex-1">
             <div className="text-xs font-semibold text-white truncate">{facilityName}</div>
-            <div className="text-[10px] text-slate-400 truncate">Khu B - Bình Thạnh, TP.HCM</div>
+            <div className="text-[10px] text-slate-400 truncate">Khu B - Bình Thạnh</div>
           </div>
         </div>
       </div>

@@ -97,7 +97,7 @@ function extractDistrict(address: string, name: string): string {
   if (text.includes("bình thạnh") || text.includes("binh thanh") || text.includes("landmark")) return "Q. Bình Thạnh";
   if (text.includes("quận 6") || text.includes("q. 6") || text.includes("q6")) return "Quận 6";
   if (text.includes("quận 9") || text.includes("q. 9") || text.includes("q9")) return "Quận 9";
-  return "TP. Hồ Chí Minh";
+  return "Khu Vực Trung Tâm";
 }
 
 function formatFacility(raw: ApiFacility, index: number): FormattedFacility {
@@ -225,35 +225,25 @@ export default function LocationsPage() {
   }, [facilities, searchTerm, selectedDistrict, selectedStatus]);
 
   return (
-    <main className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-amber-100 selection:text-amber-900 flex flex-col justify-between">
+    <main className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-600 selection:text-white flex flex-col justify-between">
       <Navbar />
 
       {/* 1. HERO BANNER (Live API facilities summary) */}
-      <section className="relative pt-28 pb-16 lg:pt-36 lg:pb-24 bg-[#0a2540] text-white overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-15 pointer-events-none"
-          style={{
-            backgroundImage: "radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px)",
-            backgroundSize: "28px 28px"
-          }}
-        ></div>
+      <section className="relative pt-28 pb-16 lg:pt-36 lg:pb-24 bg-gradient-to-b from-slate-900 via-blue-950 to-slate-900 text-white overflow-hidden">
+        {/* Decorative Background Grid */}
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:28px_28px] pointer-events-none"></div>
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-blue-500/20 rounded-full blur-[180px] pointer-events-none"></div>
 
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute top-1/2 -right-32 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="relative w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
+        <div className="relative w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16 z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
             {/* Left: Heading & Live Statistics */}
             <div className="lg:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/10 border border-white/15 text-amber-400 font-mono text-xs font-bold uppercase tracking-wider">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                DỮ LIỆU CƠ SỞ KHO TRỰC TIẾP TỪ HỆ THỐNG
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.08]">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.08] text-white">
                 Địa điểm <br />
-                <span className="text-amber-400">kho lưu trữ thông minh</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-400">
+                  kho lưu trữ thông minh
+                </span>
               </h1>
 
               <p className="text-slate-200 text-base sm:text-lg leading-relaxed max-w-2xl font-normal">
@@ -263,7 +253,7 @@ export default function LocationsPage() {
               {/* Dynamic Stats Badges from Live API */}
               <div className="flex flex-wrap gap-2.5 pt-2">
                 <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 backdrop-blur-sm">
-                  <Building2 className="w-4 h-4 text-amber-400" />
+                  <Building2 className="w-4 h-4 text-orange-400 shrink-0" />
                   <span className="text-sm font-bold text-white">
                     {loading ? "..." : `${facilities.length} Cơ sở kho`}
                   </span>
@@ -271,7 +261,7 @@ export default function LocationsPage() {
                 </div>
 
                 <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 backdrop-blur-sm">
-                  <Box className="w-4 h-4 text-emerald-400" />
+                  <Box className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span className="text-sm font-bold text-white">
                     {loading
                       ? "..."
@@ -281,7 +271,7 @@ export default function LocationsPage() {
                 </div>
 
                 <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 backdrop-blur-sm">
-                  <Clock className="w-4 h-4 text-sky-400" />
+                  <Clock className="w-4 h-4 text-sky-400 shrink-0" />
                   <span className="text-sm font-bold text-white">24/7</span>
                   <span className="text-xs text-slate-300">Ra vào Smart Key</span>
                 </div>
@@ -291,7 +281,7 @@ export default function LocationsPage() {
               <div className="pt-4 flex flex-wrap items-center gap-4">
                 <a
                   href="#facilities-directory"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-extrabold text-sm text-slate-950 bg-amber-400 hover:bg-amber-300 active:scale-95 shadow-lg shadow-amber-400/25 transition-all"
+                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full text-sm font-extrabold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:scale-95 transition-all text-center uppercase tracking-wider whitespace-nowrap"
                 >
                   <span>Xem danh sách cơ sở</span>
                   <ArrowRight className="w-4 h-4" />
@@ -300,9 +290,9 @@ export default function LocationsPage() {
                 {activeFacility && (
                   <a
                     href="#live-map-section"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-bold text-sm text-white border border-white/30 hover:bg-white/10 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-bold text-sm text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur transition-all text-center whitespace-nowrap"
                   >
-                    <Eye className="w-4 h-4 text-amber-400" />
+                    <Eye className="w-4 h-4 text-amber-300" />
                     <span>Xem bản đồ chi nhánh</span>
                   </a>
                 )}
@@ -314,34 +304,37 @@ export default function LocationsPage() {
               <div className="relative isolate">
                 <div
                   aria-hidden="true"
-                  className="absolute -bottom-3 -right-3 -z-10 h-full w-full rounded-2xl border-2 border-amber-400/80 bg-amber-400/10 pointer-events-none"
+                  className="absolute -bottom-3 -right-3 -z-10 h-full w-full rounded-2xl border-2 border-orange-500/40 bg-orange-500/10 pointer-events-none"
                 ></div>
 
-                <div className="overflow-hidden rounded-2xl border border-white/20 bg-slate-800 shadow-2xl">
+                <Link
+                  href={activeFacility ? `/locations/${activeFacility.id}` : "#facilities-directory"}
+                  className="block group/heroCard overflow-hidden rounded-2xl border border-white/20 bg-slate-800 shadow-2xl transition hover:border-orange-500/50 cursor-pointer"
+                >
                   <img
                     src={activeFacility?.image || FACILITY_PHOTOS[0]}
                     alt="Kho tự quản SelfStorage"
-                    className="aspect-[4/3] w-full object-cover transform hover:scale-105 transition-transform duration-700"
+                    className="aspect-[4/3] w-full object-cover transform group-hover/heroCard:scale-105 transition-transform duration-700"
                   />
                   <div className="p-4 bg-slate-900/95 backdrop-blur border-t border-white/10 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-mono font-bold text-amber-400 uppercase">
-                        {activeFacility ? activeFacility.code : "Hệ thống SelfStorage"}
+                      <p className="text-xs font-mono font-bold text-orange-400 uppercase">
+                        {activeFacility ? activeFacility.district : "Hệ thống SelfStorage"}
                       </p>
-                      <p className="text-sm font-bold text-white truncate max-w-[220px]">
+                      <p className="text-sm font-bold text-white truncate max-w-[220px] group-hover/heroCard:text-orange-400 transition-colors">
                         {activeFacility ? activeFacility.name : "Đang kết nối cơ sở..."}
                       </p>
                     </div>
-                    
                   </div>
-                </div>
+                </Link>
               </div>
             </div>
 
           </div>
         </div>
 
-        <div className="absolute bottom-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-400"></div>
+        {/* Signature rainbow stripe */}
+        <div className="absolute bottom-0 inset-x-0 h-1.5 bg-gradient-to-r from-orange-500 via-amber-400 to-blue-600"></div>
       </section>
 
       {/* 2. FACILITIES DIRECTORY (Strictly Live API Data) */}
@@ -350,7 +343,7 @@ export default function LocationsPage() {
         {/* Section Header */}
         <div className="max-w-3xl mb-10">
           <div className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-blue-700 mb-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
             CƠ SỞ KHO ĐANG HOẠT ĐỘNG
           </div>
           <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
@@ -369,7 +362,7 @@ export default function LocationsPage() {
               <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Tìm cơ sở theo tên, mã kho (code), địa chỉ hoặc quận..."
+                placeholder="Tìm cơ sở theo tên, địa chỉ hoặc quận..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
@@ -387,7 +380,7 @@ export default function LocationsPage() {
                 }`}
               >
                 <Box className="w-3.5 h-3.5" />
-                Chỉ hiện cơ sở còn ngăn kho trống
+                Còn trống
               </button>
 
               <button
@@ -478,20 +471,20 @@ export default function LocationsPage() {
                 className="group bg-white rounded-2xl border border-slate-200 hover:border-blue-400 hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden"
               >
                 {/* Facility Image with Live Status & Available Units Badges */}
-                <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+                <Link
+                  href={`/locations/${fac.id}`}
+                  className="block relative aspect-[16/10] overflow-hidden bg-slate-100 cursor-pointer"
+                >
                   <img
                     src={fac.image}
                     alt={fac.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   
-                  {/* District & Code Pill */}
+                  {/* District Pill */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5">
                     <span className="px-2.5 py-0.5 rounded-full bg-slate-900/90 text-white text-[11px] font-mono font-bold tracking-wider backdrop-blur-sm uppercase">
                       {fac.district}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-mono font-bold">
-                      {fac.code}
                     </span>
                   </div>
 
@@ -509,14 +502,16 @@ export default function LocationsPage() {
                       </span>
                     )}
                   </div>
-                </div>
+                </Link>
 
                 {/* Card Body */}
                 <div className="p-5 flex flex-col flex-1">
                   <div className="mb-2">
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
-                      {fac.name}
-                    </h3>
+                    <Link href={`/locations/${fac.id}`} className="group/title">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover/title:text-blue-600 transition-colors line-clamp-2 leading-snug">
+                        {fac.name}
+                      </h3>
+                    </Link>
                   </div>
 
                   {/* Highlights from API */}
@@ -581,13 +576,23 @@ export default function LocationsPage() {
                       </a>
                     </div>
 
-                    <Link
-                      href={`/book/${fac.id}`}
-                      className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold text-xs text-white bg-slate-900 hover:bg-blue-600 transition-colors shadow-xs"
-                    >
-                      <span>Đặt chỗ</span>
-                      <ArrowRight className="w-3 h-3 ml-1" />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/locations/${fac.id}`}
+                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl font-bold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                      >
+                        <span>Xem kho</span>
+                        <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                      </Link>
+
+                      <Link
+                        href={`/book/${fac.id}`}
+                        className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 transition-all shadow-md shadow-orange-500/20 hover:-translate-y-0.5"
+                      >
+                        <span>Đặt chỗ</span>
+                        <ArrowRight className="w-3 h-3 ml-1" />
+                      </Link>
+                    </div>
                   </div>
 
                 </div>
@@ -605,7 +610,7 @@ export default function LocationsPage() {
             
             <div className="text-center max-w-3xl mx-auto mb-10">
               <div className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-blue-700 mb-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                 VỊ TRÍ &amp; BẢN ĐỒ THỰC TẾ
               </div>
               <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
@@ -628,7 +633,7 @@ export default function LocationsPage() {
                       : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-200"
                   }`}
                 >
-                  <MapPin className={`w-3.5 h-3.5 ${activeFacility.id === fac.id ? "text-amber-400" : "text-slate-400"}`} />
+                  <MapPin className={`w-3.5 h-3.5 ${activeFacility.id === fac.id ? "text-orange-400" : "text-slate-400"}`} />
                   <span>{fac.name}</span>
                 </button>
               ))}
@@ -650,11 +655,8 @@ export default function LocationsPage() {
               {/* Facility Details Box */}
               <div className="lg:col-span-4 p-6 sm:p-8 flex flex-col justify-between bg-white">
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="px-3 py-1 rounded-md bg-blue-50 text-blue-700 font-mono font-bold text-xs">
-                      {activeFacility.code}
-                    </span>
-                    <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                  <div className="flex items-center justify-end gap-2 mb-3">
+                    <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                       {activeFacility.status === "ACTIVE" ? "Đang hoạt động" : activeFacility.status}
                     </span>
@@ -692,19 +694,17 @@ export default function LocationsPage() {
                 </div>
 
                 <div className="pt-6 border-t border-slate-100 grid grid-cols-2 gap-2">
-                  <a
-                    href={activeFacility.googleMapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href={`/locations/${activeFacility.id}`}
                     className="w-full py-3 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-bold text-xs text-slate-800 text-center flex items-center justify-center gap-1.5"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Chỉ đường
-                  </a>
+                    <Eye className="w-3.5 h-3.5 text-blue-600" />
+                    Chi tiết &amp; Bảng giá
+                  </Link>
 
                   <Link
                     href={`/book/${activeFacility.id}`}
-                    className="w-full py-3 px-3 rounded-xl bg-orange-500 hover:bg-orange-600 font-bold text-xs text-white text-center flex items-center justify-center gap-1.5 shadow-sm"
+                    className="w-full py-3 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 font-bold text-xs text-white text-center flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/25 hover:-translate-y-0.5 transition-all"
                   >
                     Thuê kho ngay
                   </Link>
@@ -725,7 +725,7 @@ export default function LocationsPage() {
             <div className="relative isolate">
               <div
                 aria-hidden="true"
-                className="absolute -bottom-3 -right-3 -z-10 h-full w-full rounded-2xl border-2 border-amber-500 bg-amber-100"
+                className="absolute -bottom-3 -right-3 -z-10 h-full w-full rounded-2xl border-2 border-orange-500/40 bg-orange-500/10"
               ></div>
 
               <img
@@ -739,7 +739,7 @@ export default function LocationsPage() {
           <div className="lg:col-span-7 space-y-6">
             <div>
               <div className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-blue-700 mb-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                 AN NINH &amp; TIÊU CHUẨN QUỐC TẾ
               </div>
               <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
@@ -780,9 +780,9 @@ export default function LocationsPage() {
             <div className="pt-2">
               <a
                 href="tel:02877700117"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-bold text-sm bg-slate-900 text-white hover:bg-blue-600 transition-colors shadow-md"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-bold text-sm bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
               >
-                <Phone className="w-4 h-4 text-amber-400" />
+                <Phone className="w-4 h-4 text-white" />
                 <span>Liên hệ tư vấn chi nhánh: 028 7770 0117</span>
               </a>
             </div>

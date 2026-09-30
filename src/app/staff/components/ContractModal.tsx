@@ -51,14 +51,14 @@ HỢP ĐỒNG CHO THUÊ NHÀ XƯỞNG VÀ KHO BÃI
 Số: ${contractNumber}
 
 Hôm nay, ngày ${dayStr} tháng ${monthStr} năm ${yearStr}, tại Văn phòng Ban Quản lý Cơ sở Kho Tự Quản SelfStorage:
-Địa chỉ: ${appointment.facilityAddress || 'Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh, TP. Hồ Chí Minh'}
+Địa chỉ: ${appointment.facilityAddress || 'Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh'}
 
 CHÚNG TÔI GỒM CÓ:
 
 BÊN CHO THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên A):
 - Tên tổ chức: CÔNG TY CỔ PHẦN DỊCH VỤ LƯU TRỮ VÀ KHO TỰ QUẢN SELFSTORAGE VIỆT NAM
-- Địa chỉ trụ sở chính: Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh, TP. Hồ Chí Minh
-- Giấy chứng nhận ĐKKD số: 0316899988 do Sở Kế hoạch và Đầu tư TP.HCM cấp
+- Địa chỉ trụ sở chính: Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh
+- Giấy chứng nhận ĐKKD số: 0316899988 do Sở Kế hoạch và Đầu tư cấp
 - Đại diện bởi: Ban Quản lý Cơ sở ${appointment.facilityName}
 - Chức vụ: Quản lý cơ sở kho bãi
 - Điện thoại: 1900 6868 | Email: contact@selfstorage.vn
@@ -67,7 +67,7 @@ BÊN CHO THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên A):
 BÊN THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên B):
 - Họ và tên cá nhân / Đại diện tổ chức: ${appointment.customerName}
 - Số CMND/CCCD/Hộ chiếu: ${appointment.idCard || '079095012345'}
-- Địa chỉ liên hệ: TP. Hồ Chí Minh, Việt Nam
+- Địa chỉ liên hệ: Việt Nam
 - Điện thoại: ${appointment.phone}
 - Email: ${appointment.email}
 
@@ -94,7 +94,7 @@ Sau khi bàn bạc, thảo luận, hai bên đồng ý ký kết hợp đồng t
 4.2. Trách nhiệm Bên B: Sử dụng kho đúng mục đích, thanh toán đúng hạn, tự chịu trách nhiệm về đồ đạc và hàng hóa lưu giữ theo quy định pháp luật.
 
 Điều 5. CAM KẾT CHUNG
-Hai bên cam kết thực hiện đúng các điều khoản đã nêu trong hợp đồng. Nếu có tranh chấp phát sinh, hai bên sẽ giải quyết thông qua thương lượng. Trường hợp không tự giải quyết được sẽ đưa ra Tòa án nhân dân có thẩm quyền tại TP. Hồ Chí Minh để giải quyết.
+Hai bên cam kết thực hiện đúng các điều khoản đã nêu trong hợp đồng. Nếu có tranh chấp phát sinh, hai bên sẽ giải quyết thông qua thương lượng. Trường hợp không tự giải quyết được sẽ đưa ra Tòa án nhân dân có thẩm quyền để giải quyết.
 Hợp đồng này được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản.
 
 ĐẠI DIỆN BÊN A                                      ĐẠI DIỆN BÊN B
@@ -199,7 +199,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                 Hôm nay, ngày {dayStr} tháng {monthStr} năm {yearStr}, tại Trụ sở Ban Quản lý Cơ sở Kho Tự Quản SelfStorage:
               </p>
               <p className="text-xs text-slate-600 font-medium">
-                Địa điểm ký kết: {appointment.facilityAddress || 'Khu B, Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh, TP. Hồ Chí Minh'}
+                Địa điểm ký kết: {appointment.facilityAddress || 'Khu B, Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh'}
               </p>
             </div>
 
@@ -220,11 +220,11 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                 </div>
                 <div className="sm:col-span-2">
                   <span className="text-slate-500">Địa chỉ trụ sở chính: </span>
-                  <span>Tòa nhà Landmark 81, 720A Điện Biên Phủ, P. 22, Q. Bình Thạnh, TP. Hồ Chí Minh</span>
+                  <span>Tòa nhà Landmark 81, 720A Điện Biên Phủ, P. 22, Q. Bình Thạnh</span>
                 </div>
                 <div>
                   <span className="text-slate-500">Giấy phép ĐKKD số: </span>
-                  <span className="font-mono font-bold text-slate-900">0316899988</span> (Sở KH&ĐT TP.HCM)
+                  <span className="font-mono font-bold text-slate-900">0316899988</span> (Sở KH&ĐT cấp)
                 </div>
                 <div>
                   <span className="text-slate-500">Mã số thuế: </span>
@@ -278,7 +278,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                 </div>
                 <div className="sm:col-span-2">
                   <span className="text-slate-500">Địa chỉ cư trú / Liên hệ: </span>
-                  <span>TP. Hồ Chí Minh, Việt Nam</span>
+                  <span>Việt Nam</span>
                 </div>
               </div>
             </div>
@@ -385,7 +385,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                   <strong>6.1.</strong> Hai bên cam kết thực hiện đúng mọi điều khoản đã thỏa thuận trong hợp đồng. Nếu có tranh chấp phát sinh, hai bên sẽ ưu tiên giải quyết thông qua thương lượng, hòa giải trên tinh thần hợp tác.
                 </p>
                 <p>
-                  <strong>6.2.</strong> Trong trường hợp không tự thương lượng giải quyết được, vụ việc sẽ được đưa ra giải quyết tại Tòa án nhân dân có thẩm quyền tại Thành phố Hồ Chí Minh. Quyết định của Tòa án là phán quyết cuối cùng mà hai bên có nghĩa vụ chấp hành.
+                  <strong>6.2.</strong> Trong trường hợp không tự thương lượng giải quyết được, vụ việc sẽ được đưa ra giải quyết tại Tòa án nhân dân có thẩm quyền. Quyết định của Tòa án là phán quyết cuối cùng mà hai bên có nghĩa vụ chấp hành.
                 </p>
                 <p>
                   <strong>6.3.</strong> Hợp đồng này được lập thành 02 bản bằng tiếng Việt (hoặc bản điện tử có chữ ký số xác thực), có giá trị pháp lý như nhau, mỗi bên giữ 01 bản để làm căn cứ thực hiện.

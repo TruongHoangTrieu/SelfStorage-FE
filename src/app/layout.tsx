@@ -9,8 +9,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SelfStorage | Cho Thuê Kho Tự Quản Thông Minh 24/7 TP.HCM",
-  description: "Hệ thống cho thuê kho tự quản thông minh 24/7 tại TP.HCM. Kho máy lạnh 23-25°C, hút ẩm, camera giám sát AI và mở cửa Smart Key độc lập.",
+  title: "SelfStorage | Thuê Kho Lưu Trữ Tự Phục Vụ",
+  description: "Hệ thống quản lý và cho thuê kho lưu trữ tự phục vụ",
+  icons: {
+    icon: "/logo-web.png",
+    shortcut: "/logo-web.png",
+    apple: "/logo-web.png",
+  },
 };
 
 export default function RootLayout({
