@@ -357,7 +357,7 @@ export default function UnitDetailsView({
                 <div className="pt-2 space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="text-xs text-slate-400">
-                      Mã PIN cá nhân: <span className="font-mono text-lg font-bold text-white ml-1 tracking-wider">{fetchedPin}</span>
+                      Mã PIN cá nhân: <span className="tabular-nums text-lg font-bold text-white ml-1 tracking-wider">{fetchedPin}</span>
                     </div>
                     <button
                       type="button"
@@ -383,7 +383,7 @@ export default function UnitDetailsView({
                           value={newPin}
                           onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
                           placeholder="Ví dụ: 123456"
-                          className="px-3 py-1.5 text-xs font-mono tracking-widest bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#818cf8]"
+                          className="px-3 py-1.5 text-xs tabular-nums tracking-widest bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#818cf8]"
                         />
                         <button
                           type="submit"
@@ -490,7 +490,7 @@ export default function UnitDetailsView({
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <span className="text-[10px] text-slate-400 uppercase block">Mã PIN khách:</span>
-                        <span className="font-mono text-sm font-bold text-[#4f39f6]">{pass.pin}</span>
+                        <span className="tabular-nums text-sm font-bold text-[#4f39f6]">{pass.pin}</span>
                       </div>
                       <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                         Đang hoạt động
@@ -535,7 +535,7 @@ export default function UnitDetailsView({
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {unit.paymentHistory.map((rec) => (
                     <tr key={rec.id} className="hover:bg-slate-50/80">
-                      <td className="px-5 py-3.5 font-mono font-semibold text-slate-900">{rec.invoiceNumber}</td>
+                      <td className="px-5 py-3.5 tabular-nums font-semibold text-slate-900">{rec.invoiceNumber}</td>
                       <td className="px-5 py-3.5">{rec.date}</td>
                       <td className="px-5 py-3.5">{rec.period}</td>
                       <td className="px-5 py-3.5 font-bold text-slate-900">{rec.amount}</td>

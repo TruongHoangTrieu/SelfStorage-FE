@@ -167,12 +167,18 @@ export default function CustomerDashboard() {
 
               <div className="mt-12 pt-6 border-t border-slate-100 px-2">
                 <button 
-                  onClick={() => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    window.location.href = '/login';
+                  onClick={async () => {
+                    try {
+                      await api.post('/auth/logout');
+                    } catch (e) {
+                      console.warn('Logout notice:', e);
+                    } finally {
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('user');
+                      window.location.href = '/login';
+                    }
                   }}
-                  className="flex items-center text-slate-400 font-bold hover:text-red-500 transition-colors"
+                  className="flex items-center text-slate-400 font-bold hover:text-red-500 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-5 h-5 mr-4" />
                   Sign Out
@@ -268,7 +274,7 @@ export default function CustomerDashboard() {
                         <div className="bg-slate-50 p-6 md:p-8 rounded-[1.5rem] border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                           <div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Current 6-Digit Gate & Unit PIN</p>
-                            <p className="text-4xl font-mono font-black text-[#1e1b4b] tracking-[0.2em]">{pin}</p>
+                            <p className="text-4xl tabular-nums font-black text-[#1e1b4b] tracking-[0.2em]">{pin}</p>
                           </div>
                           <button 
                             onClick={handleCopy}

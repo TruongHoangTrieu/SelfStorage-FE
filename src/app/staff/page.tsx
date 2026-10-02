@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Import Types & Mock Data
 import { CheckInAppointment, AvailableUnit, StaffTab, FlowStep, StaffUser } from './types';
@@ -66,6 +67,7 @@ export default function StaffPortalPage() {
   // Helper hiển thị thông báo nhanh
   const triggerToast = useCallback((msg: string) => {
     setToastMessage(msg);
+    toast(msg);
     setTimeout(() => setToastMessage(null), 4000);
   }, []);
 
@@ -237,8 +239,8 @@ export default function StaffPortalPage() {
   };
 
   // Logout handler
-  const handleLogout = () => {
-    handoversApi.logout();
+  const handleLogout = async () => {
+    await handoversApi.logout();
     setCurrentUser(null);
     triggerToast('Đã đăng xuất tài khoản nhân viên');
   };

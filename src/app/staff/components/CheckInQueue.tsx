@@ -247,7 +247,7 @@ export default function CheckInQueue({
           <div className="space-y-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="font-bold text-slate-900 text-sm">{apt.customerName}</span>
-              <span className="text-xs text-slate-500 font-mono">({apt.phone})</span>
+              <span className="text-xs text-slate-500 tabular-nums">({apt.phone})</span>
               {renderStatusBadge(apt.status)}
             </div>
 
@@ -319,7 +319,7 @@ export default function CheckInQueue({
                   <span className="text-[11px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
                     {apt.slotTime}
                   </span>
-                  <span className="font-mono text-[11px] font-bold text-[#4f39f6]">
+                  <span className="tabular-nums text-[11px] font-bold text-[#4f39f6]">
                     #{apt.assignedUnit}
                   </span>
                 </div>

@@ -54,7 +54,7 @@ export default function Hero() {
               />
               {/* Brutalist overlay element */}
               <div className="absolute bottom-0 left-0 bg-white p-6 border-t-4 border-r-4 border-indigo-600">
-                <p className="font-mono text-sm font-bold text-slate-950">FACILITY 01</p>
+                <p className="text-sm font-bold text-slate-950">FACILITY 01</p>
                 <p className="text-xs text-slate-500 mt-1">CAPACITY: 85%</p>
               </div>
             </div>

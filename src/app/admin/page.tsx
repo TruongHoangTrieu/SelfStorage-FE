@@ -950,7 +950,7 @@ function SystemAdminView() {
       {/* Audit Log Stream */}
       <div>
         <h3 className="font-bold text-[#1e1b4b] mb-4">Live Audit Stream</h3>
-        <div className="bg-slate-900 rounded-2xl p-4 font-mono text-xs text-slate-400 space-y-2 h-48 overflow-y-auto">
+        <div className="bg-slate-900 rounded-2xl p-4 tabular-nums text-xs text-slate-400 space-y-2 h-48 overflow-y-auto">
           <p><span className="text-green-400">[2026-09-16 19:28:11]</span> [AUTH] User admin@selfstorage.com authenticated successfully.</p>
           <p><span className="text-blue-400">[2026-09-16 19:28:15]</span> [POLICY] User marcus@selfstorage.com updated GLOBAL_LATE_FEE to 5%.</p>
           <p><span className="text-green-400">[2026-09-16 19:29:01]</span> [AUTH] User john@selfstorage.com authenticated successfully.</p>

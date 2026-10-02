@@ -54,7 +54,7 @@ export const THEME = {
     cardFeatured: "p-7 rounded-3xl bg-slate-50 border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all",
 
     // Huy hiệu & Trạng thái (Badges)
-    badgeSection: "inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-blue-700 mb-2",
+    badgeSection: "inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700 mb-2",
     badgeSectionDot: "w-2 h-2 rounded-full bg-orange-500",
     badgeActive: "px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700",
     badgeCode: "px-3 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs",

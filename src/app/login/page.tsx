@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -61,10 +62,25 @@ export default function LoginPage() {
         localStorage.removeItem("saved_email");
       }
 
-      const redirectUrl =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("redirect") || "/dashboard"
-          : "/dashboard";
+      const getTargetRoute = (userObj: any) => {
+        const redirectParam =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("redirect")
+            : null;
+
+        if (redirectParam) {
+          return redirectParam;
+        }
+
+        const role =
+          typeof userObj?.role === "string"
+            ? userObj.role.toUpperCase()
+            : userObj?.role?.name?.toUpperCase() ?? "";
+
+        if (role === "ADMIN") return "/admin";
+        if (role === "STAFF") return "/staff";
+        return "/";
+      };
 
       if (isLogin) {
         const res = await api.post("/auth/login", {
@@ -81,16 +97,12 @@ export default function LoginPage() {
 
         // Notify other components/tabs of auth change
         window.dispatchEvent(new Event("storage"));
+        window.dispatchEvent(new Event("auth-change"));
 
-        // If user is ADMIN or STAFF, route them appropriately unless redirect specified
-        const role = res?.user?.role;
-        const targetRoute =
-          redirectUrl !== "/dashboard"
-            ? redirectUrl
-            : role === "ADMIN" || role === "STAFF"
-            ? "/staff"
-            : "/dashboard";
+        const displayName = res?.user?.fullName || res?.user?.email || "";
+        toast.success(`Đăng nhập thành công! Chào mừng ${displayName}`);
 
+        const targetRoute = getTargetRoute(res?.user);
         router.push(targetRoute);
       } else {
         // Sign Up Flow
@@ -105,7 +117,9 @@ export default function LoginPage() {
           localStorage.setItem("token", regRes.accessToken);
           localStorage.setItem("user", JSON.stringify(regRes.user));
           window.dispatchEvent(new Event("storage"));
-          router.push(redirectUrl);
+          window.dispatchEvent(new Event("auth-change"));
+          toast.success("Đăng ký tài khoản thành công!");
+          router.push(getTargetRoute(regRes?.user));
         } else {
           // Auto login after successful registration
           const loginRes = await api.post("/auth/login", {
@@ -119,17 +133,20 @@ export default function LoginPage() {
             localStorage.setItem("user", JSON.stringify(loginRes.user));
           }
           window.dispatchEvent(new Event("storage"));
-          router.push(redirectUrl);
+          window.dispatchEvent(new Event("auth-change"));
+          toast.success("Tạo tài khoản và đăng nhập thành công!");
+          router.push(getTargetRoute(loginRes?.user));
         }
       }
     } catch (err: any) {
       console.error("Auth error:", err);
-      setError(
+      const errMsg =
         err?.message ||
-          (isLogin
-            ? "Đăng nhập không thành công. Vui lòng kiểm tra lại email và mật khẩu."
-            : "Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.")
-      );
+        (isLogin
+          ? "Đăng nhập không thành công. Vui lòng kiểm tra lại email và mật khẩu."
+          : "Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.");
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setLoading(false);
     }

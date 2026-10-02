@@ -318,7 +318,7 @@ export default function LocationsPage() {
                   />
                   <div className="p-4 bg-slate-900/95 backdrop-blur border-t border-white/10 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-mono font-bold text-orange-400 uppercase">
+                      <p className="text-xs font-bold text-orange-400 uppercase">
                         {activeFacility ? activeFacility.district : "Hệ thống SelfStorage"}
                       </p>
                       <p className="text-sm font-bold text-white truncate max-w-[220px] group-hover/heroCard:text-orange-400 transition-colors">
@@ -342,7 +342,7 @@ export default function LocationsPage() {
         
         {/* Section Header */}
         <div className="max-w-3xl mb-10">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-blue-700 mb-2">
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">
             <span className="w-2 h-2 rounded-full bg-orange-500"></span>
             CƠ SỞ KHO ĐANG HOẠT ĐỘNG
           </div>
@@ -483,7 +483,7 @@ export default function LocationsPage() {
                   
                   {/* District Pill */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                    <span className="px-2.5 py-0.5 rounded-full bg-slate-900/90 text-white text-[11px] font-mono font-bold tracking-wider backdrop-blur-sm uppercase">
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-900/90 text-white text-[11px] font-bold tracking-wider backdrop-blur-sm uppercase">
                       {fac.district}
                     </span>
                   </div>
@@ -552,7 +552,7 @@ export default function LocationsPage() {
 
                   {/* Action Buttons Row */}
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3 text-[11px] font-mono font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider">
                       <button
                         onClick={() => {
                           setActiveFacility(fac);
@@ -609,7 +609,7 @@ export default function LocationsPage() {
           <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
             
             <div className="text-center max-w-3xl mx-auto mb-10">
-              <div className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-blue-700 mb-2">
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">
                 <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                 VỊ TRÍ &amp; BẢN ĐỒ THỰC TẾ
               </div>
@@ -738,7 +738,7 @@ export default function LocationsPage() {
 
           <div className="lg:col-span-7 space-y-6">
             <div>
-              <div className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-blue-700 mb-2">
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">
                 <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                 AN NINH &amp; TIÊU CHUẨN QUỐC TẾ
               </div>

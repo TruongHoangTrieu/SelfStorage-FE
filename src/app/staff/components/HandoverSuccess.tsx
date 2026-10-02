@@ -61,7 +61,7 @@ export default function HandoverSuccess({
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
               Trạng thái Cập nhật Hệ thống:
             </span>
-            <div className="flex items-center gap-3 text-xs font-mono">
+            <div className="flex items-center gap-3 text-xs tabular-nums">
               <span className="text-slate-500">Mã đơn: {appointment.id}</span>
               {appointment.contractCode && (
                 <span className="text-[#4f39f6] font-bold bg-[#4f39f6]/10 px-2 py-0.5 rounded">
@@ -99,14 +99,14 @@ export default function HandoverSuccess({
           <div className="p-4 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <div className="text-xs text-slate-400">Mã PIN Smart Lock đã kích hoạt:</div>
-              <div className="text-2xl font-mono font-bold tracking-widest text-[#818cf8]">
+              <div className="text-2xl tabular-nums font-bold tracking-widest text-[#818cf8]">
                 {finalPin}
               </div>
             </div>
 
             <div className="text-left sm:text-right">
               <div className="text-xs text-slate-400">Thẻ từ bàn giao:</div>
-              <div className="text-sm font-mono font-bold text-white">
+              <div className="text-sm tabular-nums font-bold text-white">
                 {finalRfid}
               </div>
             </div>

@@ -181,10 +181,17 @@ export const customerUnitsApi = {
   /**
    * Logout customer
    */
-  logout() {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('customer_user');
+  async logout() {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.warn('Backend customer logout notice:', err);
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('customer_user');
+      }
     }
   },
 

@@ -182,7 +182,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
               <div className="font-bold text-xs sm:text-sm text-slate-800">
                 Độc lập – Tự do – Hạnh phúc
               </div>
-              <div className="text-slate-400 text-xs font-serif tracking-widest pt-0.5">
+              <div className="text-slate-400 text-xs tracking-widest pt-0.5">
                 ----------------o0o----------------
               </div>
             </div>
@@ -192,7 +192,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
               <h1 className="text-base sm:text-xl font-extrabold text-slate-950 tracking-tight uppercase">
                 HỢP ĐỒNG CHO THUÊ NHÀ XƯỞNG VÀ KHO BÃI
               </h1>
-              <div className="font-mono text-xs text-[#4f39f6] font-semibold">
+              <div className="tabular-nums text-xs text-[#4f39f6] font-semibold">
                 Số: {contractNumber}
               </div>
               <p className="text-xs text-slate-500 italic pt-1">
@@ -224,11 +224,11 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                 </div>
                 <div>
                   <span className="text-slate-500">Giấy phép ĐKKD số: </span>
-                  <span className="font-mono font-bold text-slate-900">0316899988</span> (Sở KH&ĐT cấp)
+                  <span className="tabular-nums font-bold text-slate-900">0316899988</span> (Sở KH&ĐT cấp)
                 </div>
                 <div>
                   <span className="text-slate-500">Mã số thuế: </span>
-                  <span className="font-mono font-bold text-slate-900">0316899988</span>
+                  <span className="tabular-nums font-bold text-slate-900">0316899988</span>
                 </div>
                 <div>
                   <span className="text-slate-500">Người đại diện: </span>
@@ -248,7 +248,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                 </div>
                 <div className="sm:col-span-2 pt-1 border-t border-slate-200/60">
                   <span className="text-slate-500">Tài khoản thanh toán: </span>
-                  <span className="font-mono font-bold text-slate-900">0900000000</span> tại Ngân hàng TMCP Quân Đội (MBBank)
+                  <span className="tabular-nums font-bold text-slate-900">0900000000</span> tại Ngân hàng TMCP Quân Đội (MBBank)
                 </div>
               </div>
             </div>
@@ -266,7 +266,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                 </div>
                 <div>
                   <span className="text-slate-500">Số CCCD / Hộ chiếu: </span>
-                  <span className="font-mono font-bold text-slate-900">{appointment.idCard || '079095012345'}</span>
+                  <span className="tabular-nums font-bold text-slate-900">{appointment.idCard || '079095012345'}</span>
                 </div>
                 <div>
                   <span className="text-slate-500">Số điện thoại liên hệ: </span>
@@ -349,7 +349,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                   <strong>4.1.</strong> Ngăn kho được trang bị khóa điện tử thông minh Keypad Smart Lock. Bên B được quyền ra vào cơ sở và mở khóa kho 24/7 bằng mã số điện tử cá nhân hoặc Thẻ từ RFID.
                 </p>
                 <p>
-                  <strong>4.2. Mã số mở khóa ban đầu:</strong> <span className="font-mono font-bold text-base text-[#4f39f6] bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-200">{appointment.accessPin || '682914'}</span>. Bên B có toàn quyền chủ động tự thay đổi mã số này trên ứng dụng bất kỳ lúc nào.
+                  <strong>4.2. Mã số mở khóa ban đầu:</strong> <span className="tabular-nums font-bold text-base text-[#4f39f6] bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-200">{appointment.accessPin || '682914'}</span>. Bên B có toàn quyền chủ động tự thay đổi mã số này trên ứng dụng bất kỳ lúc nào.
                 </p>
                 <p>
                   <strong>4.3.</strong> Bên B có nghĩa vụ tự bảo mật mã khóa của mình. Bên A không giữ chìa khóa dự phòng và không can thiệp vào bên trong kho của Bên B trừ trường hợp khẩn cấp về an toàn PCCC hoặc theo yêu cầu bằng văn bản của cơ quan pháp luật có thẩm quyền.
@@ -412,7 +412,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                   <div className="text-xs font-bold text-slate-800">
                     CÔNG TY CP SELFSTORAGE VN
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">
+                  <div className="text-[10px] text-slate-400 tabular-nums">
                     MST: 0316899988 • Time: {dayStr}/{monthStr}/{yearStr}
                   </div>
                 </div>
@@ -433,7 +433,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                   <div className="text-xs font-bold text-slate-900">
                     {appointment.customerName}
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">
+                  <div className="text-[10px] text-slate-400 tabular-nums">
                     CCCD: {appointment.idCard || '079095012345'}
                   </div>
                 </div>

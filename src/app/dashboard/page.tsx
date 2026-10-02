@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   AlertTriangle
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Types & Mock Data
 import { CustomerUnit, CustomerTab, GuestPass, SupportTicket, CustomerUser } from './types';
@@ -64,6 +65,7 @@ export default function CustomerDashboardPage() {
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
+    toast(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -152,8 +154,8 @@ export default function CustomerDashboardPage() {
   };
 
   // Handle Logout
-  const handleLogout = () => {
-    customerUnitsApi.logout();
+  const handleLogout = async () => {
+    await customerUnitsApi.logout();
     setCustomerUser(null);
     triggerToast('Đã đăng xuất khỏi cổng khách hàng.');
     loadContractsData(true);

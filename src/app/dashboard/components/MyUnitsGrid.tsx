@@ -137,7 +137,7 @@ export default function MyUnitsGrid({
                   </div>
 
                   {/* Visual mini blueprint representation */}
-                  <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-slate-200 text-[11px] font-mono text-slate-600">
+                  <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-slate-200 text-[11px] tabular-nums text-slate-600">
                     <span className="w-2 h-2 rounded-xs bg-[#4f39f6]" />
                     <span>Sơ đồ: #{unit.unitNumber.replace('Ô ', '')}</span>
                   </div>
@@ -171,7 +171,7 @@ export default function MyUnitsGrid({
                         <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
                           Mã Smart Lock cá nhân
                         </span>
-                        <span className="font-mono text-base font-bold tracking-widest text-[#818cf8]">
+                        <span className="tabular-nums text-base font-bold tracking-widest text-[#818cf8]">
                           {isPinVisible ? unit.mainPin : '••••••'}
                         </span>
                       </div>

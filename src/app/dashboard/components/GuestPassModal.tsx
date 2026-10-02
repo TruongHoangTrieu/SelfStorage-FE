@@ -145,7 +145,7 @@ export default function GuestPassModal({
           {/* Generated PIN Card */}
           <div className="p-4 rounded-xl bg-slate-900 text-white space-y-2 text-center">
             <div className="text-xs text-slate-400">Mã PIN Smart Lock ngẫu nhiên dành riêng cho khách:</div>
-            <div className="text-3xl font-mono font-extrabold tracking-widest text-[#818cf8]">
+            <div className="text-3xl tabular-nums font-extrabold tracking-widest text-[#818cf8]">
               {generatedPin}
             </div>
             <div className="text-[11px] text-slate-400">

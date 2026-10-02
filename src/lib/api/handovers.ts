@@ -202,10 +202,16 @@ export const handoversApi = {
   /**
    * Staff logout
    */
-  logout() {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+  async logout() {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.warn('Backend staff logout notice:', err);
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
   },
 

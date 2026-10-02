@@ -114,7 +114,7 @@ export default function IncidentReportModal({
           {/* Ô kho đã chọn sẵn */}
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
             <span className="text-slate-500">Ô kho bị ảnh hưởng:</span>
-            <span className="font-bold text-slate-900 font-mono bg-white px-2.5 py-1 rounded border border-slate-200">
+            <span className="font-bold text-slate-900 tabular-nums bg-white px-2.5 py-1 rounded border border-slate-200">
               {unit.unitNumber} ({unit.floor})
             </span>
           </div>

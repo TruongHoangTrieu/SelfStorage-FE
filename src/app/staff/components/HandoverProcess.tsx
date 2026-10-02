@@ -159,7 +159,7 @@ export default function HandoverProcess({
               </div>
               <div>
                 <span className="text-slate-400 block mb-0.5">Số CCCD / Hộ chiếu</span>
-                <span className="font-semibold text-slate-900 font-mono text-sm">{appointment.idCard}</span>
+                <span className="font-semibold text-slate-900 tabular-nums text-sm">{appointment.idCard}</span>
               </div>
               <div className="col-span-2">
                 <span className="text-slate-400 block mb-0.5">Email liên hệ</span>
@@ -175,7 +175,7 @@ export default function HandoverProcess({
                 <Calendar className="w-4 h-4 text-[#4f39f6]" />
                 Chi tiết Hợp đồng Đặt chỗ
               </h3>
-              <span className="font-mono text-xs text-slate-500 font-semibold">{appointment.id}</span>
+              <span className="tabular-nums text-xs text-slate-500 font-semibold">{appointment.id}</span>
             </div>
 
             <div className="space-y-3 text-xs">
@@ -211,7 +211,7 @@ export default function HandoverProcess({
                     <div className="text-[11px] text-emerald-700">Đã thanh toán {appointment.depositAmount} qua VNPay</div>
                   </div>
                 </div>
-                <span className="text-xs font-mono font-bold text-emerald-800">100%</span>
+                <span className="text-xs tabular-nums font-bold text-emerald-800">100%</span>
               </div>
 
               {/* Mục đích lưu kho */}
@@ -287,7 +287,7 @@ export default function HandoverProcess({
               <div className="p-3.5 rounded-xl bg-slate-900 text-white flex items-center justify-between">
                 <div>
                   <div className="text-xs text-slate-400">Ô kho được chọn bàn giao:</div>
-                  <div className="text-lg font-mono font-bold text-white flex items-center gap-2">
+                  <div className="text-lg tabular-nums font-bold text-white flex items-center gap-2">
                     <span>#{activeUnit}</span>
                     <span className="text-xs font-normal text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
                       Trạng thái: Sẵn sàng bàn giao
@@ -340,7 +340,7 @@ export default function HandoverProcess({
                   maxLength={6}
                   value={customPin}
                   onChange={(e) => onChangeCustomPin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full text-center tracking-widest font-mono text-xl font-bold bg-white border border-slate-300 rounded-lg py-2 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                  className="w-full text-center tracking-widest tabular-nums text-xl font-bold bg-white border border-slate-300 rounded-lg py-2 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
                 />
                 <p className="text-[11px] text-slate-500 text-center">Khách dùng mở khóa cửa kho & thang máy</p>
               </div>
@@ -358,7 +358,7 @@ export default function HandoverProcess({
                   type="text"
                   value={customRfid}
                   onChange={(e) => onChangeCustomRfid(e.target.value)}
-                  className="w-full text-center font-mono text-sm font-bold bg-white border border-slate-300 rounded-lg py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                  className="w-full text-center tabular-nums text-sm font-bold bg-white border border-slate-300 rounded-lg py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
                 />
                 <p className="text-[11px] text-slate-500 text-center">Quét thẻ vật lý tại cổng an ninh cơ sở</p>
               </div>
@@ -390,10 +390,10 @@ export default function HandoverProcess({
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs space-y-2.5 font-sans text-slate-700">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200 pb-2">
                 <div>
-                  <span className="font-mono font-bold text-slate-900 block">
+                  <span className="font-bold text-slate-900 block">
                     HỢP ĐỒNG CHO THUÊ KHO BÃI & NHÀ XƯỞNG
                   </span>
-                  <span className="text-[11px] text-slate-500 font-mono">
+                  <span className="text-[11px] text-slate-500 tabular-nums">
                     Số: SS-HĐ-{appointment.id.replace(/[^a-zA-Z0-9]/g, '')}/2026
                   </span>
                 </div>

@@ -492,7 +492,7 @@ export default function FacilityDetailPage({
               
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
                 <div>
-                  <span className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-blue-700 mb-2">
+                  <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">
                     <span className="w-2 h-2 rounded-full bg-orange-500"></span>
                     BẢNG GIÁ NIÊM YẾT MINH BẠCH
                   </span>
@@ -656,7 +656,7 @@ export default function FacilityDetailPage({
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16 relative z-10">
               
               <div className="text-center max-w-3xl mx-auto mb-16">
-                <span className="inline-flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-orange-400 mb-2">
+                <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-400 mb-2">
                   <span className="w-2 h-2 rounded-full bg-orange-400"></span>
                   TIÊU CHUẨN SSAA QUỐC TẾ
                 </span>
@@ -719,7 +719,7 @@ export default function FacilityDetailPage({
               <div className="p-8 sm:p-12 rounded-3xl bg-slate-50 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
                 
                 <div>
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-blue-700 block mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-700 block mb-2">
                     HƯỚNG DẪN TRƯỚC KHI THUÊ KHO
                   </span>
                   <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">

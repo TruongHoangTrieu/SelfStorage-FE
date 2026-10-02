@@ -53,7 +53,7 @@ export default function PrintModal({
                 <Boxes className="w-4 h-4 text-[#4f39f6]" />
                 PHIẾU BÀN GIAO & TRUY CẬP KHO
               </div>
-              <span className="text-[11px] font-mono text-slate-400">SelfStorage VN</span>
+              <span className="text-[11px] font-medium text-slate-400">SelfStorage VN</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
@@ -72,7 +72,7 @@ export default function PrintModal({
             {/* Big PIN for Customer */}
             <div className="p-3 bg-slate-100 rounded-lg text-center">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider">Mã PIN mở khóa ô kho</div>
-              <div className="text-2xl font-mono font-extrabold tracking-widest text-slate-900 mt-1">
+              <div className="text-2xl tabular-nums font-extrabold tracking-widest text-slate-900 mt-1">
                 {finalPin}
               </div>
               <div className="text-[10px] text-slate-400 mt-0.5">Dùng nhập tại bàn phím số gắn trên cửa kho</div>
