@@ -76,12 +76,12 @@ export default function CheckInQueue({
           <div className="text-2xl font-bold text-indigo-900 mt-1">{stats.arrived}</div>
           <div className="text-[11px] text-indigo-700/80 mt-0.5">Sẵn sàng nhận kho</div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-[#4f39f6]/20 shadow-2xs bg-[#4f39f6]/5">
-          <div className="text-xs font-semibold text-[#4f39f6] uppercase tracking-wider flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-2xs bg-blue-50/20">
+          <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider flex items-center justify-between">
             <span>Đang xử lý</span>
-            <span className="w-2 h-2 rounded-full bg-[#4f39f6] animate-ping" />
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
           </div>
-          <div className="text-2xl font-bold text-[#4f39f6] mt-1">{stats.inProgress}</div>
+          <div className="text-2xl font-bold text-blue-600 mt-1">{stats.inProgress}</div>
           <div className="text-[11px] text-slate-600 mt-0.5">Đang bàn giao tại chỗ</div>
         </div>
         <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-2xs bg-emerald-50/20">
@@ -220,7 +220,7 @@ export default function CheckInQueue({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
           {renderKanbanColumn('Chờ xử lý', 'pending', 'bg-slate-100 text-slate-700', 'border-t-4 border-amber-400')}
           {renderKanbanColumn('Đã đến quầy', 'arrived', 'bg-indigo-50 text-indigo-700', 'border-t-4 border-indigo-500')}
-          {renderKanbanColumn('Đang xử lý', 'in_progress', 'bg-[#4f39f6]/10 text-[#4f39f6]', 'border-t-4 border-[#4f39f6]')}
+          {renderKanbanColumn('Đang xử lý', 'in_progress', 'bg-blue-50 text-blue-700', 'border-t-4 border-blue-600')}
           {renderKanbanColumn('Hoàn tất', 'completed', 'bg-emerald-50 text-emerald-700', 'border-t-4 border-emerald-500')}
         </div>
       )}
@@ -234,7 +234,7 @@ export default function CheckInQueue({
       <div
         key={apt.id}
         className={`p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:bg-slate-50/80 ${
-          isCurrent ? 'bg-[#4f39f6]/5 border-l-4 border-[#4f39f6]' : ''
+          isCurrent ? 'bg-blue-50/40 border-l-4 border-blue-600' : ''
         }`}
       >
         {/* Left Info: Time & Customer */}
@@ -274,7 +274,7 @@ export default function CheckInQueue({
           ) : (
             <button
               onClick={() => onStartCheckIn(apt)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 cursor-pointer"
             >
               <span>Bắt đầu nhận kho</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -313,13 +313,13 @@ export default function CheckInQueue({
             items.map(apt => (
               <div
                 key={apt.id}
-                className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-[#4f39f6]/40 hover:shadow-sm transition-all space-y-2.5"
+                className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-blue-500/40 hover:shadow-sm transition-all space-y-2.5"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
                     {apt.slotTime}
                   </span>
-                  <span className="tabular-nums text-[11px] font-bold text-[#4f39f6]">
+                  <span className="tabular-nums text-[11px] font-bold text-blue-600">
                     #{apt.assignedUnit}
                   </span>
                 </div>
@@ -336,7 +336,7 @@ export default function CheckInQueue({
                 {status !== 'completed' && (
                   <button
                     onClick={() => onStartCheckIn(apt)}
-                    className="w-full text-center py-1.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-lg transition-all mt-1"
+                    className="w-full text-center py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all mt-1 cursor-pointer"
                   >
                     Bắt đầu nhận kho →
                   </button>
@@ -368,8 +368,8 @@ export default function CheckInQueue({
         );
       case 'in_progress':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#4f39f6]/10 text-[#4f39f6] border border-[#4f39f6]/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#4f39f6] animate-ping" />
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
             Đang xử lý
           </span>
         );

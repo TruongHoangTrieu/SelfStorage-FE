@@ -32,14 +32,14 @@ export default function PrintModal({
         {/* Header */}
         <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
-            <Printer className="w-5 h-5 text-[#4f39f6]" />
+            <Printer className="w-5 h-5 text-blue-600" />
             <h3 className="font-bold text-sm text-slate-900">
               Gửi Lệnh In Tài Liệu Đến Quầy Lễ Tân
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 text-lg leading-none"
+            className="text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
           >
             ✕
           </button>
@@ -50,8 +50,8 @@ export default function PrintModal({
           <div className="border border-dashed border-slate-300 rounded-xl p-5 bg-white space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                <Boxes className="w-4 h-4 text-[#4f39f6]" />
-                PHIẾU BÀN GIAO & TRUY CẬP KHO
+                <Boxes className="w-4 h-4 text-blue-600" />
+                PHIẾU BÀN GIAO &amp; TRUY CẬP KHO
               </div>
               <span className="text-[11px] font-medium text-slate-400">SelfStorage VN</span>
             </div>
@@ -63,7 +63,7 @@ export default function PrintModal({
               </div>
               <div>
                 <span className="text-slate-400">Số ô kho:</span>
-                <div className="font-bold text-[#4f39f6] text-base">
+                <div className="font-bold text-blue-600 text-base">
                   #{finalUnit}
                 </div>
               </div>
@@ -89,13 +89,13 @@ export default function PrintModal({
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
           >
             Hủy bỏ
           </button>
           <button
             onClick={onConfirmPrint}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-md shadow-[#4f39f6]/20 transition-all active:scale-95"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/20 transition-all active:scale-95 cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             In Ngay (Print)

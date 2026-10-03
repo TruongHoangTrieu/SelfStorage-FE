@@ -49,7 +49,7 @@ export default function ExtendLeaseModal({
         {/* Header */}
         <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#4f39f6]/10 text-[#4f39f6] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <Clock className="w-4 h-4" />
             </div>
             <div>
@@ -86,7 +86,7 @@ export default function ExtendLeaseModal({
                   onClick={() => setSelectedMonths(opt.months)}
                   className={`p-3 rounded-xl border text-center transition-all ${
                     selectedMonths === opt.months
-                      ? 'border-[#4f39f6] bg-[#4f39f6]/5 text-[#4f39f6] font-bold shadow-xs ring-2 ring-[#4f39f6]/20'
+                      ? 'border-blue-600 bg-blue-50 text-blue-600 font-bold shadow-xs ring-2 ring-blue-600/20'
                       : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                   }`}
                 >
@@ -115,7 +115,7 @@ export default function ExtendLeaseModal({
             )}
             <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm font-bold text-slate-900">
               <span>Tổng thanh toán gia hạn:</span>
-              <span className="text-base font-extrabold text-[#4f39f6]">{formattedFinalTotal}</span>
+              <span className="text-base font-extrabold text-orange-600">{formattedFinalTotal}</span>
             </div>
           </div>
 
@@ -126,7 +126,7 @@ export default function ExtendLeaseModal({
             </label>
             <div className="grid grid-cols-3 gap-2 text-xs">
               <label className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
-                paymentMethod === 'vnpay' ? 'border-[#4f39f6] bg-[#4f39f6]/5 text-[#4f39f6] font-bold' : 'border-slate-200 text-slate-600'
+                paymentMethod === 'vnpay' ? 'border-blue-600 bg-blue-50 text-blue-600 font-bold ring-1 ring-blue-600/30' : 'border-slate-200 text-slate-600'
               }`}>
                 <input
                   type="radio"
@@ -139,7 +139,7 @@ export default function ExtendLeaseModal({
               </label>
 
               <label className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
-                paymentMethod === 'card' ? 'border-[#4f39f6] bg-[#4f39f6]/5 text-[#4f39f6] font-bold' : 'border-slate-200 text-slate-600'
+                paymentMethod === 'card' ? 'border-blue-600 bg-blue-50 text-blue-600 font-bold ring-1 ring-blue-600/30' : 'border-slate-200 text-slate-600'
               }`}>
                 <input
                   type="radio"
@@ -152,7 +152,7 @@ export default function ExtendLeaseModal({
               </label>
 
               <label className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
-                paymentMethod === 'bank' ? 'border-[#4f39f6] bg-[#4f39f6]/5 text-[#4f39f6] font-bold' : 'border-slate-200 text-slate-600'
+                paymentMethod === 'bank' ? 'border-blue-600 bg-blue-50 text-blue-600 font-bold ring-1 ring-blue-600/30' : 'border-slate-200 text-slate-600'
               }`}>
                 <input
                   type="radio"
@@ -177,7 +177,7 @@ export default function ExtendLeaseModal({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-md shadow-[#4f39f6]/25 transition-all"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all"
             >
               Xác nhận thanh toán gia hạn
             </button>

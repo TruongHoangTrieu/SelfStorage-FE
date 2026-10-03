@@ -34,11 +34,11 @@ export default function HandoverSuccess({
 
   return (
     <div className="max-w-3xl mx-auto py-8 animate-slide-up-fade">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden text-center p-8 sm:p-12 space-y-8">
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden text-center p-8 sm:p-12 space-y-8">
         {/* Biểu tượng thành công với hiệu ứng */}
         <div className="relative inline-block">
-          <div className="w-20 h-20 rounded-full bg-[#4f39f6]/10 text-[#4f39f6] flex items-center justify-center mx-auto border-4 border-[#4f39f6]/20">
-            <CheckCircle2 className="w-12 h-12 text-[#4f39f6]" />
+          <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border-4 border-emerald-100">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600" />
           </div>
           <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs border-2 border-white shadow-md">
             ✓
@@ -64,7 +64,7 @@ export default function HandoverSuccess({
             <div className="flex items-center gap-3 text-xs tabular-nums">
               <span className="text-slate-500">Mã đơn: {appointment.id}</span>
               {appointment.contractCode && (
-                <span className="text-[#4f39f6] font-bold bg-[#4f39f6]/10 px-2 py-0.5 rounded">
+                <span className="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200/60">
                   HĐ: {appointment.contractCode}
                 </span>
               )}
@@ -99,7 +99,7 @@ export default function HandoverSuccess({
           <div className="p-4 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <div className="text-xs text-slate-400">Mã PIN Smart Lock đã kích hoạt:</div>
-              <div className="text-2xl tabular-nums font-bold tracking-widest text-[#818cf8]">
+              <div className="text-2xl tabular-nums font-bold tracking-widest text-emerald-400">
                 {finalPin}
               </div>
             </div>
@@ -117,15 +117,15 @@ export default function HandoverSuccess({
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
           <button
             onClick={onOpenPrintModal}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all shadow-xs"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all shadow-xs cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-[#4f39f6]" />
+            <Printer className="w-4 h-4 text-blue-600" />
             <span>In Phiếu bàn giao cho khách</span>
           </button>
 
           <button
             onClick={onSendNotification}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
           >
             <Send className="w-4 h-4 text-slate-600" />
             <span>Gửi SMS / Zalo mã kho</span>
@@ -133,7 +133,7 @@ export default function HandoverSuccess({
 
           <button
             onClick={onBackToQueue}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl transition-all shadow-lg shadow-[#4f39f6]/25"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md shadow-blue-600/20 cursor-pointer"
           >
             <Inbox className="w-4 h-4" />
             <span>Quay lại Hàng đợi nhận kho</span>

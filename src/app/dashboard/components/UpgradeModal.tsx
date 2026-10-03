@@ -41,7 +41,7 @@ export default function UpgradeModal({
         {/* Header */}
         <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#4f39f6]/10 text-[#4f39f6] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <ArrowUpDown className="w-4 h-4" />
             </div>
             <div>
@@ -68,7 +68,7 @@ export default function UpgradeModal({
             <select
               value={targetType}
               onChange={(e) => setTargetType(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
             >
               <optgroup label="Nâng cấp diện tích lớn hơn">
                 <option value="Kho Doanh nghiệp Lớn (12m² - 15m²)">
@@ -97,7 +97,7 @@ export default function UpgradeModal({
               type="text"
               value={preferredDate}
               onChange={(e) => setPreferredDate(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
             />
           </div>
 
@@ -109,12 +109,12 @@ export default function UpgradeModal({
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
             />
           </div>
 
-          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-900 space-y-1">
-            <div className="font-bold">Quy trình điều chuyển kho:</div>
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-950 space-y-1">
+            <div className="font-bold text-blue-900">Quy trình điều chuyển kho:</div>
             <p className="text-[11px] text-slate-600">
               Quản lý cơ sở sẽ kiểm tra ô kho khả dụng và liên hệ với bạn trong vòng 2 giờ làm việc để sắp xếp bàn giao và hỗ trợ xe đẩy chuyển đồ.
             </p>
@@ -131,7 +131,7 @@ export default function UpgradeModal({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-md shadow-[#4f39f6]/25 transition-all"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all"
             >
               Gửi yêu cầu điều chuyển
             </button>

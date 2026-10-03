@@ -15,9 +15,12 @@ import {
   LogIn,
   LogOut,
   Wifi,
-  WifiOff,
+  Home,
+  Menu,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,14 +38,26 @@ import ExtendLeaseModal from './components/ExtendLeaseModal';
 import UpgradeModal from './components/UpgradeModal';
 import IncidentReportModal from './components/IncidentReportModal';
 import CustomerLoginModal from './components/CustomerLoginModal';
+import CustomerProfileView from './components/CustomerProfileView';
 
 export default function CustomerDashboardPage() {
   // Navigation & Sub-views State
   const [activeTab, setActiveTab] = useState<CustomerTab>('my_units');
   const [viewMode, setViewMode] = useState<'grid' | 'details'>('grid');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  const handleToggleSidebar = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setIsMobileSidebarOpen(prev => !prev);
+    } else {
+      setIsSidebarCollapsed(prev => !prev);
+    }
+  };
 
   // Customer Units State
   const [units, setUnits] = useState<CustomerUnit[]>([]);
+  const [reservations, setReservations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUnitId, setSelectedUnitId] = useState<string>('');
 
@@ -59,6 +74,8 @@ export default function CustomerDashboardPage() {
   const [isExtendLeaseModalOpen, setIsExtendLeaseModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [cancelReservationId, setCancelReservationId] = useState<number | null>(null);
+  const [isCancellingReservation, setIsCancellingReservation] = useState(false);
 
   // Toast Notification State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -81,14 +98,22 @@ export default function CustomerDashboardPage() {
       if (!isOnline) {
         setUnits(INITIAL_CUSTOMER_UNITS);
         setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
+        setReservations([]);
         setIsLiveApi(false);
         if (showToast) triggerToast('Đã làm mới dữ liệu ô kho.');
         return;
       }
 
-      // Backend is online: attempt to fetch real contracts
+      // Backend is online: attempt to fetch real contracts and reservations
       try {
-        const liveUnits = await customerUnitsApi.fetchMyContracts();
+        const [contractsRes, reservationsRes] = await Promise.allSettled([
+          customerUnitsApi.fetchMyContracts(),
+          customerUnitsApi.fetchMyReservations(),
+        ]);
+
+        const liveUnits = contractsRes.status === 'fulfilled' ? contractsRes.value : [];
+        const rawReservations = reservationsRes.status === 'fulfilled' ? reservationsRes.value : [];
+        setReservations(rawReservations);
 
         if (liveUnits && liveUnits.length > 0) {
           // Also fetch payment history and support tickets
@@ -112,24 +137,37 @@ export default function CustomerDashboardPage() {
           setIsLiveApi(true);
           if (showToast) triggerToast(`Đã đồng bộ ${enrichedUnits.length} ô kho thành công.`);
         } else {
-          // If no contracts returned (e.g. user hasn't checked-in any unit yet)
-          setUnits(INITIAL_CUSTOMER_UNITS);
-          setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
+          // If no active contracts returned:
+          // Check if customer is authenticated or has reservations: show real empty state
+          const storedUser = customerUnitsApi.getStoredCustomer();
+          if (storedUser || rawReservations.length > 0) {
+            setUnits([]);
+            setSelectedUnitId('');
+          } else {
+            // Unauthenticated guest demo
+            setUnits(INITIAL_CUSTOMER_UNITS);
+            setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
+          }
           setIsLiveApi(true);
-          if (showToast) triggerToast('Đã đồng bộ danh sách ô kho.');
+          if (showToast) triggerToast('Đã đồng bộ dữ liệu ô kho.');
         }
       } catch (err: any) {
         console.warn('Could not fetch contracts (likely unauthenticated or 401):', err);
-        // Fallback to mock data
-        setUnits(INITIAL_CUSTOMER_UNITS);
-        setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
+        const storedUser = customerUnitsApi.getStoredCustomer();
+        if (storedUser) {
+          setUnits([]);
+          setSelectedUnitId('');
+        } else {
+          setUnits(INITIAL_CUSTOMER_UNITS);
+          setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
+        }
         setIsLiveApi(false);
         if (showToast) triggerToast('Đã làm mới dữ liệu ô kho.');
       }
     } catch (err) {
       console.error('Fatal load contracts error:', err);
-      setUnits(INITIAL_CUSTOMER_UNITS);
-      setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
+      setUnits([]);
+      setSelectedUnitId('');
       setIsLiveApi(false);
     } finally {
       setLoading(false);
@@ -144,6 +182,20 @@ export default function CustomerDashboardPage() {
       setCustomerUser(storedUser);
     }
     loadContractsData();
+
+    // Check for query param tab (e.g. /dashboard?tab=profile)
+    const checkTabQuery = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab') as CustomerTab;
+        if (tabParam && ['my_units', 'billing', 'access', 'documents', 'support', 'profile'].includes(tabParam)) {
+          setActiveTab(tabParam);
+        }
+      }
+    };
+    checkTabQuery();
+    window.addEventListener('popstate', checkTabQuery);
+    return () => window.removeEventListener('popstate', checkTabQuery);
   }, [loadContractsData]);
 
   // Handle Login success
@@ -199,6 +251,27 @@ export default function CustomerDashboardPage() {
     setIsIncidentModalOpen(true);
   };
 
+  // Handler: Mở Modal Xác nhận hủy đơn đặt giữ chỗ
+  const handleCancelReservation = (resId: number) => {
+    setCancelReservationId(resId);
+  };
+
+  // Handler: Xác nhận hủy đơn qua API
+  const handleConfirmCancelReservation = async () => {
+    if (!cancelReservationId) return;
+    setIsCancellingReservation(true);
+    try {
+      await customerUnitsApi.cancelReservation(cancelReservationId, 'Khách hàng hủy trên Cổng khách hàng');
+      toast.success('Đã hủy đơn đặt giữ chỗ thành công. Ngăn kho đã được giải phóng.');
+      setCancelReservationId(null);
+      await loadContractsData(false);
+    } catch (err: any) {
+      toast.error(err?.message || 'Không thể hủy đơn đặt chỗ.');
+    } finally {
+      setIsCancellingReservation(false);
+    }
+  };
+
   // Callback: Thêm mã khách thành công
   const handleCreatedGuestPass = (newPass: GuestPass) => {
     setUnits(prev => prev.map(u => {
@@ -250,82 +323,123 @@ export default function CustomerDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex font-sans antialiased selection:bg-[#4f39f6]/20 selection:text-[#4f39f6]">
+    <div className="min-h-screen bg-slate-50/70 text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-600/20 selection:text-blue-600">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-[9999] flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-800 animate-slide-up-fade">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#4f39f6] animate-ping" />
-          <span className="text-sm font-medium">{toastMessage}</span>
-          <button onClick={() => setToastMessage(null)} className="text-slate-400 hover:text-white ml-2">×</button>
+        <div className="fixed top-5 right-5 z-[9999] flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-800 animate-slide-up-fade">
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
+          <span className="text-xs sm:text-sm font-medium">{toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="text-slate-400 hover:text-white ml-2 text-base">×</button>
         </div>
       )}
 
-      {/* 1. THANH ĐIỀU HƯỚNG BÊN (SIDEBAR) CỔNG KHÁCH HÀNG */}
-      <CustomerSidebar
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'my_units') setViewMode('grid');
-        }}
-        activeUnitCount={units.length}
-        customerUser={customerUser}
-        onOpenLogin={() => setIsLoginModalOpen(true)}
-      />
-
-      {/* 2. KHU VỰC NỘI DUNG CHÍNH (MAIN VIEW) */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        {/* Top Header Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="font-extrabold text-base text-slate-900 tracking-tight flex items-center gap-2">
-              <span>Cổng Khách Hàng Tự Quản</span>
-            </div>
+      {/* 1. TOP NAVBAR (YOUTUBE STYLE) - FULL WIDTH FIXED TOP */}
+      <header className="fixed top-0 inset-x-0 h-18 bg-white/95 backdrop-blur-md border-b border-slate-200 z-50 flex items-center justify-between shadow-2xs pr-4 sm:pr-6">
+        <div className="flex items-center">
+          {/* Nút Đóng / Mở Hamburger Menu căn chuẩn x=36px thẳng hàng tuyệt đối với các icon bên dưới */}
+          <div className="w-[72px] h-18 flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={handleToggleSidebar}
+              className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700 transition cursor-pointer active:scale-95"
+              title="Mở / Thu gọn thanh điều hướng"
+              aria-label="Toggle Navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Link
-              href="/staff"
-              className="text-xs font-semibold text-slate-600 hover:text-[#4f39f6] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors hidden md:inline-block"
-            >
-              Cổng Nhân Viên ↗
-            </Link>
+          {/* Logo hệ thống to rõ, nổi bật chuẩn nhận diện thương hiệu */}
+          <Link href="/" className="inline-flex items-center group py-1 pl-1" title="Về trang chủ SelfStorage">
+            <img
+              src="/logo.png"
+              alt="SelfStorage Logo"
+              className="h-10 sm:h-11 md:h-12 w-auto object-contain transition-transform group-hover:scale-102"
+            />
+          </Link>
+        </div>
 
-            <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Link
+            href="/locations"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-sm shadow-orange-500/20 transition-all uppercase tracking-wider active:scale-95"
+          >
+            <span>+ Thuê Thêm Kho</span>
+          </Link>
 
-            {/* Customer User Info / Login Modal Trigger */}
-            {customerUser ? (
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#4f39f6] to-[#7c3aed] text-white text-xs font-bold flex items-center justify-center shadow-xs">
+          <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+          {/* Customer User Info / Login Modal Trigger */}
+          {customerUser ? (
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="flex items-center gap-2 text-left hover:opacity-85 transition cursor-pointer"
+                title="Xem hồ sơ cá nhân"
+              >
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow-xs tracking-wider">
                   {customerUser.fullName ? customerUser.fullName.slice(0, 2).toUpperCase() : 'KH'}
                 </div>
                 <div className="hidden sm:block text-left">
                   <div className="text-xs font-bold text-slate-800 leading-tight">
                     {customerUser.fullName || customerUser.email}
                   </div>
-                  <div className="text-[10px] text-slate-500">Khách thuê kho</div>
+                  <div className="text-[10px] text-slate-500 font-medium">Khách thuê kho</div>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
-                  title="Đăng xuất"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-xs transition-all active:scale-95"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Đăng nhập API (customer@selfstorage.com)</span>
               </button>
-            )}
-          </div>
-        </header>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-9 h-9 rounded-full hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center transition-colors cursor-pointer"
+                title="Đăng xuất"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsLoginModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Đăng nhập</span>
+            </button>
+          )}
+        </div>
+      </header>
 
-        {/* Nội dung trang thay đổi theo Tab & ViewMode */}
-        <main className="flex-1 p-6 sm:p-8">
+      {/* 2. BODY LAYOUT: SIDEBAR + MAIN CONTENT (Starts below top header) */}
+      <div className="flex pt-18 min-h-screen">
+        {/* Customer Sidebar (YouTube Style) */}
+        <CustomerSidebar
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'my_units') setViewMode('grid');
+            setIsMobileSidebarOpen(false);
+          }}
+          activeUnitCount={units.length}
+          customerUser={customerUser}
+          onOpenLogin={() => setIsLoginModalOpen(true)}
+          onLogout={handleLogout}
+          isCollapsed={isSidebarCollapsed}
+          isOpen={isMobileSidebarOpen}
+          onToggle={handleToggleSidebar}
+        />
+
+        {/* Mobile Backdrop Overlay khi mở thanh điều hướng trên màn hình nhỏ */}
+        {isMobileSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden backdrop-blur-xs transition-opacity"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+        )}
+
+        {/* 3. KHU VỰC NỘI DUNG CHÍNH (MAIN VIEW) */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">
           {/* LUỒNG 3: Ô KHO CỦA TÔI */}
           {activeTab === 'my_units' && (
             <>
@@ -350,10 +464,13 @@ export default function CustomerDashboardPage() {
               {!loading && viewMode === 'grid' && (
                 <MyUnitsGrid
                   units={units}
+                  reservations={reservations}
+                  customerUser={customerUser}
                   onSelectUnit={handleSelectUnit}
                   onOpenGuestPass={handleOpenGuestPass}
                   onOpenExtendLease={handleOpenExtendLease}
                   onOpenReportIncident={handleOpenReportIncident}
+                  onCancelReservation={handleCancelReservation}
                 />
               )}
 
@@ -371,29 +488,36 @@ export default function CustomerDashboardPage() {
             </>
           )}
 
+          {/* TAB HỒ SƠ & THÔNG TIN CÁ NHÂN */}
+          {activeTab === 'profile' && (
+            <CustomerProfileView
+              customerUser={customerUser}
+              onUserUpdated={(u) => setCustomerUser(u)}
+            />
+          )}
+
           {/* CÁC TAB KHÁC CỦA CỔNG KHÁCH HÀNG */}
-          {activeTab !== 'my_units' && (
-            <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200 p-10 text-center space-y-4 shadow-xs animate-slide-up-fade">
-              <div className="w-16 h-16 rounded-2xl bg-[#4f39f6]/10 text-[#4f39f6] flex items-center justify-center mx-auto">
+          {activeTab !== 'my_units' && activeTab !== 'profile' && (
+            <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200/90 p-10 text-center space-y-4 shadow-xs animate-slide-up-fade">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
                 {activeTab === 'billing' && <CreditCard className="w-8 h-8" />}
                 {activeTab === 'access' && <KeyRound className="w-8 h-8" />}
                 {activeTab === 'documents' && <FileText className="w-8 h-8" />}
                 {activeTab === 'support' && <Headphones className="w-8 h-8" />}
-                {activeTab === 'profile' && <User className="w-8 h-8" />}
               </div>
               <h2 className="text-xl font-bold text-slate-900">
                 {activeTab === 'billing' && 'Thanh Toán & Hóa Đơn (Tích hợp Luồng 4)'}
                 {activeTab === 'access' && 'Truy Cập & Khóa Thông Minh Smart Lock'}
                 {activeTab === 'documents' && 'Kho Tài Liệu & Hợp Đồng Ký Số'}
                 {activeTab === 'support' && 'Trung Tâm Hỗ Trợ & Yêu Cầu Kỹ Thuật (Luồng 7)'}
-                {activeTab === 'profile' && 'Hồ Sơ Cá Nhân & Cài Đặt Bảo Mật'}
               </h2>
               <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
                 Bạn đang xem tính năng mở rộng. Để quản lý danh sách các kho đã thuê và các thao tác liên quan, vui lòng quay lại tab <strong>Ô kho của tôi</strong>.
               </p>
               <button
+                type="button"
                 onClick={() => { setActiveTab('my_units'); setViewMode('grid'); }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-md shadow-[#4f39f6]/25 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all cursor-pointer"
               >
                 <span>Về Ô kho của tôi</span>
               </button>
@@ -401,6 +525,7 @@ export default function CustomerDashboardPage() {
           )}
         </main>
       </div>
+    </div>
 
       {/* ========================================================================= */}
       {/* MODALS TƯƠNG TÁC CHÍNH CỦA LUỒNG 3 */}
@@ -447,6 +572,56 @@ export default function CustomerDashboardPage() {
         onClose={() => setIsLoginModalOpen(false)}
         onLoginSuccess={handleLoginSuccess}
       />
+
+      {/* 6. Modal [ Xác nhận hủy đơn đặt chỗ (Thay thế window.confirm) ] */}
+      {cancelReservationId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 animate-scale-up">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Xác nhận hủy đơn đặt chỗ
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
+                  Bạn có chắc chắn muốn hủy đơn đặt chỗ này không? Ngăn kho sẽ được giải phóng cho khách hàng khác và thông tin đặt cọc sẽ được chuyển sang trạng thái đã hủy.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setCancelReservationId(null)}
+                disabled={isCancellingReservation}
+                className="px-4 py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Giữ lại đơn
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancelReservation}
+                disabled={isCancellingReservation}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-700 active:scale-95 shadow-md shadow-rose-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isCancellingReservation ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Đang xử lý hủy...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Đồng ý hủy đơn</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

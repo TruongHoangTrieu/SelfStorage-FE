@@ -49,7 +49,7 @@ export default function CustomerLoginModal({
         {/* Header */}
         <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#4f39f6]/10 text-[#4f39f6] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <LogIn className="w-4 h-4" />
             </div>
             <div>
@@ -88,7 +88,7 @@ export default function CustomerLoginModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="customer@selfstorage.com"
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#4f39f6]/20 focus:border-[#4f39f6]"
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
               />
             </div>
           </div>
@@ -105,7 +105,7 @@ export default function CustomerLoginModal({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#4f39f6]/20 focus:border-[#4f39f6]"
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
               />
             </div>
           </div>
@@ -113,19 +113,19 @@ export default function CustomerLoginModal({
           {/* Quick 1-click test credentials */}
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
-              <Sparkles className="w-3.5 h-3.5 text-[#4f39f6]" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Tài khoản kiểm thử Backend Seed:</span>
             </div>
             <button
               type="button"
               onClick={() => handleQuickFill('customer@selfstorage.com', 'Customer@123456')}
-              className="w-full text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-[#4f39f6] hover:bg-[#4f39f6]/5 text-xs transition-colors flex items-center justify-between"
+              className="w-full text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-600 hover:bg-blue-50/50 text-xs transition-colors flex items-center justify-between"
             >
               <div>
                 <span className="font-semibold text-slate-900 block">customer@selfstorage.com</span>
                 <span className="text-[10px] text-slate-500">Khách thuê kho (Customer@123456)</span>
               </div>
-              <span className="text-[10px] font-bold text-[#4f39f6] uppercase">Chọn</span>
+              <span className="text-[10px] font-bold text-blue-600 uppercase">Chọn</span>
             </button>
           </div>
 
@@ -140,7 +140,7 @@ export default function CustomerLoginModal({
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 py-2.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-md shadow-[#4f39f6]/25 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+              className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {isLoading ? (
                 <>

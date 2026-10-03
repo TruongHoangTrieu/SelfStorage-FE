@@ -12,7 +12,6 @@ import {
   X,
   ShieldCheck,
   Box,
-  Building2,
   Settings,
   Bell,
   CheckCircle2,
@@ -111,36 +110,23 @@ export default function Navbar() {
     }
   };
 
-  const roleName =
-    typeof user?.role === "string" ? user.role : user?.role?.name ?? "";
+  const roleName = (
+    typeof user?.role === "string" ? user.role : user?.role?.name ?? ""
+  ).toUpperCase();
 
-  const getRoleBadge = (r: string) => {
-    switch (r.toUpperCase()) {
-      case "ADMIN":
-        return {
-          label: "Quản trị viên",
-          shortLabel: "Admin",
-          badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
-          dotClass: "bg-rose-500",
-        };
-      case "STAFF":
-        return {
-          label: "Nhân viên kho",
-          shortLabel: "Nhân viên",
-          badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
-          dotClass: "bg-purple-500",
-        };
-      case "STORAGE_CUSTOMER":
-      case "CUSTOMER":
-      default:
-        return {
-          label: "Khách hàng",
-          shortLabel: "Khách hàng",
-          badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
-          dotClass: "bg-emerald-500",
-        };
-    }
-  };
+  const isStaff =
+    roleName === "STAFF" ||
+    roleName === "FACILITY_STAFF" ||
+    roleName === "OPERATIONS_STAFF" ||
+    roleName === "FACILITY_MANAGER" ||
+    roleName === "BUSINESS_OPERATIONS_MANAGER" ||
+    roleName.includes("STAFF") ||
+    roleName.includes("MANAGER");
+
+  const isAdmin =
+    roleName === "ADMIN" ||
+    roleName === "SYSTEM_ADMINISTRATOR" ||
+    roleName.includes("ADMIN");
 
   const getInitials = (name?: string, email?: string) => {
     if (name && name.trim()) {
@@ -168,17 +154,15 @@ export default function Navbar() {
     if (email) {
       return email.split("@")[0];
     }
-    return "Khách Hàng";
+    return "Tài khoản";
   };
-
-  const roleInfo = getRoleBadge(roleName);
 
   // Optimized, non-redundant nav links
   const navLinks = [
     { label: "Dịch Vụ", href: "/#services" },
     { label: "Bảng Giá & Cơ Sở", href: "/locations" },
     { label: "Quy Trình Hoạt Động", href: "/#how-it-works" },
-    { label: "Hỗ Trợ & Liên Hệ", href: "/#contact" },
+    { label: "Câu Hỏi Thường Gặp", href: "/#faq" },
   ];
 
   return (
@@ -210,7 +194,7 @@ export default function Navbar() {
             ))}
 
             {/* If staff or admin, provide quick portal link */}
-            {hydrated && (roleName === "STAFF" || roleName === "ADMIN") && (
+            {hydrated && (isStaff || isAdmin) && (
               <Link
                 href="/staff"
                 className="ml-1 px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 font-bold text-xs hover:bg-purple-100 transition whitespace-nowrap flex items-center gap-1.5 border border-purple-100"
@@ -310,14 +294,10 @@ export default function Navbar() {
                     {getInitials(user.fullName, user.email)}
                   </div>
 
-                  {/* Concise User Name & Role Label */}
+                  {/* Concise User Name */}
                   <div className="text-left hidden lg:block">
                     <div className="text-xs font-bold text-slate-800 truncate max-w-[130px] xl:max-w-[150px] leading-tight">
                       {getConciseName(user.fullName, user.email)}
-                    </div>
-                    <div className="text-[10px] font-medium text-slate-500 flex items-center gap-1 leading-tight mt-0.5">
-                      <span className={`w-1.5 h-1.5 rounded-full ${roleInfo.dotClass}`} />
-                      <span>{roleInfo.shortLabel}</span>
                     </div>
                   </div>
 
@@ -339,28 +319,12 @@ export default function Navbar() {
                         </div>
                         <div className="overflow-hidden flex-1 min-w-0">
                           <p className="font-bold text-slate-900 text-sm truncate leading-snug">
-                            {user.fullName || "Khách Hàng"}
+                            {user.fullName || user.email?.split("@")[0] || "Tài khoản"}
                           </p>
                           <p className="text-xs text-slate-500 truncate leading-snug" title={user.email}>
                             {user.email}
                           </p>
-                          {user.phone && (
-                            <p className="text-[11px] text-slate-400 truncate mt-0.5 tabular-nums">
-                              SĐT: {user.phone}
-                            </p>
-                          )}
                         </div>
-                      </div>
-
-                      <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                          Phân quyền
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${roleInfo.badgeClass}`}
-                        >
-                          {roleInfo.label}
-                        </span>
                       </div>
                     </div>
 
@@ -380,7 +344,21 @@ export default function Navbar() {
                         </div>
                       </Link>
 
-                      {(roleName === "STAFF" || roleName === "ADMIN") && (
+                      <Link
+                        href="/dashboard?tab=profile"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition text-left cursor-pointer"
+                      >
+                        <User className="w-4 h-4 text-blue-600 shrink-0" />
+                        <div className="flex-1">
+                          <div className="text-slate-900 font-bold">Thông Tin Cá Nhân</div>
+                          <div className="text-[10px] text-slate-400 font-normal">
+                            Cập nhật họ tên, SĐT & mật khẩu
+                          </div>
+                        </div>
+                      </Link>
+
+                      {(isStaff || isAdmin) && (
                         <Link
                           href="/staff"
                           onClick={() => setUserMenuOpen(false)}
@@ -396,7 +374,7 @@ export default function Navbar() {
                         </Link>
                       )}
 
-                      {roleName === "ADMIN" && (
+                      {isAdmin && (
                         <Link
                           href="/admin"
                           onClick={() => setUserMenuOpen(false)}
@@ -411,20 +389,6 @@ export default function Navbar() {
                           </div>
                         </Link>
                       )}
-
-                      <Link
-                        href="/locations"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition"
-                      >
-                        <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
-                        <div className="flex-1">
-                          <div className="text-slate-900 font-bold">Thuê Thêm Kho</div>
-                          <div className="text-[10px] text-slate-400 font-normal">
-                            Khám phá danh sách cơ sở
-                          </div>
-                        </div>
-                      </Link>
                     </div>
 
                     {/* Logout Option */}
@@ -515,24 +479,10 @@ export default function Navbar() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-slate-900 text-sm truncate">
-                    {user.fullName || "Khách Hàng"}
+                    {user.fullName || user.email?.split("@")[0] || "Tài khoản"}
                   </div>
                   <div className="text-xs text-slate-500 truncate">{user.email}</div>
-                  {user.phone && (
-                    <div className="text-[11px] text-slate-400 tabular-nums">
-                      SĐT: {user.phone}
-                    </div>
-                  )}
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs">
-                <span className="text-slate-500">Phân quyền:</span>
-                <span
-                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${roleInfo.badgeClass}`}
-                >
-                  {roleInfo.label}
-                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-1">
@@ -543,15 +493,24 @@ export default function Navbar() {
                 >
                   Kho Của Tôi
                 </Link>
+                <Link
+                  href="/dashboard?tab=profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2.5 px-3 text-center bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition cursor-pointer"
+                >
+                  Hồ Sơ Cá Nhân
+                </Link>
+              </div>
+              <div className="pt-1">
                 <button
                   type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
                     handleLogout();
                   }}
-                  className="py-2.5 px-3 text-center bg-white border border-rose-200 text-rose-600 font-bold rounded-xl text-xs hover:bg-rose-50 transition"
+                  className="w-full py-2 px-3 text-center bg-white border border-rose-200 text-rose-600 font-bold rounded-xl text-xs hover:bg-rose-50 transition cursor-pointer"
                 >
-                  Đăng xuất
+                  Đăng xuất tài khoản
                 </button>
               </div>
             </div>
@@ -579,7 +538,7 @@ export default function Navbar() {
             </a>
           ))}
 
-          {hydrated && (roleName === "STAFF" || roleName === "ADMIN") && (
+          {hydrated && (isStaff || isAdmin) && (
             <Link
               href="/staff"
               onClick={() => setMobileMenuOpen(false)}
@@ -589,7 +548,7 @@ export default function Navbar() {
             </Link>
           )}
 
-          {hydrated && roleName === "ADMIN" && (
+          {hydrated && isAdmin && (
             <Link
               href="/admin"
               onClick={() => setMobileMenuOpen(false)}

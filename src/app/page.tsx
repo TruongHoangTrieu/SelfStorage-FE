@@ -15,7 +15,6 @@ import {
   ChevronRight,
   ChevronDown,
   Phone,
-  Mail,
   MapPin,
   Star,
   Sparkles,
@@ -24,7 +23,6 @@ import {
   Lock,
   Calculator,
   HelpCircle,
-  Send,
   Check,
   Luggage,
   FileText,
@@ -128,20 +126,10 @@ const REVIEWS = [
 
 export default function LandingPage() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  const [formSubmitted, setFormSubmitted] = useState(false);
-
   // Dynamic facilities from API
   const [facilities, setFacilities] = useState<ApiFacility[]>([]);
   const [facilitiesLoading, setFacilitiesLoading] = useState(true);
   const [facilitiesError, setFacilitiesError] = useState<string | null>(null);
-
-  const [contactForm, setContactForm] = useState({
-    name: "",
-    phone: "",
-    need: "kho-mini",
-    facilityId: "",
-    note: ""
-  });
 
   // Fetch facilities from API
   const loadFacilities = async () => {
@@ -151,9 +139,6 @@ export default function LandingPage() {
       const data = await api.get<ApiFacility[]>("/facilities");
       if (Array.isArray(data) && data.length > 0) {
         setFacilities(data);
-        if (!contactForm.facilityId) {
-          setContactForm((prev) => ({ ...prev, facilityId: String(data[0].id) }));
-        }
       } else {
         setFacilities([]);
       }
@@ -168,22 +153,6 @@ export default function LandingPage() {
   useEffect(() => {
     loadFacilities();
   }, []);
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormSubmitted(true);
-    setTimeout(() => {
-      setFormSubmitted(false);
-      setContactForm({
-        name: "",
-        phone: "",
-        need: "kho-mini",
-        facilityId: facilities.length > 0 ? String(facilities[0].id) : "",
-        note: ""
-      });
-      alert("Cảm ơn bạn! Đội ngũ tư vấn SelfStorage sẽ liên hệ lại trong vòng 5 phút.");
-    }, 1000);
-  };
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-600 selection:text-white pb-20 sm:pb-0">
@@ -245,11 +214,11 @@ export default function LandingPage() {
                   <ArrowRight className="w-5 h-5" />
                 </Link>
                 <a
-                  href="#contact"
+                  href="tel:02877700117"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-sm sm:text-base font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur transition-all text-center whitespace-nowrap"
                 >
                   <Phone className="w-4 h-4 text-amber-300" />
-                  <span>Nhận Báo Giá &amp; Tư Vấn</span>
+                  <span>Hotline: 028 7770 0117</span>
                 </a>
                 <Link
                   href="/login"
@@ -323,12 +292,9 @@ export default function LandingPage() {
       <section id="services" className="py-20 sm:py-28 bg-white border-b border-slate-200">
         <div id="how-it-works" className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
           <div className="w-full mb-12 sm:mb-16">
-            <p className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-extrabold text-blue-600 bg-blue-100/70 px-3 py-1 rounded-full mb-3">
-              <Clock className="w-3.5 h-3.5 text-orange-500" />
-              Quy Trình Khách Hàng (Storage Customer)
-            </p>
+            
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              Hành Trình Thuê Kho Tự Quản 100% Khép Kín &amp; Tự Động
+              Quy Trình  Thuê Kho Tự Quản 100% Khép Kín &amp; Tự Động
             </h2>
             <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed">
               Từ bước chọn cơ sở kho đến lúc check-in nhận phòng, thanh toán cọc và quản lý kho lưu trữ — mọi thao tác đều được tối ưu hóa trực tuyến.
@@ -451,10 +417,7 @@ export default function LandingPage() {
       <section id="locations" className="py-20 sm:py-28 bg-white border-b border-slate-200">
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
           <div className="w-full mb-12 sm:mb-16">
-            <p className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-extrabold text-blue-600 bg-blue-100/70 px-3 py-1 rounded-full mb-3">
-              <MapPin className="w-3.5 h-3.5 text-orange-500" />
-              Mạng Lưới Cơ Sở Kho
-            </p>
+            
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Hệ Thống Cơ Sở Kho Tự Quản
             </h2>
@@ -574,10 +537,6 @@ export default function LandingPage() {
       <section id="b2b" className="py-20 sm:py-28 bg-white border-b border-slate-200">
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
           <div className="w-full mb-12 sm:mb-16">
-            <p className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-extrabold text-blue-600 bg-blue-100/70 px-3 py-1 rounded-full mb-3">
-              <Boxes className="w-3.5 h-3.5" />
-              Nhu Cầu Phổ Biến &amp; B2B
-            </p>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Tôi Có Thể Lưu Trữ Những Gì Trong Kho Tự Quản?
             </h2>
@@ -759,10 +718,7 @@ export default function LandingPage() {
       <section id="faq" className="py-20 sm:py-28 bg-slate-50 border-b border-slate-200">
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
           <div className="text-center w-full mx-auto mb-16">
-            <p className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-extrabold text-blue-600 bg-blue-100/70 px-3 py-1 rounded-full mb-3">
-              <HelpCircle className="w-3.5 h-3.5" />
-              Hỏi &amp; Đáp
-            </p>
+            
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Những Câu Hỏi Thường Gặp Về Kho Tự Quản
             </h2>
@@ -801,156 +757,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 10. FAST CONTACT / INQUIRY FORM */}
-      <section className="py-20 sm:py-28 bg-white" id="contact">
-        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
-          <div className="grid lg:grid-cols-12 gap-12 items-center">
-            {/* Left text */}
-            <div className="lg:col-span-6 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 text-orange-700 font-bold text-xs">
-                <Send className="w-3.5 h-3.5" />
-                Tư Vấn Kho Tự Quản 24/7
-              </div>
-              <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-                Nhận Báo Giá Kho Tự Quản &amp; Đặt Lịch Tham Quan
-              </h2>
-              <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-                Để lại số điện thoại và nhu cầu thuê kho tự quản của bạn, chuyên viên SelfStorage sẽ gọi điện tư vấn kích thước kho phù hợp và gửi bảng giá chi tiết kèm ưu đãi trong vòng 5 phút!
-              </p>
-
-              <div className="space-y-4 pt-4 text-sm text-slate-700">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                    <Phone className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900">Hotline 24/7:</div>
-                    <a href="tel:02877700117" className="text-blue-600 font-bold hover:underline">028 7770 0117</a> (Zalo / Call)
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900">Email hỗ trợ:</div>
-                    <a href="mailto:support@selfstorage.vn" className="text-emerald-700 hover:underline">support@selfstorage.vn</a>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900">Khu vực phục vụ:</div>
-                    <span>Toàn bộ hệ thống cơ sở kho tự quản</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Form Card */}
-            <div className="lg:col-span-6">
-              <div className="p-8 sm:p-10 rounded-3xl bg-slate-50 border border-slate-200 shadow-xl">
-                <h3 className="text-2xl font-black text-slate-900 mb-2">Đăng Ký Tư Vấn Thuê Kho Tự Quản</h3>
-                <p className="text-slate-500 text-xs sm:text-sm mb-6">Điền thông tin để nhận mã giảm giá 10% cho tháng đầu tiên!</p>
-
-                <form onSubmit={handleFormSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Họ và Tên *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Nguyễn Văn A"
-                      value={contactForm.name}
-                      onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Số Điện Thoại (Zalo) *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="0901 234 567"
-                      value={contactForm.phone}
-                      onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                        Nhu Cầu Thuê
-                      </label>
-                      <select
-                        value={contactForm.need}
-                        onChange={(e) => setContactForm({ ...contactForm, need: e.target.value })}
-                        className="w-full px-3 py-3 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      >
-                        <option value="kho-mini">Kho Tự Quản Mini (1-5 CBM)</option>
-                        <option value="kho-gia-dinh">Kho Tự Quản Gia Đình (8-12 CBM)</option>
-                        <option value="kho-doanh-nghiep">Kho Tự Quản Doanh Nghiệp (23+ CBM)</option>
-                        <option value="tu-locker">Tủ Locker Gửi Hành Lý</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                        Cơ Sở Kho
-                      </label>
-                      <select
-                        value={contactForm.facilityId}
-                        onChange={(e) => setContactForm({ ...contactForm, facilityId: e.target.value })}
-                        className="w-full px-3 py-3 rounded-xl border border-slate-300 bg-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      >
-                        {facilities.length > 0 ? (
-                          facilities.map((fac) => (
-                            <option key={fac.id} value={fac.id}>
-                              {fac.name}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="">Tất cả cơ sở</option>
-                        )}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Ghi chú đồ cần lưu trữ
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="Ví dụ: Cần kho tự quản chứa đồ căn hộ 2PN trong 3 tháng..."
-                      value={contactForm.note}
-                      onChange={(e) => setContactForm({ ...contactForm, note: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition"
-                    ></textarea>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={formSubmitted}
-                    className="w-full py-4 rounded-xl font-extrabold text-sm sm:text-base text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all"
-                  >
-                    {formSubmitted ? "Đang gửi thông tin..." : "GỬI YÊU CẦU TƯ VẤN NGAY"}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* 11. FOOTER */}
       <Footer />

@@ -128,7 +128,7 @@ export default function IncidentReportModal({
               required
               value={ticketTitle}
               onChange={(e) => setTicketTitle(e.target.value)}
-              className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+              className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
             />
           </div>
 
@@ -140,7 +140,7 @@ export default function IncidentReportModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
               >
                 <option value="Lỗi ổ khóa / Mã PIN không mở được">Kẹt khóa / Mã PIN không ăn</option>
                 <option value="Đèn chiếu sáng hoặc quạt thông gió hỏng">Đèn chiếu sáng hỏng</option>
@@ -157,7 +157,7 @@ export default function IncidentReportModal({
               <select
                 value={urgency}
                 onChange={(e) => setUrgency(e.target.value as any)}
-                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
               >
                 <option value="normal">Bình thường (Trong ngày)</option>
                 <option value="high">Cao (Cần hỗ trợ trong 30p)</option>
@@ -176,7 +176,7 @@ export default function IncidentReportModal({
               placeholder="Mô tả cụ thể hiện tượng bạn gặp phải khi sử dụng ô kho..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full text-xs bg-white border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+              className="w-full text-xs bg-white border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
             />
           </div>
 

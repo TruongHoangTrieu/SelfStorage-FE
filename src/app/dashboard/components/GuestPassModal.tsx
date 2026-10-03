@@ -73,7 +73,7 @@ export default function GuestPassModal({
         {/* Header */}
         <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#4f39f6]/10 text-[#4f39f6] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <UserPlus className="w-4 h-4" />
             </div>
             <div>
@@ -109,7 +109,7 @@ export default function GuestPassModal({
               placeholder="ví dụ: Đội chuyển nhà Thành Hưng, Anh Nam, Chị Linh..."
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
             />
           </div>
 
@@ -121,7 +121,7 @@ export default function GuestPassModal({
               <select
                 value={durationDays}
                 onChange={(e) => setDurationDays(Number(e.target.value))}
-                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
               >
                 <option value={1}>24 giờ (1 ngày)</option>
                 <option value={3}>3 ngày</option>
@@ -137,7 +137,7 @@ export default function GuestPassModal({
                 type="text"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
               />
             </div>
           </div>
@@ -145,7 +145,7 @@ export default function GuestPassModal({
           {/* Generated PIN Card */}
           <div className="p-4 rounded-xl bg-slate-900 text-white space-y-2 text-center">
             <div className="text-xs text-slate-400">Mã PIN Smart Lock ngẫu nhiên dành riêng cho khách:</div>
-            <div className="text-3xl tabular-nums font-extrabold tracking-widest text-[#818cf8]">
+            <div className="text-3xl tabular-nums font-extrabold tracking-widest text-blue-400">
               {generatedPin}
             </div>
             <div className="text-[11px] text-slate-400">
@@ -168,7 +168,7 @@ export default function GuestPassModal({
             <button
               type="button"
               onClick={handleShareZalo}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-all"
             >
               <Share2 className="w-3.5 h-3.5" />
               <span>Chia sẻ qua Zalo/Email</span>
@@ -186,7 +186,7 @@ export default function GuestPassModal({
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-md shadow-[#4f39f6]/25"
+              className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25"
             >
               Xác nhận cấp mã
             </button>

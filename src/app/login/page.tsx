@@ -72,14 +72,32 @@ export default function LoginPage() {
           return redirectParam;
         }
 
-        const role =
+        const role = (
           typeof userObj?.role === "string"
-            ? userObj.role.toUpperCase()
-            : userObj?.role?.name?.toUpperCase() ?? "";
+            ? userObj.role
+            : userObj?.role?.name ?? ""
+        ).toUpperCase();
 
-        if (role === "ADMIN") return "/admin";
-        if (role === "STAFF") return "/staff";
-        return "/";
+        // Admin Roles
+        if (role === "ADMIN" || role === "SYSTEM_ADMINISTRATOR" || role.includes("ADMIN")) {
+          return "/admin";
+        }
+
+        // Staff & Facility Manager Roles
+        if (
+          role === "STAFF" ||
+          role === "FACILITY_STAFF" ||
+          role === "OPERATIONS_STAFF" ||
+          role === "FACILITY_MANAGER" ||
+          role === "BUSINESS_OPERATIONS_MANAGER" ||
+          role.includes("STAFF") ||
+          role.includes("MANAGER")
+        ) {
+          return "/staff";
+        }
+
+        // Customer Role
+        return "/dashboard";
       };
 
       if (isLogin) {
@@ -437,7 +455,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => {
-              alert("Tính năng Đăng nhập bằng Google đang được hoàn thiện. Vui lòng sử dụng email/mật khẩu hệ thống.");
+              toast.info("Tính năng Đăng nhập bằng Google đang được hoàn thiện. Vui lòng sử dụng email/mật khẩu hệ thống.");
             }}
             className="w-full py-3.5 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all flex items-center justify-center gap-3 font-semibold text-slate-700 text-sm sm:text-base cursor-pointer shadow-sm group active:scale-[0.99]"
           >

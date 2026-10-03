@@ -49,7 +49,7 @@ export default function StaffLoginModal({
         {/* Header */}
         <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#4f39f6]/10 text-[#4f39f6] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <LogIn className="w-4 h-4" />
             </div>
             <div>
@@ -61,7 +61,7 @@ export default function StaffLoginModal({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 text-lg leading-none"
+            className="text-slate-400 hover:text-slate-700 text-lg leading-none cursor-pointer"
           >
             ✕
           </button>
@@ -88,7 +88,7 @@ export default function StaffLoginModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="staff@selfstorage.com"
-                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
               />
             </div>
           </div>
@@ -105,7 +105,7 @@ export default function StaffLoginModal({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
               />
             </div>
           </div>
@@ -118,17 +118,17 @@ export default function StaffLoginModal({
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <button
                 type="button"
-                onClick={() => handleQuickFill('staff@selfstorage.com', 'Staff@123456')}
-                className="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-[#4f39f6] font-semibold border border-indigo-200 text-left transition-colors"
+                onClick={() => handleQuickFill('staff@selfstorage.vn', '123456')}
+                className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold border border-blue-200 text-left transition-colors cursor-pointer"
               >
-                Nhân viên (Staff Q1)
+                Nhân viên vận hành (staff@selfstorage.vn)
               </button>
               <button
                 type="button"
-                onClick={() => handleQuickFill('manager@selfstorage.com', 'Manager@123456')}
-                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border border-slate-200 text-left transition-colors"
+                onClick={() => handleQuickFill('manager@selfstorage.vn', '123456')}
+                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border border-slate-200 text-left transition-colors cursor-pointer"
               >
-                Quản lý (Manager Q1)
+                Quản lý chi nhánh (manager@selfstorage.vn)
               </button>
             </div>
           </div>
@@ -138,14 +138,14 @@ export default function StaffLoginModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
             >
               Đóng
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-md shadow-[#4f39f6]/25 transition-all disabled:opacity-70"
+              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/20 transition-all disabled:opacity-70 cursor-pointer"
             >
               {isLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
               <span>{isLoading ? 'Đang xác thực...' : 'Đăng nhập'}</span>

@@ -56,7 +56,7 @@ export default function Footer() {
               <li><Link href="/#how-it-works" className="hover:text-white transition">Hành trình thuê kho 6 bước</Link></li>
               <li><Link href="/#services" className="hover:text-white transition">Dịch vụ kho tự quản 24/7</Link></li>
               <li><Link href="/#faq" className="hover:text-white transition">Câu hỏi thường gặp (FAQ)</Link></li>
-              <li><Link href="/#contact" className="hover:text-white transition">Đăng ký tư vấn &amp; báo giá</Link></li>
+              <li><a href="tel:02877700117" className="hover:text-white transition">Hotline tư vấn: 028 7770 0117</a></li>
             </ul>
           </div>
 

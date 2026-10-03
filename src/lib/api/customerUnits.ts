@@ -272,4 +272,26 @@ export const customerUnitsApi = {
     const res = await api.post('/support/requests', payload);
     return normalizeSupportRequest(res);
   },
+
+  /**
+   * Fetch customer's reservations (GET /reservations)
+   */
+  async fetchMyReservations(): Promise<any[]> {
+    try {
+      const res = await api.get('/reservations?limit=20');
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      return list;
+    } catch (e) {
+      console.warn('Could not fetch /reservations, returning empty', e);
+      return [];
+    }
+  },
+
+  /**
+   * Cancel customer's reservation (POST /reservations/:id/cancel)
+   */
+  async cancelReservation(id: number, reason = 'Khách hàng hủy trực tuyến'): Promise<any> {
+    return await api.post(`/reservations/${id}/cancel`, { reason });
+  },
 };
+

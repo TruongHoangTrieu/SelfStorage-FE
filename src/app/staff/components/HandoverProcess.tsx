@@ -83,7 +83,7 @@ export default function HandoverProcess({
               <h2 className="text-base font-bold text-slate-900">
                 Thủ tục Bàn giao: {appointment.customerName}
               </h2>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[#4f39f6]/10 text-[#4f39f6] font-semibold border border-[#4f39f6]/20">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200">
                 Đang xử lý (In-Progress)
               </span>
             </div>
@@ -97,9 +97,9 @@ export default function HandoverProcess({
           {/* [ NÚT IN TÀI LIỆU ] */}
           <button
             onClick={onOpenPrintModal}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all shadow-xs active:scale-95"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer"
           >
-            <Printer className="w-4 h-4 text-[#4f39f6]" />
+            <Printer className="w-4 h-4 text-blue-600" />
             <span>In tài liệu</span>
           </button>
 
@@ -107,10 +107,10 @@ export default function HandoverProcess({
           <button
             onClick={onCompleteHandover}
             disabled={isSubmitting}
-            className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-lg active:scale-95 ${
+            className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-md active:scale-95 cursor-pointer ${
               isSubmitting
-                ? 'bg-[#4f39f6]/70 cursor-not-allowed'
-                : 'bg-[#4f39f6] hover:bg-[#432fe0] shadow-[#4f39f6]/30'
+                ? 'bg-blue-600/70 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/25'
             }`}
           >
             {isSubmitting ? (
@@ -172,7 +172,7 @@ export default function HandoverProcess({
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#4f39f6]" />
+                <Calendar className="w-4 h-4 text-blue-600" />
                 Chi tiết Hợp đồng Đặt chỗ
               </h3>
               <span className="tabular-nums text-xs text-slate-500 font-semibold">{appointment.id}</span>
@@ -193,7 +193,7 @@ export default function HandoverProcess({
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500">Thời hạn thuê:</span>
-                <span className="font-bold text-[#4f39f6]">{appointment.durationMonths} tháng</span>
+                <span className="font-bold text-blue-600">{appointment.durationMonths} tháng</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500">Giá thuê hàng tháng:</span>
@@ -243,14 +243,14 @@ export default function HandoverProcess({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#4f39f6]" />
+                  <Building2 className="w-4 h-4 text-blue-600" />
                   1. Xác nhận hoặc Thay đổi Ô kho được Gán
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Chọn ô kho khác nếu ô ban đầu không khả dụng hoặc khách muốn đổi vị trí.
                 </p>
               </div>
-              <span className="text-xs font-bold text-[#4f39f6] bg-[#4f39f6]/10 px-2.5 py-1 rounded-md">
+              <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200/60">
                 {appointment.unitType}
               </span>
             </div>
@@ -263,7 +263,7 @@ export default function HandoverProcess({
                 <select
                   value={activeUnit}
                   onChange={(e) => onChangeUnitCode(e.target.value)}
-                  className="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-900 text-sm font-semibold rounded-xl px-4 py-3 pr-10 focus:outline-hidden focus:ring-2 focus:ring-[#4f39f6] focus:border-transparent transition-all cursor-pointer"
+                  className="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-900 text-sm font-semibold rounded-xl px-4 py-3 pr-10 focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all cursor-pointer"
                 >
                   <optgroup label="Ô ban đầu chỉ định">
                     <option value={appointment.assignedUnit}>
@@ -307,7 +307,7 @@ export default function HandoverProcess({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <Key className="w-4 h-4 text-[#4f39f6]" />
+                  <Key className="w-4 h-4 text-blue-600" />
                   2. Cấp Quyền Truy Cập & Mã Khóa An Toàn
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -321,7 +321,7 @@ export default function HandoverProcess({
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-[#4f39f6]" />
+                    <Lock className="w-3.5 h-3.5 text-blue-600" />
                     Mã PIN Smart Lock (6 số)
                   </span>
                   <button
@@ -329,7 +329,7 @@ export default function HandoverProcess({
                       const newPin = Math.floor(100000 + Math.random() * 900000).toString();
                       onChangeCustomPin(newPin);
                     }}
-                    className="text-[11px] text-[#4f39f6] font-semibold hover:underline flex items-center gap-1"
+                    className="text-[11px] text-blue-600 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <RefreshCw className="w-3 h-3" />
                     Tạo mới
@@ -340,7 +340,7 @@ export default function HandoverProcess({
                   maxLength={6}
                   value={customPin}
                   onChange={(e) => onChangeCustomPin(e.target.value.replace(/\D/g, ''))}
-                  className="w-full text-center tracking-widest tabular-nums text-xl font-bold bg-white border border-slate-300 rounded-lg py-2 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                  className="w-full text-center tracking-widest tabular-nums text-xl font-bold bg-white border border-slate-300 rounded-lg py-2 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
                 />
                 <p className="text-[11px] text-slate-500 text-center">Khách dùng mở khóa cửa kho & thang máy</p>
               </div>
@@ -349,7 +349,7 @@ export default function HandoverProcess({
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-[#4f39f6]" />
+                    <CreditCard className="w-3.5 h-3.5 text-blue-600" />
                     Mã Thẻ Từ RFID / Tag
                   </span>
                   <span className="text-[11px] text-emerald-600 font-semibold">Đã đồng bộ</span>
@@ -358,7 +358,7 @@ export default function HandoverProcess({
                   type="text"
                   value={customRfid}
                   onChange={(e) => onChangeCustomRfid(e.target.value)}
-                  className="w-full text-center tabular-nums text-sm font-bold bg-white border border-slate-300 rounded-lg py-2.5 focus:ring-2 focus:ring-[#4f39f6] focus:outline-hidden"
+                  className="w-full text-center tabular-nums text-sm font-bold bg-white border border-slate-300 rounded-lg py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
                 />
                 <p className="text-[11px] text-slate-500 text-center">Quét thẻ vật lý tại cổng an ninh cơ sở</p>
               </div>
@@ -370,7 +370,7 @@ export default function HandoverProcess({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-[#4f39f6]" />
+                  <FileText className="w-4 h-4 text-blue-600" />
                   3. Hợp đồng Kỹ thuật số (Digital Rental Agreement)
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -379,7 +379,7 @@ export default function HandoverProcess({
               </div>
               <button
                 onClick={onOpenContractModal}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#4f39f6] hover:bg-[#4f39f6]/10 rounded-lg transition-colors border border-[#4f39f6]/30"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200 cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />
                 Xem trước toàn văn
@@ -398,7 +398,7 @@ export default function HandoverProcess({
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f39f6] border border-indigo-200">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                     Mẫu Luật Việt Nam 2026
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -409,7 +409,7 @@ export default function HandoverProcess({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <p>• <strong>Bên A (Cho thuê):</strong> CÔNG TY CP SELFSTORAGE VN</p>
                 <p>• <strong>Bên B (Khách thuê):</strong> <strong className="text-slate-900">{appointment.customerName}</strong> (CCCD: {appointment.idCard})</p>
-                <p>• <strong>Ngăn kho bàn giao:</strong> <strong className="text-[#4f39f6]">Ô #{activeUnit}</strong> ({appointment.unitSize})</p>
+                <p>• <strong>Ngăn kho bàn giao:</strong> <strong className="text-blue-600">Ô #{activeUnit}</strong> ({appointment.unitSize})</p>
                 <p>• <strong>Thời hạn thuê:</strong> {appointment.durationMonths} tháng (Từ {appointment.startDate})</p>
               </div>
             </div>
@@ -425,7 +425,7 @@ export default function HandoverProcess({
                     type="checkbox"
                     checked={checklist.identityVerified}
                     onChange={(e) => setChecklist({ ...checklist, identityVerified: e.target.checked })}
-                    className="rounded text-[#4f39f6] focus:ring-[#4f39f6]"
+                    className="rounded text-blue-600 focus:ring-blue-600"
                   />
                   <span className="text-slate-800 font-medium">Đối soát CCCD gốc trùng khớp</span>
                 </label>
@@ -434,7 +434,7 @@ export default function HandoverProcess({
                     type="checkbox"
                     checked={checklist.lockTested}
                     onChange={(e) => setChecklist({ ...checklist, lockTested: e.target.checked })}
-                    className="rounded text-[#4f39f6] focus:ring-[#4f39f6]"
+                    className="rounded text-blue-600 focus:ring-blue-600"
                   />
                   <span className="text-slate-800 font-medium">Khóa cửa & mã PIN hoạt động tốt</span>
                 </label>
@@ -443,7 +443,7 @@ export default function HandoverProcess({
                     type="checkbox"
                     checked={checklist.lightingChecked}
                     onChange={(e) => setChecklist({ ...checklist, lightingChecked: e.target.checked })}
-                    className="rounded text-[#4f39f6] focus:ring-[#4f39f6]"
+                    className="rounded text-blue-600 focus:ring-blue-600"
                   />
                   <span className="text-slate-800 font-medium">Đèn chiếu sáng & thông gió ổn định</span>
                 </label>
@@ -452,7 +452,7 @@ export default function HandoverProcess({
                     type="checkbox"
                     checked={checklist.cleanlinessChecked}
                     onChange={(e) => setChecklist({ ...checklist, cleanlinessChecked: e.target.checked })}
-                    className="rounded text-[#4f39f6] focus:ring-[#4f39f6]"
+                    className="rounded text-blue-600 focus:ring-blue-600"
                   />
                   <span className="text-slate-800 font-medium">Ô kho sạch sẽ, không mùi lạ</span>
                 </label>
@@ -481,10 +481,10 @@ export default function HandoverProcess({
               <button
                 onClick={onCompleteHandover}
                 disabled={isSubmitting}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-lg active:scale-95 ${
+                className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-md active:scale-95 cursor-pointer ${
                   isSubmitting
-                    ? 'bg-[#4f39f6]/70 cursor-not-allowed'
-                    : 'bg-[#4f39f6] hover:bg-[#432fe0] shadow-[#4f39f6]/30'
+                    ? 'bg-blue-600/70 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/25'
                 }`}
               >
                 {isSubmitting ? (

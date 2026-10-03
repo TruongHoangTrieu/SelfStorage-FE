@@ -30,6 +30,7 @@ import {
   Info,
   Copy,
   Lock,
+  ShieldAlert,
 } from "lucide-react";
 
 interface DurationOption {
@@ -108,11 +109,95 @@ export default function BookingFlow() {
 
   const [submitting, setSubmitting] = useState(false);
   const [reservationCode, setReservationCode] = useState("");
+  const [reservationId, setReservationId] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [authError, setAuthError] = useState(false);
   const [qrData, setQrData] = useState<any>(null);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [simulatingWebhook, setSimulatingWebhook] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(900); // 15 mins (900s)
+
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      const token = localStorage.getItem("token");
+      if (raw && token) {
+        setCurrentUser(JSON.parse(raw));
+      } else {
+        setCurrentUser(null);
+      }
+    } catch {
+      setCurrentUser(null);
+    }
+  }, []);
+
+  const roleName = (
+    typeof currentUser?.role === "string" ? currentUser.role : currentUser?.role?.name ?? ""
+  ).toUpperCase();
+
+  const isStaffOrAdmin = Boolean(
+    currentUser && (
+      roleName === "STAFF" ||
+      roleName === "FACILITY_STAFF" ||
+      roleName === "OPERATIONS_STAFF" ||
+      roleName === "FACILITY_MANAGER" ||
+      roleName === "BUSINESS_OPERATIONS_MANAGER" ||
+      roleName === "ADMIN" ||
+      roleName === "SYSTEM_ADMINISTRATOR" ||
+      roleName.includes("STAFF") ||
+      roleName.includes("MANAGER") ||
+      roleName.includes("ADMIN")
+    )
+  );
+
+  // 15-minute countdown timer when on payment_qr
+  useEffect(() => {
+    if (step !== "payment_qr") return;
+    setTimeLeft(900);
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step]);
+
+  // Auto-polling for payment confirmation (SePay VietQR)
+  useEffect(() => {
+    if (step !== "payment_qr" || !reservationId) return;
+
+    let isSubscribed = true;
+    const interval = setInterval(async () => {
+      try {
+        const summary: any = await api.get(`/payments/reservations/${reservationId}/summary`);
+        if (!isSubscribed) return;
+        if (summary?.depositPaid || summary?.reservation?.status === "CONFIRMED") {
+          clearInterval(interval);
+          toast.success("Hệ thống đã nhận được tiền cọc thành công! Ô kho đã được giữ chỗ.");
+          setStep("success");
+        }
+      } catch {
+        // silent catch during background polling
+      }
+    }, 3000);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [step, reservationId]);
+
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -224,6 +309,13 @@ export default function BookingFlow() {
       return;
     }
 
+    if (isStaffOrAdmin) {
+      toast.error(
+        "Tài khoản Nhân viên / Quản lý không có quyền đặt giữ chỗ kho trực tuyến. Tính năng này chỉ dành cho Khách hàng."
+      );
+      return;
+    }
+
     setSubmitting(true);
     setAuthError(false);
     setErrorMsg("");
@@ -241,6 +333,7 @@ export default function BookingFlow() {
       });
 
       const resId = resResult.id;
+      setReservationId(resId);
       setReservationCode(resResult.reservationCode || "RES-" + Date.now());
 
       const payResult = await api.post("/payments/deposit", {
@@ -255,7 +348,18 @@ export default function BookingFlow() {
     } catch (err: any) {
       setStep("failed");
 
-      if (isAuthError(err)) {
+      const status =
+        err?.status ?? err?.statusCode ?? err?.response?.status ?? err?.cause?.status;
+      const isForbidden =
+        status === 403 ||
+        String(err?.message || "").toLowerCase().includes("forbidden");
+
+      if (isForbidden || isStaffOrAdmin) {
+        setAuthError(false);
+        setErrorMsg(
+          "Tài khoản của bạn là tài khoản Nội bộ (Nhân viên / Quản lý) nên không có quyền đặt thuê kho trực tuyến. Hệ thống chỉ cho phép tài khoản Khách hàng (STORAGE_CUSTOMER) thực hiện đặt giữ chỗ.",
+        );
+      } else if (isAuthError(err)) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         setAuthError(true);
@@ -462,7 +566,14 @@ export default function BookingFlow() {
               {errorMsg}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              {authError ? (
+              {isStaffOrAdmin ? (
+                <Link
+                  href="/staff"
+                  className="flex-1 px-6 py-3.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-full transition-colors cursor-pointer text-sm text-center flex items-center justify-center gap-1.5"
+                >
+                  Đến Staff Portal
+                </Link>
+              ) : authError ? (
                 <button
                   onClick={() =>
                     router.push(`/login?redirect=${encodeURIComponent(`/book/${facilityId}`)}`)
@@ -575,6 +686,37 @@ export default function BookingFlow() {
             {/* LEFT COLUMN: ACTIVE STEP CONTENT */}
             <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-2xs">
               
+              {/* Staff / Admin Warning Notice */}
+              {isStaffOrAdmin && (
+                <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                      <ShieldAlert className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-bold text-amber-950">
+                          Tài khoản Nhân viên: {currentUser?.name || currentUser?.email}
+                        </h4>
+                        <span className="px-2 py-0.5 text-[10px] font-black rounded-md bg-amber-200/80 text-amber-900 uppercase">
+                          {roleName}
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
+                        Tài khoản nội bộ không có quyền đặt thuê kho trực tuyến (chỉ dành riêng cho Khách hàng). Bạn có thể truy cập Cổng Quản lý để kiểm tra và xử lý kho.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/staff"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    <span>Đến Staff Portal</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              )}
+
               {/* ================= STEP 1: SELECT UNIT TYPE ================= */}
               {step === "unit" && (
                 <div>
@@ -883,16 +1025,27 @@ export default function BookingFlow() {
                       ← Quay lại
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={handleGenerateQR}
-                      disabled={!isStep2Valid || submitting}
-                      className="inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm uppercase tracking-wider rounded-full shadow-md shadow-orange-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                    >
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                      <span>Xác Nhận &amp; Nhận Mã QR</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                    {isStaffOrAdmin ? (
+                      <Link
+                        href="/staff"
+                        className="inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-slate-900 hover:bg-black text-white font-extrabold text-sm uppercase tracking-wider rounded-full shadow-md transition-all cursor-pointer"
+                      >
+                        <ShieldAlert className="w-4 h-4 text-amber-400" />
+                        <span>Chuyển Sang Cổng Quản Lý Nhân Viên</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleGenerateQR}
+                        disabled={!isStep2Valid || submitting}
+                        className="inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm uppercase tracking-wider rounded-full shadow-md shadow-orange-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        <span>Xác Nhận &amp; Nhận Mã QR</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -901,15 +1054,25 @@ export default function BookingFlow() {
               {step === "payment_qr" && qrData && (
                 <div>
                   <div className="mb-8">
-                    <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      Bước 3 / 3: Quét Mã Thanh Toán Cọc
-                    </span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                      <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        Bước 3 / 3: Quét Mã Thanh Toán Cọc
+                      </span>
+                      <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold self-start sm:self-auto transition-colors ${
+                        timeLeft <= 120 
+                          ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse'
+                          : 'bg-amber-50 border-amber-200 text-amber-800'
+                      }`}>
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Thời gian giữ chỗ còn: <strong className="tabular-nums font-black">{formatCountdown(timeLeft)}</strong></span>
+                      </div>
+                    </div>
                     <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
                       Thanh Toán Cọc Giữ Chỗ Tự Động
                     </h1>
                     <p className="text-slate-500 text-sm mt-1.5">
-                      Mở ứng dụng ngân hàng bất kỳ để quét mã VietQR. Hệ thống tự động xác nhận sau 5 - 10 giây.
+                      Mở ứng dụng ngân hàng bất kỳ để quét mã VietQR. Hệ thống tự động xác nhận sau 5 - 10 giây khi nhận được tiền.
                     </p>
                   </div>
 
@@ -995,7 +1158,7 @@ export default function BookingFlow() {
                   <div className="mt-8 flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center">
                     <p className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
                       <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
-                      <span>Hệ thống đang tự động lắng nghe giao dịch chuyển khoản ngân hàng...</span>
+                      <span>Hệ thống đang tự động lắng nghe giao dịch chuyển khoản VietQR (tự động chuyển trang khi hoàn tất)...</span>
                     </p>
 
                     <button
@@ -1122,6 +1285,16 @@ export default function BookingFlow() {
                           </span>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {isStaffOrAdmin && (
+                    <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-800 flex items-start gap-2">
+                      <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-amber-900">Tài khoản Nhân viên</p>
+                        <p className="text-amber-700 mt-0.5">Không hỗ trợ chức năng thanh toán cọc giữ chỗ trực tuyến.</p>
+                      </div>
                     </div>
                   )}
                 </div>
