@@ -57,20 +57,69 @@ export function normalizeReservation(item: any): CheckInAppointment {
   const unit = firstItem.unit || {};
   const unitType = firstItem.unitType || {};
 
-  // Parse appointment date & time
-  let slotTime = '09:00 SA';
+  // Parse appointment date & time theo chuẩn múi giờ Việt Nam (Asia/Ho_Chi_Minh / GMT+7)
+  let slotTime = '09:00 - 10:00';
   let timeCategory: 'morning' | 'afternoon' = 'morning';
   let startDate = '20/09/2026';
+  let dateDisplay = 'Hôm nay';
 
   if (item.appointmentDate) {
     try {
       const dateObj = new Date(item.appointmentDate);
-      const hours = dateObj.getHours();
-      const mins = dateObj.getMinutes().toString().padStart(2, '0');
-      timeCategory = hours < 12 ? 'morning' : 'afternoon';
-      const period = hours < 12 ? 'SA' : 'CH';
-      slotTime = `${hours % 12 || 12}:${mins} ${period}`;
-      startDate = dateObj.toLocaleDateString('vi-VN');
+
+      // Định dạng theo múi giờ Việt Nam (Asia/Ho_Chi_Minh)
+      const fmt = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+
+      const parts = fmt.formatToParts(dateObj);
+      const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '';
+
+      const day = getPart('day');
+      const month = getPart('month');
+      const year = getPart('year');
+      const hourStr = getPart('hour');
+      const minStr = getPart('minute');
+      const hourNum = parseInt(hourStr, 10);
+
+      // Phân loại sáng (08:00 - 12:00) / chiều (13:00 - 18:00)
+      timeCategory = hourNum < 12 ? 'morning' : 'afternoon';
+
+      // Khung giờ chuẩn Việt Nam (24h): "08:00 - 09:00", "13:00 - 14:00"
+      const endHourNum = (hourNum + 1) % 24;
+      const endHourStr = endHourNum.toString().padStart(2, '0');
+      slotTime = `${hourStr}:${minStr} - ${endHourStr}:${minStr}`;
+      startDate = `${day}/${month}/${year}`;
+
+      // So sánh ngày hẹn với ngày hôm nay & ngày mai (theo giờ Việt Nam)
+      const nowVnParts = fmt.formatToParts(new Date());
+      const getNowPart = (type: string) => nowVnParts.find((p) => p.type === type)?.value || '';
+      const nowDay = getNowPart('day');
+      const nowMonth = getNowPart('month');
+      const nowYear = getNowPart('year');
+
+      const apptDateKey = `${year}-${month}-${day}`;
+      const nowDateKey = `${nowYear}-${nowMonth}-${nowDay}`;
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomVnParts = fmt.formatToParts(tomorrow);
+      const getTomPart = (type: string) => tomVnParts.find((p) => p.type === type)?.value || '';
+      const tomDateKey = `${getTomPart('year')}-${getTomPart('month')}-${getTomPart('day')}`;
+
+      if (apptDateKey === nowDateKey) {
+        dateDisplay = 'Hôm nay';
+      } else if (apptDateKey === tomDateKey) {
+        dateDisplay = `Ngày mai (${day}/${month})`;
+      } else {
+        dateDisplay = `${day}/${month}/${year}`;
+      }
     } catch {
       // fallback
     }
@@ -81,7 +130,9 @@ export function normalizeReservation(item: any): CheckInAppointment {
   const rawStatus = (item.status || '').toUpperCase();
   if (rawStatus === 'COMPLETED') {
     uiStatus = 'completed';
-  } else if (rawStatus === 'CONFIRMED' || rawStatus === 'ARRIVED') {
+  } else if (rawStatus === 'CONFIRMED') {
+    uiStatus = 'confirmed';
+  } else if (rawStatus === 'ARRIVED') {
     uiStatus = 'arrived';
   } else if (rawStatus === 'IN_PROGRESS' || rawStatus === 'PROCESSING') {
     uiStatus = 'in_progress';
@@ -112,6 +163,8 @@ export function normalizeReservation(item: any): CheckInAppointment {
     email: item.customer?.email || 'customer@selfstorage.com',
     idCard: item.customer?.idCard || '079095012345',
     slotTime,
+    dateDisplay,
+    appointmentDateRaw: item.appointmentDate,
     timeCategory,
     unitType: unitType.name || 'Kho Tiêu chuẩn',
     unitTypeId: unitType.id,

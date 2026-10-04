@@ -9,6 +9,8 @@ export interface CheckInAppointment {
   email: string;
   idCard: string;
   slotTime: string; // "08:30 SA", "09:00 SA", v.v.
+  dateDisplay?: string; // "Hôm nay", "Ngày mai (05/10)", hoặc "05/10/2026"
+  appointmentDateRaw?: string; // ISO date string from BE
   timeCategory: 'morning' | 'afternoon';
   unitType: string;
   unitTypeId?: number;
@@ -16,7 +18,7 @@ export interface CheckInAppointment {
   unitId?: number; // ID ô kho vật lý trong database
   assignedUnit: string;
   preferredFloor: string;
-  status: 'pending' | 'arrived' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'cancelled';
   depositStatus: 'paid' | 'unpaid';
   depositAmount: string;
   monthlyRent: string;

@@ -282,11 +282,24 @@ export default function BookingFlow() {
   }, [unitTypes]);
 
   const durationInfo = durationOptions.find((d) => d.key === durationKey) || null;
+  const rentalMonths = durationInfo?.months || 1;
   const monthlyPrice = Number(selectedUnitType?.price ?? selectedUnitType?.depositAmount) || 0;
   const depositAmount = Number(selectedUnitType?.depositAmount) || monthlyPrice;
+
+  // Tổng tiền thuê niêm yết của cả kỳ (chưa trừ chiết khấu)
+  const grossRentalAmount = monthlyPrice * rentalMonths;
+  // Phần trăm ưu đãi theo kỳ hạn
+  const discountPercent = durationInfo?.discount || 0;
+  // Số tiền được giảm
+  const discountSavings = discountPercent > 0 ? Math.round(grossRentalAmount * (discountPercent / 100)) : 0;
+  // Tổng tiền thuê thực tế sau ưu đãi của cả kỳ
+  const totalRentalAmount = grossRentalAmount - discountSavings;
+  // Đơn giá trung bình mỗi tháng sau ưu đãi
   const discountedRentalPrice = durationInfo && durationInfo.discount > 0
     ? Math.round(monthlyPrice * (1 - durationInfo.discount / 100))
     : monthlyPrice;
+  // Số tiền còn lại cần thanh toán khi nhận kho (sau khi trừ cọc)
+  const remainingAtCheckIn = Math.max(0, totalRentalAmount - depositAmount);
 
   const isStep2Valid = Boolean(moveInDate && timeSlot && timeSlot.available && durationKey);
 
@@ -1283,30 +1296,95 @@ export default function BookingFlow() {
 
                   {/* Price breakdown */}
                   {selectedUnitType && (
-                    <div className="pt-2 space-y-2 text-xs">
+                    <div className="pt-2 space-y-2.5 text-xs">
+                      {/* Đơn giá niêm yết */}
                       <div className="flex justify-between text-slate-600">
                         <span>Giá thuê niêm yết:</span>
-                        <span className="font-semibold tabular-nums">{monthlyPrice.toLocaleString("vi-VN")} đ / tháng</span>
+                        <span className="font-semibold tabular-nums">
+                          {monthlyPrice.toLocaleString("vi-VN")} đ / tháng
+                        </span>
                       </div>
 
-                      {durationInfo && durationInfo.discount > 0 && (
-                        <div className="flex justify-between text-emerald-600 font-bold">
-                          <span>Ưu đãi kỳ hạn ({durationInfo.discount}%):</span>
-                          <span className="tabular-nums">
-                            {discountedRentalPrice.toLocaleString("vi-VN")} đ / tháng
+                      {/* Khi đã chọn thời gian thuê */}
+                      {durationInfo ? (
+                        <>
+                          <div className="flex justify-between text-slate-600">
+                            <span>Thời gian thuê:</span>
+                            <span className="font-semibold tabular-nums">
+                              {rentalMonths} Tháng
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between text-slate-600">
+                            <span>Tổng tiền thuê niêm yết:</span>
+                            <span className="font-semibold tabular-nums">
+                              {grossRentalAmount.toLocaleString("vi-VN")} đ
+                            </span>
+                          </div>
+
+                          {discountSavings > 0 && (
+                            <div className="flex justify-between text-emerald-600 font-bold">
+                              <span>Ưu đãi kỳ hạn ({discountPercent}%):</span>
+                              <span className="tabular-nums">
+                                -{discountSavings.toLocaleString("vi-VN")} đ
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center text-slate-900 font-bold pt-2 border-t border-slate-100">
+                            <span className="text-slate-800">Tổng tiền thuê ({rentalMonths} tháng):</span>
+                            <div className="text-right">
+                              <span className="text-sm font-extrabold text-blue-600 tabular-nums">
+                                {totalRentalAmount.toLocaleString("vi-VN")} đ
+                              </span>
+                              {discountSavings > 0 && (
+                                <p className="text-[10px] text-slate-400 font-normal">
+                                  (~{discountedRentalPrice.toLocaleString("vi-VN")} đ/tháng)
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic">
+                          * Vui lòng chọn thời gian thuê ở bước 3 để xem tổng chi phí.
+                        </p>
+                      )}
+
+                      {/* Khối Cọc cần nộp ngay để giữ chỗ */}
+                      <div className="pt-2 border-t border-slate-200">
+                        <div className="p-3 bg-orange-50/90 rounded-2xl border border-orange-200/90 space-y-1">
+                          <div className="flex justify-between items-baseline">
+                            <span className="font-bold text-orange-950 text-xs">
+                              Tiền Cọc Giữ Chỗ (Nộp ngay):
+                            </span>
+                            <span className="text-lg sm:text-xl text-orange-600 tabular-nums font-black">
+                              {depositAmount.toLocaleString("vi-VN")} đ
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                            ✓ Trừ thẳng vào tiền thuê khi ký hợp đồng nhận phòng
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Số tiền còn lại khi nhận kho */}
+                      {durationInfo && (
+                        <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 flex justify-between items-center text-xs">
+                          <div>
+                            <p className="font-bold text-slate-700">
+                              Còn lại thanh toán khi nhận kho:
+                            </p>
+                            <p className="text-[9.5px] text-slate-400">
+                              (Tổng tiền thuê - Tiền cọc đã nộp)
+                            </p>
+                          </div>
+                          <span className="font-black text-slate-900 text-sm tabular-nums">
+                            {remainingAtCheckIn.toLocaleString("vi-VN")} đ
                           </span>
                         </div>
                       )}
 
-                      <div className="flex justify-between items-baseline font-black text-slate-900 text-sm sm:text-base pt-3 border-t border-slate-200">
-                        <div className="flex flex-col">
-                          <span>Tiền Cọc Cần Nộp:</span>
-                          <span className="text-[10px] text-emerald-600 font-semibold">Trừ thẳng vào tiền thuê khi nhận phòng</span>
-                        </div>
-                        <span className="text-xl sm:text-2xl text-orange-500 tabular-nums font-black">
-                          {depositAmount.toLocaleString("vi-VN")} đ
-                        </span>
-                      </div>
                       <p className="text-[10.5px] text-slate-400 mt-2 leading-tight">
                         * Lưu ý: Tiền cọc sẽ được trừ trực tiếp vào tiền thuê khi ký hợp đồng và không hoàn lại nếu quý khách hủy đơn.
                       </p>

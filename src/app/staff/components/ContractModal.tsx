@@ -2,14 +2,8 @@
 
 import React, { useRef } from 'react';
 import {
-  FileText,
   Printer,
   Download,
-  CheckCircle2,
-  ShieldCheck,
-  Building2,
-  User,
-  Scale
 } from 'lucide-react';
 import { CheckInAppointment } from '../types';
 
@@ -41,76 +35,84 @@ export default function ContractModal({
   const monthStr = String(today.getMonth() + 1).padStart(2, '0');
   const yearStr = String(today.getFullYear());
 
-  // Function to download contract as text file
-  const handleDownloadText = () => {
-    const textContent = `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
-Độc lập – Tự do – Hạnh phúc
-----------------o0o----------------
+  // Hàm in / xuất file PDF chuẩn A4 văn bản pháp lý (dùng hidden iframe chống chặn pop-up)
+  const handlePrintPdf = (asDownload: boolean = false) => {
+    const contentHtml = printContentRef.current?.innerHTML || '';
+    if (!contentHtml) return;
 
-HỢP ĐỒNG CHO THUÊ NHÀ XƯỞNG VÀ KHO BÃI
-Số: ${contractNumber}
+    let iframe = document.getElementById('contract-print-frame') as HTMLIFrameElement;
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'contract-print-frame';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+    }
 
-Hôm nay, ngày ${dayStr} tháng ${monthStr} năm ${yearStr}, tại Văn phòng Ban Quản lý Cơ sở Kho Tự Quản SelfStorage:
-Địa chỉ: ${appointment.facilityAddress || 'Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh'}
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
 
-CHÚNG TÔI GỒM CÓ:
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="vi">
+        <head>
+          <meta charset="utf-8" />
+          <title>Hop-Dong-Thue-Kho-${finalUnit}.pdf</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 15mm 15mm 15mm 15mm;
+            }
+            * {
+              box-sizing: border-box;
+            }
+            body {
+              font-family: "Times New Roman", Times, Georgia, serif;
+              font-size: 12.5pt;
+              line-height: 1.45;
+              color: #111;
+              background: #fff;
+              margin: 0;
+              padding: 5px;
+            }
+            h1, h2, h3 { text-align: center; margin: 5px 0 10px 0; }
+            .text-center { text-align: center; }
+            .uppercase { text-transform: uppercase; }
+            .font-bold, strong { font-weight: bold; }
+            .italic { font-style: italic; }
+            .border-t { border-top: 1px solid #ccc; padding-top: 8px; margin-top: 8px; }
+            .border-b { border-bottom: 1px solid #eee; padding-bottom: 6px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .grid-cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+            .signature-block { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; text-align: center; }
+            .signature-col { padding: 10px; }
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="max-width: 780px; margin: 0 auto; padding: 10px;">
+            ${contentHtml}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
 
-BÊN CHO THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên A):
-- Tên tổ chức: CÔNG TY CỔ PHẦN DỊCH VỤ LƯU TRỮ VÀ KHO TỰ QUẢN SELFSTORAGE VIỆT NAM
-- Địa chỉ trụ sở chính: Tòa nhà Landmark 81, P. 22, Q. Bình Thạnh
-- Giấy chứng nhận ĐKKD số: 0316899988 do Sở Kế hoạch và Đầu tư cấp
-- Đại diện bởi: Ban Quản lý Cơ sở ${appointment.facilityName}
-- Chức vụ: Quản lý cơ sở kho bãi
-- Điện thoại: 1900 6868 | Email: contact@selfstorage.vn
-- Số tài khoản: 0900000000 - Ngân hàng TMCP Quân Đội (MBBank)
-
-BÊN THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên B):
-- Họ và tên cá nhân / Đại diện tổ chức: ${appointment.customerName}
-- Số CMND/CCCD/Hộ chiếu: ${appointment.idCard || '079095012345'}
-- Địa chỉ liên hệ: Việt Nam
-- Điện thoại: ${appointment.phone}
-- Email: ${appointment.email}
-
-Sau khi bàn bạc, thảo luận, hai bên đồng ý ký kết hợp đồng thuê kho bãi với nội dung sau:
-
-Điều 1. NỘI DUNG VÀ ĐỐI TƯỢNG HỢP ĐỒNG
-1.1. Bên A đồng ý cho thuê và Bên B đồng ý thuê ngăn kho bãi tự quản mang mã định danh: Ô #${finalUnit}, thuộc ${appointment.preferredFloor}, cơ sở ${appointment.facilityName}.
-1.2. Quy cách kỹ thuật: Loại hình ${appointment.unitType}, diện tích sử dụng ${appointment.unitSize}, trần cao 2.8m, kết cấu chịu lực đạt chuẩn, có hệ thống điều hòa kiểm soát nhiệt độ & độ ẩm tự động, hệ thống PCCC tiêu chuẩn và camera giám sát 24/7.
-1.3. Mục đích thuê: ${appointment.purpose}. Cam kết không sử dụng kho để chứa chấp hàng lậu, hóa chất độc hại, chất cháy nổ hoặc hàng cấm theo quy định pháp luật.
-
-Điều 2. THỜI HẠN CỦA HỢP ĐỒNG VÀ GIA HẠN
-2.1. Thời hạn thuê là ${appointment.durationMonths} tháng, bắt đầu tính từ ngày ${appointment.startDate}.
-2.2. Khi hết hạn hợp đồng, tùy theo nhu cầu thực tế hai Bên có thể thỏa thuận gia hạn.
-2.3. Trường hợp một trong hai bên ngưng hợp đồng trước thời hạn đã thỏa thuận thì phải thông báo cho bên kia biết trước ít nhất 30 ngày.
-2.4. Khi hợp đồng kết thúc, Bên A có trách nhiệm hoàn lại tiền đặt cọc cho Bên B sau khi trừ các khoản tiền thuê hoặc chi phí phát sinh; Bên B bàn giao lại kho nguyên vẹn.
-
-Điều 3. GIÁ CẢ VÀ PHƯƠNG THỨC THANH TOÁN
-3.1. Giá thuê kho là: ${appointment.monthlyRent} (Đã bao gồm thuế GTGT và phí dịch vụ an ninh).
-3.2. Tiền đặt cọc bảo đảm thực hiện hợp đồng: ${appointment.depositAmount}, Bên B đã thanh toán đầy đủ cho Bên A.
-3.3. Phương thức thanh toán: Chuyển khoản ngân hàng hoặc thanh toán trực tuyến định kỳ.
-
-Điều 4. TRÁCH NHIỆM CỦA HAI BÊN
-4.1. Trách nhiệm Bên A: Bảo đảm quyền sử dụng hợp pháp, bàn giao kho sạch sẽ, hệ thống khóa và thiết bị hoạt động tốt ngay sau khi ký kết.
-4.2. Trách nhiệm Bên B: Sử dụng kho đúng mục đích, thanh toán đúng hạn, tự chịu trách nhiệm về đồ đạc và hàng hóa lưu giữ theo quy định pháp luật.
-
-Điều 5. CAM KẾT CHUNG
-Hai bên cam kết thực hiện đúng các điều khoản đã nêu trong hợp đồng. Nếu có tranh chấp phát sinh, hai bên sẽ giải quyết thông qua thương lượng. Trường hợp không tự giải quyết được sẽ đưa ra Tòa án nhân dân có thẩm quyền để giải quyết.
-Hợp đồng này được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ 01 bản.
-
-ĐẠI DIỆN BÊN A                                      ĐẠI DIỆN BÊN B
-(Ký, đóng dấu hoặc Chữ ký số)                       (Ký và ghi rõ họ tên)`;
-
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Hop-Dong-Cho-Thue-Kho-${finalUnit}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleNativePrint = () => {
-    window.print();
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
+        console.error('Print iframe error:', e);
+      }
+    }, 250);
   };
 
   return (
@@ -118,53 +120,27 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
       <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 animate-slide-up-fade overflow-hidden">
         {/* Header Toolbar */}
         <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#4f39f6]/10 text-[#4f39f6] flex items-center justify-center font-bold shadow-xs">
-              <Scale className="w-5 h-5" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-extrabold text-base text-slate-900 tracking-tight">
+                Hợp Đồng Cho Thuê Kho Bãi & Nhà Xưởng
+              </h3>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f39f6] border border-indigo-200">
+                Mẫu Luật Việt Nam 2026
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-base text-slate-900 tracking-tight">
-                  Hợp Đồng Cho Thuê Kho Bãi & Nhà Xưởng
-                </h3>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f39f6] border border-indigo-200">
-                  Mẫu Luật Việt Nam 2026
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">
-                Mẫu số 01/HĐ-TK • Tuân thủ Luật Kinh doanh Bất động sản và Bộ luật Dân sự
-              </p>
-            </div>
+            <p className="text-xs text-slate-500">
+              Mẫu số 01/HĐ-TK • Tuân thủ Luật Kinh doanh Bất động sản và Bộ luật Dân sự
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadText}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors shadow-2xs"
-              title="Tải văn bản đính kèm"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Tải file</span>
-            </button>
-
-            <button
-              onClick={handleNativePrint}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-xs transition-all active:scale-95"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>In Hợp Đồng</span>
-            </button>
-
-            <div className="h-5 w-px bg-slate-300 mx-1" />
-
-            <button
-              onClick={onClose}
-              className="text-slate-400 hover:text-slate-700 p-2 rounded-xl text-lg leading-none hover:bg-slate-100 transition-colors"
-              title="Đóng"
-            >
-              ✕
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-700 p-2 rounded-xl text-lg leading-none hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Đóng"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Modal Body: Legal Contract Form (Mẫu Chuẩn Luật Việt Nam) */}
@@ -209,8 +185,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
 
             {/* 3. Bên A: Bên Cho Thuê */}
             <div className="bg-slate-50/80 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-2 text-xs sm:text-sm">
-              <div className="font-extrabold text-slate-900 uppercase flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-[#4f39f6]" />
+              <div className="font-extrabold text-slate-900 uppercase">
                 BÊN CHO THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên A):
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-slate-700 pt-1">
@@ -255,8 +230,7 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
 
             {/* 4. Bên B: Bên Thuê */}
             <div className="bg-slate-50/80 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-2 text-xs sm:text-sm">
-              <div className="font-extrabold text-slate-900 uppercase flex items-center gap-2">
-                <User className="w-4 h-4 text-emerald-600" />
+              <div className="font-extrabold text-slate-900 uppercase">
                 BÊN THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên B):
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-slate-700 pt-1">
@@ -265,20 +239,16 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                   <strong className="text-slate-950 text-sm">{appointment.customerName}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-500">Số CCCD / Hộ chiếu: </span>
-                  <span className="tabular-nums font-bold text-slate-900">{appointment.idCard || '079095012345'}</span>
-                </div>
-                <div>
                   <span className="text-slate-500">Số điện thoại liên hệ: </span>
                   <span className="font-semibold text-slate-900">{appointment.phone}</span>
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <span className="text-slate-500">Thư điện tử (Email): </span>
-                  <span className="text-[#4f39f6]">{appointment.email}</span>
+                  <span className="text-blue-600">{appointment.email}</span>
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-slate-500">Địa chỉ cư trú / Liên hệ: </span>
-                  <span>Việt Nam</span>
+                  <span className="text-slate-500">Địa chỉ liên hệ: </span>
+                  <span>{appointment.facilityAddress || 'Việt Nam'}</span>
                 </div>
               </div>
             </div>
@@ -404,9 +374,8 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                     (Ký, đóng dấu hoặc Chữ ký số)
                   </div>
                   <div className="pt-6 pb-2">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold shadow-2xs">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>ĐÃ KÝ SỐ ĐIỆN TỬ</span>
+                    <div className="inline-block px-3 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold">
+                      [ĐÃ KÝ SỐ ĐIỆN TỬ]
                     </div>
                   </div>
                   <div className="text-xs font-bold text-slate-800">
@@ -425,16 +394,15 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
                     (Ký và ghi rõ họ tên)
                   </div>
                   <div className="pt-6 pb-2">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-[#4f39f6] border border-indigo-300 text-xs font-bold shadow-2xs">
-                      <ShieldCheck className="w-4 h-4 text-[#4f39f6]" />
-                      <span>XÁC THỰC OTP THÀNH CÔNG</span>
+                    <div className="inline-block px-3 py-1 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-300 text-xs font-bold">
+                      [XÁC THỰC OTP THÀNH CÔNG]
                     </div>
                   </div>
                   <div className="text-xs font-bold text-slate-900">
                     {appointment.customerName}
                   </div>
                   <div className="text-[10px] text-slate-400 tabular-nums">
-                    CCCD: {appointment.idCard || '079095012345'}
+                    SĐT: {appointment.phone} • Ngày ký: {dayStr}/{monthStr}/{yearStr}
                   </div>
                 </div>
               </div>
@@ -449,22 +417,27 @@ Hợp đồng này được lập thành 02 bản có giá trị pháp lý như 
             <span>Hợp đồng có hiệu lực pháp lý ngay sau khi bàn giao mã mở khóa kho.</span>
           </div>
 
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
             >
               Đóng xem trước
             </button>
             <button
-              onClick={() => {
-                onClose();
-                onPrint();
-              }}
-              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-[#4f39f6] hover:bg-[#432fe0] rounded-xl shadow-md shadow-[#4f39f6]/25 transition-all active:scale-95"
+              onClick={() => handlePrintPdf(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-800 bg-white hover:bg-slate-100 rounded-xl border border-slate-300 transition-colors shadow-2xs cursor-pointer"
+              title="Xuất hợp đồng sang định dạng PDF chuẩn A4"
+            >
+              <Download className="w-4 h-4 text-emerald-600" />
+              <span>Tải PDF Hợp Đồng</span>
+            </button>
+            <button
+              onClick={() => handlePrintPdf(false)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>In Hợp Đồng Này</span>
+              <span>In Hợp Đồng</span>
             </button>
           </div>
         </div>

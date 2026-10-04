@@ -30,7 +30,7 @@ import { handoversApi } from '../../lib/api/handovers';
 
 // Import Sub-Components
 import Sidebar from './components/Sidebar';
-import CheckInQueue from './components/CheckInQueue';
+import CheckInQueue, { checkAppointmentEligibility } from './components/CheckInQueue';
 import HandoverProcess from './components/HandoverProcess';
 import HandoverSuccess from './components/HandoverSuccess';
 import ContractModal from './components/ContractModal';
@@ -209,6 +209,12 @@ export default function StaffPortalPage() {
 
   // Action 1: [ Bắt đầu nhận kho ]
   const handleStartCheckIn = async (apt: CheckInAppointment) => {
+    const eligibility = checkAppointmentEligibility(apt);
+    if (!eligibility.allowed) {
+      toast.warning(eligibility.reason || 'Chưa tới thời gian nhận kho (chỉ mở trước giờ hẹn 1 tiếng).');
+      return;
+    }
+
     handleSelectAppointment(apt);
 
     // Cập nhật trạng thái sang in_progress
@@ -543,6 +549,7 @@ export default function StaffPortalPage() {
                 notes={handoverNotes}
                 onChangeNotes={setHandoverNotes}
                 isSubmitting={isSubmittingCheckIn}
+                staffName={currentUser?.fullName || 'Nhân viên lễ tân'}
                 onBackToQueue={() => setFlowStep('queue')}
                 onOpenContractModal={() => setIsContractModalOpen(true)}
                 onOpenPrintModal={() => setIsPrintModalOpen(true)}
