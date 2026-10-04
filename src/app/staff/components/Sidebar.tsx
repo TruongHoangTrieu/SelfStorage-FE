@@ -11,10 +11,11 @@ import {
   Settings,
   ChevronRight,
   LogOut,
-  Globe,
   Menu,
   Building2,
   Boxes,
+  User,
+  LogIn,
 } from 'lucide-react';
 import { StaffTab, StaffUser } from '../types';
 
@@ -53,18 +54,36 @@ export default function Sidebar({
     return 'NV';
   };
 
-  const staffName = currentUser?.fullName || 'Trần Hùng (NV04)';
+  const staffName = currentUser?.fullName || 'Nhân viên vận hành';
   const staffRole = currentUser?.role ? currentUser.role.replace('FACILITY_', '') : 'STAFF';
-  const facilityName = currentUser?.facilityName || 'Cơ sở Landmark 81';
+  const rawFacilityName =
+    currentUser?.assignedFacility?.name ||
+    currentUser?.facilityName ||
+    'Trụ Sở Chính Võ Nguyên Giáp';
+  const facilityName = rawFacilityName.replace(/^Kho\s+Tự\s+Quản\s+/i, '').trim();
+
+  const roleName = (currentUser?.role || '').toUpperCase();
+  const canManagePricing = Boolean(
+    currentUser && (
+      roleName === 'FACILITY_MANAGER' ||
+      roleName === 'BUSINESS_OPERATIONS_MANAGER' ||
+      roleName === 'SYSTEM_ADMINISTRATOR' ||
+      roleName === 'ADMIN'
+    )
+  );
 
   const operationalNavItems = [
     { id: 'queue' as StaffTab, label: 'Hàng đợi nhận kho', icon: Inbox, badge: pendingCount },
+    ...(canManagePricing
+      ? [{ id: 'unit_types' as StaffTab, label: 'Loại kho & Bảng giá', icon: Boxes }]
+      : []),
     { id: 'checkout' as StaffTab, label: 'Quản lý trả kho', icon: ArrowUpRight },
     { id: 'facility' as StaffTab, label: 'Sơ đồ & Ô kho 24/7', icon: MapPin },
   ];
 
   const managementNavItems = [
     { id: 'dashboard' as StaffTab, label: 'Bảng điều khiển cơ sở', icon: LayoutDashboard },
+    { id: 'profile' as StaffTab, label: 'Hồ sơ & Đổi mật khẩu', icon: User },
     { id: 'support' as StaffTab, label: 'Hỗ trợ & Xử lý sự cố', icon: LifeBuoy, dot: true },
     { id: 'settings' as StaffTab, label: 'Cài đặt cổng cơ sở', icon: Settings },
   ];
@@ -101,7 +120,7 @@ export default function Sidebar({
               SmartStorage
             </span>
             <span className="block text-[10px] text-blue-600 font-bold uppercase tracking-wider">
-              Staff Portal
+              Cổng Quản Lý &amp; Vận Hành
             </span>
           </div>
         </Link>
@@ -116,13 +135,11 @@ export default function Sidebar({
             isCollapsed ? 'max-h-0 opacity-0 p-0 m-0 border-0 overflow-hidden' : 'opacity-100'
           }`}
         >
-          <div className="flex items-center gap-2 text-xs font-bold text-blue-900">
-            <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span className="truncate">{facilityName}</span>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1 text-[11px] text-blue-700">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-            <span className="truncate">Hệ thống sẵn sàng đón khách</span>
+          <div className="flex items-center gap-2.5 text-xs font-bold text-blue-900">
+            <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+            <span className="line-clamp-2 leading-tight break-words flex-1" title={facilityName}>
+              {facilityName}
+            </span>
           </div>
         </div>
 
@@ -232,73 +249,67 @@ export default function Sidebar({
             </button>
           );
         })}
-
-        {/* ================= DIVIDER ================= */}
-        <hr className="my-2 border-slate-200 mx-1" />
-
-        {/* ================= SECTION 3: LIÊN KẾT NHANH ================= */}
-        <Link
-          href="/dashboard"
-          className="w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer overflow-hidden text-slate-700 hover:bg-slate-100 font-medium"
-          title={isCollapsed ? 'Cổng Khách Hàng' : undefined}
-        >
-          {/* Căn giữa tuyệt đối trong khung 56px (tâm đúng x=36px) */}
-          <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
-            <Globe className="w-5 h-5 shrink-0 text-slate-600" />
-          </div>
-
-          <span
-            className={`text-[14px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 ${
-              isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
-            }`}
-          >
-            Cổng Khách Hàng
-          </span>
-        </Link>
       </nav>
 
-      {/* Staff User Footer in Sidebar (Laser-aligned along exact x=36px axis) */}
+      {/* Staff User Footer in Sidebar */}
       <div className="py-3 px-2 border-t border-slate-200 bg-slate-50/80 mt-auto shrink-0 overflow-hidden">
-        <div className="flex items-center">
-          {/* Căn giữa tuyệt đối Avatar trong khung 56px (tâm đúng x=36px) */}
-          <div className="w-[56px] shrink-0 flex items-center justify-center">
+        {currentUser ? (
+          <div className="flex items-center">
+            {/* Căn giữa tuyệt đối Avatar trong khung 56px (tâm đúng x=36px) */}
             <div
-              className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white text-xs shadow-xs shrink-0 tracking-wider"
-              title={isCollapsed ? (currentUser?.fullName || 'Nhân viên') : undefined}
+              onClick={() => onSelectTab('profile')}
+              className="flex items-center flex-1 min-w-0 cursor-pointer group"
+              title={isCollapsed ? 'Hồ sơ & Đổi mật khẩu' : undefined}
             >
-              {getInitials(currentUser?.fullName, currentUser?.email)}
-            </div>
-          </div>
+              <div className="w-[56px] shrink-0 flex items-center justify-center">
+                <div
+                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs shrink-0 tracking-wider transition-transform"
+                >
+                  {getInitials(currentUser.fullName, currentUser.email)}
+                </div>
+              </div>
 
-          <div
-            className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap flex-1 min-w-0 ${
-              isCollapsed ? 'max-w-0 opacity-0' : 'max-w-[125px] opacity-100'
-            }`}
-          >
-            <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5">
-              <span>{currentUser?.fullName || staffName}</span>
-              <span className="text-[9px] px-1 py-0.2 rounded bg-blue-100 text-blue-700 font-extrabold uppercase">
-                {staffRole}
-              </span>
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap flex-1 min-w-0 ${
+                  isCollapsed ? 'max-w-0 opacity-0' : 'max-w-[125px] opacity-100'
+                }`}
+              >
+                <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
+                  <span>{currentUser.fullName}</span>
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-blue-100 text-blue-700 font-extrabold uppercase">
+                    {staffRole}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 truncate">
+                  {currentUser.email}
+                </div>
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500 truncate">
-              {currentUser?.email || 'staff@selfstorage.vn'}
-            </div>
-          </div>
 
-          {onLogout && (
-            <button
-              type="button"
-              onClick={onLogout}
-              className={`p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0 ml-auto mr-1 ${
-                isCollapsed ? 'hidden' : 'block'
-              }`}
-              title="Đăng xuất"
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className={`p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0 ml-auto mr-1 ${
+                  isCollapsed ? 'hidden' : 'block'
+                }`}
+                title="Đăng xuất"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="px-1 py-1">
+            <Link
+              href="/login"
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
             >
-              <LogOut className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+              <LogIn className="w-4 h-4 shrink-0" />
+              {!isCollapsed && <span>Đăng nhập Staff</span>}
+            </Link>
+          </div>
+        )}
       </div>
     </aside>
   );

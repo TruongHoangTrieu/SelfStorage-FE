@@ -79,11 +79,11 @@ const FAQS = [
   },
   {
     q: "Tôi có thể ra vào kho tự quản vào thời gian nào?",
-    a: "Với mô hình Kho Tự Quản thông minh, bạn được cấp mã PIN và Smart Key trên điện thoại để tự do ra vào kho 24/7 bất kỳ lúc nào — kể cả ban đêm, cuối tuần hoặc ngày lễ mà không cần báo trước hay phụ thuộc nhân viên."
+    a: "Với mô hình Kho Tự Quản thông minh, bạn được cấp mã PIN bấm trực tiếp trên bàn phím số tay nắm cửa phòng kho để tự do ra vào 24/7 bất kỳ lúc nào — kể cả ban đêm, cuối tuần hoặc ngày lễ mà không cần báo trước hay phụ thuộc nhân viên."
   },
   {
-    q: "Chính sách đặt cọc và hoàn cọc khi trả kho được quy định ra sao?",
-    a: "Khách hàng thanh toán tiền cọc minh bạch khi đặt phòng. Khi hết hạn hợp đồng và trả kho, nhân viên cơ sở sẽ kiểm tra hiện trạng bàn giao phòng sạch sẽ, hệ thống sẽ tự động đối soát và hoàn tiền cọc nhanh chóng qua tài khoản ngân hàng."
+    q: "Chính sách đặt cọc giữ chỗ được quy định như thế nào?",
+    a: "Khách hàng thanh toán tiền cọc để giữ chỗ ngăn kho mong muốn. Toàn bộ số tiền cọc giữ chỗ này sẽ được khấu trừ thẳng trực tiếp 100% vào tiền thuê kho của bạn khi ký hợp đồng và nhận bàn giao phòng, không phát sinh chi phí thừa."
   },
   {
     q: "Nếu tôi muốn gia hạn thêm thời gian thuê kho thì làm thế nào?",
@@ -130,6 +130,21 @@ export default function LandingPage() {
   const [facilities, setFacilities] = useState<ApiFacility[]>([]);
   const [facilitiesLoading, setFacilitiesLoading] = useState(true);
   const [facilitiesError, setFacilitiesError] = useState<string | null>(null);
+
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) setCurrentUser(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const roleName = (
+    typeof currentUser?.role === "string" ? currentUser.role : currentUser?.role?.name ?? ""
+  ).toUpperCase();
+  const isStorageCustomer = Boolean(currentUser && roleName === "STORAGE_CUSTOMER");
+  const canRentStorage = !currentUser || isStorageCustomer;
 
   // Fetch facilities from API
   const loadFacilities = async () => {
@@ -206,13 +221,23 @@ export default function LandingPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3.5 pt-4">
-                <Link
-                  href="/locations"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full text-sm sm:text-base font-extrabold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all text-center uppercase tracking-wider whitespace-nowrap"
-                >
-                  <span>ĐẶT KHO TỰ QUẢN NGAY</span>
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
+                {canRentStorage ? (
+                  <Link
+                    href="/locations"
+                    className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full text-sm sm:text-base font-extrabold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all text-center uppercase tracking-wider whitespace-nowrap"
+                  >
+                    <span>ĐẶT KHO TỰ QUẢN NGAY</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                ) : (
+                  <Link
+                    href="/staff"
+                    className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full text-sm sm:text-base font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl shadow-blue-500/25 hover:-translate-y-0.5 transition-all text-center uppercase tracking-wider whitespace-nowrap"
+                  >
+                    <span>VÀO CỔNG VẬN HÀNH</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                )}
                 <a
                   href="tel:02877700117"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-sm sm:text-base font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur transition-all text-center whitespace-nowrap"
@@ -517,12 +542,14 @@ export default function LandingPage() {
                       <span>Xem kho &amp; bảng giá</span>
                       <ChevronRight className="w-4 h-4" />
                     </Link>
-                    <Link
-                      href={`/book/${fac.id}`}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-sm transition hover:-translate-y-0.5"
-                    >
-                      Đặt Phòng Ngay
-                    </Link>
+                    {canRentStorage && (
+                      <Link
+                        href={`/book/${fac.id}`}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-sm transition hover:-translate-y-0.5"
+                      >
+                        Đặt Phòng Ngay
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}

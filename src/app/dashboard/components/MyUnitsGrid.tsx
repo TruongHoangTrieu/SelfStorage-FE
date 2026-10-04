@@ -181,7 +181,7 @@ export default function MyUnitsGrid({
                         type="button"
                         onClick={() => onCancelReservation(res.id)}
                         className="text-xs text-slate-400 hover:text-rose-600 font-medium transition flex items-center gap-1 cursor-pointer"
-                        title="Hủy đơn giữ chỗ"
+                        title="Hủy đơn giữ chỗ (Không hoàn lại cọc)"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>Hủy đơn</span>
@@ -203,7 +203,10 @@ export default function MyUnitsGrid({
                       </p>
                     </div>
                     <div className="pt-2 border-t border-slate-200/60 col-span-2 flex items-center justify-between">
-                      <span className="text-slate-500 font-medium">Tiền cọc giữ chỗ:</span>
+                      <div className="flex flex-col">
+                        <span className="text-slate-500 font-medium">Tiền cọc giữ chỗ:</span>
+                        <span className="text-[10px] text-slate-400">Trừ vào tiền thuê • Không hoàn khi hủy</span>
+                      </div>
                       <span className="font-black text-emerald-600 text-sm tabular-nums">
                         {depositVal.toLocaleString('vi-VN')} đ
                       </span>

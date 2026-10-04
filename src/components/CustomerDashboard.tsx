@@ -175,7 +175,7 @@ export default function CustomerDashboard() {
                     } finally {
                       localStorage.removeItem('token');
                       localStorage.removeItem('user');
-                      window.location.href = '/login';
+                      window.location.href = '/';
                     }
                   }}
                   className="flex items-center text-slate-400 font-bold hover:text-red-500 transition-colors cursor-pointer"

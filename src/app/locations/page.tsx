@@ -129,7 +129,7 @@ function formatFacility(raw: ApiFacility, index: number): FormattedFacility {
     address: addressText,
     phone: raw.phone || "028 7770 0117",
     email: raw.email || "support@selfstorage.vn",
-    description: raw.description || "Cơ sở lưu trữ thông minh trang bị Smart Key và hệ thống an ninh 24/7.",
+    description: raw.description || "Cơ sở lưu trữ thông minh trang bị khóa bàn phím số tay nắm cửa và an ninh 24/7.",
     status: raw.status || "ACTIVE",
     image: primaryImage,
     images: imagesList,
@@ -139,7 +139,7 @@ function formatFacility(raw: ApiFacility, index: number): FormattedFacility {
     mapEmbedUrl: `https://www.google.com/maps?q=${encodeURIComponent(addressText + " " + raw.name)}&output=embed`,
     googleMapsUrl: `https://maps.google.com/?q=${encodeURIComponent(addressText)}`,
     highlights: defaultHighlights,
-    features: ["Kho máy lạnh", "24/7 Ra vào", "Smart Key", "Camera AI"]
+    features: ["Kho máy lạnh", "24/7 Ra vào", "Bàn phím số tay nắm cửa", "Camera AI"]
   };
 }
 
@@ -153,6 +153,21 @@ export default function LocationsPage() {
   const [selectedDistrict, setSelectedDistrict] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [activeFacility, setActiveFacility] = useState<FormattedFacility | null>(null);
+
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) setCurrentUser(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const roleName = (
+    typeof currentUser?.role === "string" ? currentUser.role : currentUser?.role?.name ?? ""
+  ).toUpperCase();
+  const isStorageCustomer = Boolean(currentUser && roleName === "STORAGE_CUSTOMER");
+  const canRentStorage = !currentUser || isStorageCustomer;
 
   useEffect(() => {
     let cancelled = false;
@@ -273,7 +288,7 @@ export default function LocationsPage() {
                 <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 backdrop-blur-sm">
                   <Clock className="w-4 h-4 text-sky-400 shrink-0" />
                   <span className="text-sm font-bold text-white">24/7</span>
-                  <span className="text-xs text-slate-300">Ra vào Smart Key</span>
+                  <span className="text-xs text-slate-300">Khóa số tay nắm cửa</span>
                 </div>
               </div>
 
@@ -579,19 +594,23 @@ export default function LocationsPage() {
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/locations/${fac.id}`}
-                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl font-bold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        className={`inline-flex items-center justify-center py-2 rounded-xl font-bold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors ${
+                          canRentStorage ? "px-3" : "px-4"
+                        }`}
                       >
                         <span>Xem kho</span>
                         <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
                       </Link>
 
-                      <Link
-                        href={`/book/${fac.id}`}
-                        className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 transition-all shadow-md shadow-orange-500/20 hover:-translate-y-0.5"
-                      >
-                        <span>Đặt chỗ</span>
-                        <ArrowRight className="w-3 h-3 ml-1" />
-                      </Link>
+                      {canRentStorage && (
+                        <Link
+                          href={`/book/${fac.id}`}
+                          className="inline-flex items-center justify-center px-3.5 py-2 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 transition-all shadow-md shadow-orange-500/20 hover:-translate-y-0.5"
+                        >
+                          <span>Đặt chỗ</span>
+                          <ArrowRight className="w-3 h-3 ml-1" />
+                        </Link>
+                      )}
                     </div>
                   </div>
 
@@ -693,7 +712,7 @@ export default function LocationsPage() {
                   </div>
                 </div>
 
-                <div className="pt-6 border-t border-slate-100 grid grid-cols-2 gap-2">
+                <div className={`pt-6 border-t border-slate-100 ${canRentStorage ? "grid grid-cols-2 gap-2" : "flex"}`}>
                   <Link
                     href={`/locations/${activeFacility.id}`}
                     className="w-full py-3 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 font-bold text-xs text-slate-800 text-center flex items-center justify-center gap-1.5"
@@ -702,12 +721,14 @@ export default function LocationsPage() {
                     Chi tiết &amp; Bảng giá
                   </Link>
 
-                  <Link
-                    href={`/book/${activeFacility.id}`}
-                    className="w-full py-3 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 font-bold text-xs text-white text-center flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/25 hover:-translate-y-0.5 transition-all"
-                  >
-                    Thuê kho ngay
-                  </Link>
+                  {canRentStorage && (
+                    <Link
+                      href={`/book/${activeFacility.id}`}
+                      className="w-full py-3 px-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 font-bold text-xs text-white text-center flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/25 hover:-translate-y-0.5 transition-all"
+                    >
+                      Thuê kho ngay
+                    </Link>
+                  )}
                 </div>
               </div>
 
@@ -765,7 +786,7 @@ export default function LocationsPage() {
               <li className="flex items-start gap-3.5 text-sm sm:text-base text-slate-700">
                 <KeyRound className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="font-bold text-slate-900">Khóa Smart Key độc lập:</strong> Mở cửa qua ứng dụng điện thoại hoặc mã PIN cá nhân cấp tự động sau khi đặt chỗ.
+                  <strong className="font-bold text-slate-900">Khóa bàn phím số tay nắm cửa:</strong> Mở cửa bằng mã PIN bấm trực tiếp trên tay nắm cửa phòng kho, cấp tự động sau khi đặt chỗ.
                 </div>
               </li>
 

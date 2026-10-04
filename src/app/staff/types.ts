@@ -16,7 +16,7 @@ export interface CheckInAppointment {
   unitId?: number; // ID ô kho vật lý trong database
   assignedUnit: string;
   preferredFloor: string;
-  status: 'pending' | 'arrived' | 'in_progress' | 'completed';
+  status: 'pending' | 'arrived' | 'in_progress' | 'completed' | 'cancelled';
   depositStatus: 'paid' | 'unpaid';
   depositAmount: string;
   monthlyRent: string;
@@ -50,7 +50,15 @@ export interface StaffUser {
   role: string;
   facilityId?: number;
   facilityName?: string;
+  assignedFacility?: {
+    id: number;
+    name: string;
+    code: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+  };
 }
 
-export type StaffTab = 'queue' | 'dashboard' | 'checkout' | 'facility' | 'support' | 'settings';
+export type StaffTab = 'queue' | 'dashboard' | 'checkout' | 'facility' | 'support' | 'settings' | 'profile' | 'unit_types';
 export type FlowStep = 'queue' | 'handover' | 'success';

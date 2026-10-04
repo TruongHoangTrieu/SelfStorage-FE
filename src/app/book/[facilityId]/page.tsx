@@ -282,9 +282,10 @@ export default function BookingFlow() {
   }, [unitTypes]);
 
   const durationInfo = durationOptions.find((d) => d.key === durationKey) || null;
-  const monthlyPrice = Number(selectedUnitType?.depositAmount) || 0;
-  const discountedPrice = durationInfo
-    ? monthlyPrice * (1 - durationInfo.discount / 100)
+  const monthlyPrice = Number(selectedUnitType?.price ?? selectedUnitType?.depositAmount) || 0;
+  const depositAmount = Number(selectedUnitType?.depositAmount) || monthlyPrice;
+  const discountedRentalPrice = durationInfo && durationInfo.discount > 0
+    ? Math.round(monthlyPrice * (1 - durationInfo.discount / 100))
     : monthlyPrice;
 
   const isStep2Valid = Boolean(moveInDate && timeSlot && timeSlot.available && durationKey);
@@ -487,7 +488,7 @@ export default function BookingFlow() {
               <div className="flex justify-between items-center pt-1">
                 <span className="text-slate-500 font-semibold">Tiền Cọc Đã Thanh Toán</span>
                 <span className="font-black text-emerald-600 text-base tabular-nums">
-                  {Math.round(discountedPrice).toLocaleString("vi-VN")} đ
+                  {depositAmount.toLocaleString("vi-VN")} đ
                 </span>
               </div>
             </div>
@@ -776,13 +777,18 @@ export default function BookingFlow() {
                             <div className="pt-4 border-t border-slate-100">
                               <div className="flex items-baseline gap-1">
                                 <span className="text-2xl font-black text-blue-600 tabular-nums">
-                                  {Number(ut.depositAmount).toLocaleString("vi-VN")}
+                                  {Number(ut.price ?? ut.depositAmount).toLocaleString("vi-VN")}
                                 </span>
                                 <span className="text-xs text-slate-400 font-bold"> đ/tháng</span>
                               </div>
-                              <div className="text-[11px] font-semibold text-slate-400 mt-1 flex items-center gap-1.5">
-                                <Tag className="w-3 h-3 text-slate-400" />
-                                <span>Quy cách: {ut.size} {ut.sizeUnit}</span>
+                              <div className="text-[11px] font-semibold text-slate-500 mt-2 flex items-center justify-between">
+                                <span className="flex items-center gap-1.5 text-slate-400">
+                                  <Tag className="w-3 h-3 text-slate-400" />
+                                  <span>Quy cách: {ut.size} {ut.sizeUnit}</span>
+                                </span>
+                                <span className="bg-amber-50 text-amber-800 font-bold px-2 py-0.5 rounded border border-amber-200/80">
+                                  Cọc: {Number(ut.depositAmount).toLocaleString("vi-VN")} đ
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -792,9 +798,7 @@ export default function BookingFlow() {
                   )}
 
                   <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-                    <span className="text-xs text-slate-400 hidden sm:inline">
-                      * Bạn có thể đổi kích thước kho bất cứ lúc nào trước khi bàn giao.
-                    </span>
+                    
 
                     <button
                       onClick={() => setStep("schedule")}
@@ -881,26 +885,52 @@ export default function BookingFlow() {
                                 String(calMonth + 1).padStart(2, "0") +
                                 "-" +
                                 String(day).padStart(2, "0");
-                              const isPast = new Date(dateStr) < today;
+
+                              // Quy tắc: Đặt trước tối thiểu 1 ngày (Next-day booking)
+                              const startOfTomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+                              const cellDate = new Date(calYear, calMonth, day);
+                              const isPastOrToday = cellDate < startOfTomorrow;
+                              const isToday =
+                                cellDate.getFullYear() === today.getFullYear() &&
+                                cellDate.getMonth() === today.getMonth() &&
+                                cellDate.getDate() === today.getDate();
                               const isSel = moveInDate === dateStr;
+
                               return (
                                 <button
                                   key={day}
                                   type="button"
-                                  onClick={() => !isPast && setMoveInDate(dateStr)}
-                                  disabled={isPast}
+                                  onClick={() => !isPastOrToday && setMoveInDate(dateStr)}
+                                  disabled={isPastOrToday}
                                   className={`w-9 h-9 sm:w-10 sm:h-10 mx-auto rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all tabular-nums cursor-pointer ${
-                                    isPast
-                                      ? "text-slate-300 cursor-not-allowed"
+                                    isPastOrToday
+                                      ? isToday
+                                        ? "text-slate-400 bg-slate-100/90 cursor-not-allowed border border-slate-200"
+                                        : "text-slate-300 cursor-not-allowed"
                                       : isSel
                                       ? "bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-105"
                                       : "text-slate-800 hover:bg-white border border-transparent hover:border-slate-200"
                                   }`}
+                                  title={
+                                    isToday
+                                      ? "Hôm nay (Cần đặt lịch hẹn trước tối thiểu 1 ngày để cơ sở chuẩn bị kho)"
+                                      : isPastOrToday
+                                      ? "Đã qua ngày này"
+                                      : `Chọn ngày ${day}/${calMonth + 1}`
+                                  }
                                 >
                                   {day}
                                 </button>
                               );
                             })}
+                          </div>
+
+                          {/* Ghi chú quy tắc đặt lịch hẹn trước tối thiểu 1 ngày */}
+                          <div className="mt-3.5 p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-[11px] text-amber-800 flex items-start gap-2">
+                            <Info className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                            <span>
+                              <strong>Quy tắc đặt lịch:</strong> Cơ sở áp dụng quy tắc đặt trước tối thiểu 1 ngày (chọn từ ngày mai trở đi) để nhân viên kỹ thuật kịp kiểm tra khóa thông minh, vệ sinh và chuẩn bị ô kho chu đáo nhất trước khi đón tiếp bạn.
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1259,32 +1289,27 @@ export default function BookingFlow() {
                         <span className="font-semibold tabular-nums">{monthlyPrice.toLocaleString("vi-VN")} đ / tháng</span>
                       </div>
 
-                      {durationInfo ? (
-                        <>
-                          {durationInfo.discount > 0 && (
-                            <div className="flex justify-between text-emerald-600 font-bold">
-                              <span>Ưu đãi kỳ hạn ({durationInfo.discount}%):</span>
-                              <span className="tabular-nums">
-                                -{Math.round(monthlyPrice * durationInfo.discount / 100).toLocaleString("vi-VN")} đ
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex justify-between items-baseline font-black text-slate-900 text-sm sm:text-base pt-3 border-t border-slate-200">
-                            <span>Tiền Cọc Cần Nộp:</span>
-                            <span className="text-xl sm:text-2xl text-orange-500 tabular-nums font-black">
-                              {Math.round(discountedPrice).toLocaleString("vi-VN")} đ
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex justify-between items-baseline font-black text-slate-900 text-sm sm:text-base pt-3 border-t border-slate-200">
-                          <span>Tiền Cọc Tiêu Chuẩn:</span>
-                          <span className="text-xl sm:text-2xl text-orange-500 tabular-nums font-black">
-                            {monthlyPrice.toLocaleString("vi-VN")} đ
+                      {durationInfo && durationInfo.discount > 0 && (
+                        <div className="flex justify-between text-emerald-600 font-bold">
+                          <span>Ưu đãi kỳ hạn ({durationInfo.discount}%):</span>
+                          <span className="tabular-nums">
+                            {discountedRentalPrice.toLocaleString("vi-VN")} đ / tháng
                           </span>
                         </div>
                       )}
+
+                      <div className="flex justify-between items-baseline font-black text-slate-900 text-sm sm:text-base pt-3 border-t border-slate-200">
+                        <div className="flex flex-col">
+                          <span>Tiền Cọc Cần Nộp:</span>
+                          <span className="text-[10px] text-emerald-600 font-semibold">Trừ thẳng vào tiền thuê khi nhận phòng</span>
+                        </div>
+                        <span className="text-xl sm:text-2xl text-orange-500 tabular-nums font-black">
+                          {depositAmount.toLocaleString("vi-VN")} đ
+                        </span>
+                      </div>
+                      <p className="text-[10.5px] text-slate-400 mt-2 leading-tight">
+                        * Lưu ý: Tiền cọc sẽ được trừ trực tiếp vào tiền thuê khi ký hợp đồng và không hoàn lại nếu quý khách hủy đơn.
+                      </p>
                     </div>
                   )}
 

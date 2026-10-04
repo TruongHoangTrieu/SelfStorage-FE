@@ -113,22 +113,56 @@ export default function StaffLoginModal({
           {/* Quick 1-Click Credentials */}
           <div className="pt-1">
             <span className="text-[11px] text-slate-500 block mb-1.5 font-medium">
-              Tài khoản mẫu từ Backend (Click để điền nhanh):
+              Tài khoản Nhân viên theo từng Cơ sở (Click để điền nhanh):
             </span>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="grid grid-cols-2 gap-2 text-[11px] max-h-48 overflow-y-auto pr-1">
               <button
                 type="button"
                 onClick={() => handleQuickFill('staff@selfstorage.vn', '123456')}
                 className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold border border-blue-200 text-left transition-colors cursor-pointer"
               >
-                Nhân viên vận hành (staff@selfstorage.vn)
+                <div>NV Trụ sở Thủ Đức</div>
+                <div className="text-[10px] text-blue-500 font-normal">staff@selfstorage.vn</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('staff.quan1@selfstorage.vn', '123456')}
+                className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold border border-emerald-200 text-left transition-colors cursor-pointer"
+              >
+                <div>NV Chi nhánh Quận 1</div>
+                <div className="text-[10px] text-emerald-500 font-normal">staff.quan1@selfstorage.vn</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('staff.quan7@selfstorage.vn', '123456')}
+                className="p-2 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 font-semibold border border-violet-200 text-left transition-colors cursor-pointer"
+              >
+                <div>NV Chi nhánh Quận 7</div>
+                <div className="text-[10px] text-violet-500 font-normal">staff.quan7@selfstorage.vn</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('staff.binhthanh@selfstorage.vn', '123456')}
+                className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold border border-amber-200 text-left transition-colors cursor-pointer"
+              >
+                <div>NV CN Bình Thạnh (L81)</div>
+                <div className="text-[10px] text-amber-500 font-normal">staff.binhthanh@selfstorage.vn</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('staff.quan6@selfstorage.vn', '123456')}
+                className="p-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold border border-rose-200 text-left transition-colors cursor-pointer"
+              >
+                <div>NV CN Quận 6 (Centre Mall)</div>
+                <div className="text-[10px] text-rose-500 font-normal">staff.quan6@selfstorage.vn</div>
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickFill('manager@selfstorage.vn', '123456')}
                 className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border border-slate-200 text-left transition-colors cursor-pointer"
               >
-                Quản lý chi nhánh (manager@selfstorage.vn)
+                <div>Quản lý chi nhánh</div>
+                <div className="text-[10px] text-slate-500 font-normal">manager@selfstorage.vn</div>
               </button>
             </div>
           </div>

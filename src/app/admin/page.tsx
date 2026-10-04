@@ -5,7 +5,7 @@ import {
   Map, Calendar, ClipboardCheck, AlertTriangle, 
   Wallet, Key, Database, ChevronDown, Check,
   Search, ArrowUpRight, ArrowDownRight, Clock,
-  FileText, Activity, Lock
+  FileText, Activity, Lock, LogOut
 } from 'lucide-react';
 
 type Role = 'STAFF' | 'MANAGER' | 'OPS' | 'ADMIN';
@@ -13,6 +13,16 @@ type Role = 'STAFF' | 'MANAGER' | 'OPS' | 'ADMIN';
 export default function AdminPortal() {
   const [role, setRole] = useState<Role>('MANAGER');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+
+  const handleAdminLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('customer_user');
+      sessionStorage.clear();
+      window.location.href = '/';
+    }
+  };
 
   const getSidebarLinks = () => {
     switch(role) {
@@ -127,14 +137,24 @@ export default function AdminPortal() {
           </div>
           
           {/* User Profile Footer */}
-          <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center">
-            <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center text-slate-300 font-bold mr-3 border border-slate-700">
-              {role.charAt(0)}
+          <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+            <div className="flex items-center min-w-0">
+              <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center text-slate-300 font-bold mr-3 border border-slate-700 shrink-0">
+                {role.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white leading-tight truncate">Admin User</p>
+                <p className="text-xs text-slate-500 truncate">{getRoleName(role)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-bold text-white leading-tight">Admin User</p>
-              <p className="text-xs text-slate-500">{getRoleName(role)}</p>
-            </div>
+            <button
+              type="button"
+              onClick={handleAdminLogout}
+              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer shrink-0 ml-2"
+              title="Đăng xuất về trang chủ"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </aside>
 

@@ -14,29 +14,32 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Sparkles,
+  Building2,
   Calendar,
-  Headphones,
+  BadgeCheck,
+  LogOut,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { CustomerUser } from '../types';
+import { StaffUser } from '../types';
 
-interface CustomerProfileViewProps {
-  customerUser: CustomerUser | null;
-  onUserUpdated: (updatedUser: CustomerUser) => void;
+interface StaffProfileViewProps {
+  currentUser: StaffUser | null;
+  onUserUpdated: (updatedUser: StaffUser) => void;
+  onLogout?: () => void;
 }
 
-export default function CustomerProfileView({
-  customerUser,
+export default function StaffProfileView({
+  currentUser,
   onUserUpdated,
-}: CustomerProfileViewProps) {
+  onLogout,
+}: StaffProfileViewProps) {
   const router = useRouter();
 
   // Profile Form State
-  const [fullName, setFullName] = useState(customerUser?.fullName || '');
-  const [phone, setPhone] = useState(customerUser?.phone || '');
-  const [email, setEmail] = useState(customerUser?.email || '');
+  const [fullName, setFullName] = useState(currentUser?.fullName || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
   const [createdAt, setCreatedAt] = useState<string | null>(null);
 
   const [isSavingInfo, setIsSavingInfo] = useState(false);
@@ -65,17 +68,19 @@ export default function CustomerProfileView({
           setEmail(res.email || '');
           if (res.createdAt) setCreatedAt(res.createdAt);
 
-          const mappedUser: CustomerUser = {
+          const mappedUser: StaffUser = {
             id: res.id,
             email: res.email,
             fullName: res.fullName,
             role: typeof res.role === 'object' ? res.role?.name : res.role,
             phone: res.phone,
+            facilityId: res.facilityId,
+            facilityName: res.facilityName || res.facility?.name || currentUser?.facilityName,
           };
           onUserUpdated(mappedUser);
         }
       } catch (err) {
-        console.warn('Could not fetch fresh user profile:', err);
+        console.warn('Could not fetch fresh staff profile:', err);
       }
     };
     fetchFreshProfile();
@@ -83,14 +88,14 @@ export default function CustomerProfileView({
 
   // Sync state if prop changes
   useEffect(() => {
-    if (customerUser) {
-      setFullName(customerUser.fullName || '');
-      setPhone(customerUser.phone || '');
-      setEmail(customerUser.email || '');
+    if (currentUser) {
+      setFullName(currentUser.fullName || '');
+      setPhone(currentUser.phone || '');
+      setEmail(currentUser.email || '');
     }
-  }, [customerUser]);
+  }, [currentUser]);
 
-  // Handle Save Profile Information (PUT /auth/profile)
+  // Handle Save Profile Information (PATCH /auth/profile)
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setInfoError(null);
@@ -103,42 +108,48 @@ export default function CustomerProfileView({
 
     setIsSavingInfo(true);
     try {
-      const updated = await api.put<any>('/auth/profile', {
+      const res = await api.patch<any>('/auth/profile', {
         fullName: fullName.trim(),
         phone: phone.trim() || undefined,
       });
 
-      const updatedUser: CustomerUser = {
-        ...(customerUser || ({} as CustomerUser)),
-        id: updated?.id || customerUser?.id || 0,
-        email: updated?.email || email,
-        fullName: fullName.trim(),
-        role: updated?.role || customerUser?.role || 'STORAGE_CUSTOMER',
-        phone: phone.trim() || undefined,
-      };
+      const updatedName = res?.fullName || fullName.trim();
+      const updatedPhone = res?.phone ?? phone.trim();
 
-      // Persist in localStorage for cross-component sync
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      localStorage.setItem('customer_user', JSON.stringify(updatedUser));
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event('auth-change'));
+      setInfoSuccess('Cập nhật thông tin nhân viên thành công!');
+      toast.success('Đã lưu thông tin tài khoản nhân viên');
 
-      onUserUpdated(updatedUser);
-      setInfoSuccess('Cập nhật thông tin tài khoản thành công!');
-      toast.success('Cập nhật thông tin tài khoản thành công!');
+      // Update in localStorage
+      try {
+        const raw = localStorage.getItem('user');
+        if (raw) {
+          const userObj = JSON.parse(raw);
+          const newUserObj = { ...userObj, fullName: updatedName, phone: updatedPhone };
+          localStorage.setItem('user', JSON.stringify(newUserObj));
+          window.dispatchEvent(new Event('auth-change'));
+          window.dispatchEvent(new Event('storage'));
+        }
+      } catch {
+        // ignore
+      }
+
+      if (currentUser) {
+        onUserUpdated({
+          ...currentUser,
+          fullName: updatedName,
+          phone: updatedPhone,
+        });
+      }
     } catch (err: any) {
-      console.error('Update profile error:', err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Không thể cập nhật thông tin. Vui lòng thử lại.';
-      setInfoError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      const msg = err?.message || 'Không thể cập nhật thông tin. Vui lòng thử lại sau.';
+      setInfoError(msg);
+      toast.error(msg);
     } finally {
       setIsSavingInfo(false);
     }
   };
 
-  // Handle Change Password (PUT /auth/change-password)
+  // Handle Change Password (PATCH /auth/change-password)
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPassError(null);
@@ -148,73 +159,53 @@ export default function CustomerProfileView({
       setPassError('Vui lòng nhập mật khẩu hiện tại');
       return;
     }
-
     if (newPassword.length < 6) {
       setPassError('Mật khẩu mới phải có ít nhất 6 ký tự');
       return;
     }
-
-    // Kiểm tra mật khẩu mới không được trùng với mật khẩu hiện tại
-    if (newPassword === currentPassword) {
-      setPassError('Mật khẩu mới không được trùng với mật khẩu hiện tại');
-      return;
-    }
-
     if (newPassword !== confirmPassword) {
-      setPassError('Xác nhận mật khẩu mới không khớp');
+      setPassError('Mật khẩu xác nhận không khớp với mật khẩu mới');
       return;
     }
 
     setIsSavingPass(true);
     try {
-      await api.put('/auth/change-password', {
+      await api.patch('/auth/change-password', {
         currentPassword,
         newPassword,
       });
 
-      setPassSuccess('Đổi mật khẩu thành công! Đang chuyển hướng về trang đăng nhập...');
-      toast.success('Đổi mật khẩu thành công! Vui lòng đăng nhập lại với mật khẩu mới.');
+      setPassSuccess('Đổi mật khẩu thành công! Bạn có thể sử dụng mật khẩu mới cho các phiên làm việc tiếp theo.');
+      toast.success('Mật khẩu đã được thay đổi thành công!');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-
-      // Lưu email để hỗ trợ tự động điền sẵn ở form đăng nhập
-      if (email || customerUser?.email) {
-        try {
-          localStorage.setItem('saved_email', email || customerUser?.email || '');
-        } catch {
-          // ignore localStorage error
-        }
-      }
-
-      // Đăng xuất và dọn dẹp phiên đăng nhập cũ
-      try {
-        await api.post('/auth/logout');
-      } catch (logoutErr) {
-        console.warn('Backend logout notice:', logoutErr);
-      }
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('customer_user');
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event('auth-change'));
-
-      // Chuyển hướng về trang chủ sau 1.5s
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 1500);
     } catch (err: any) {
-      console.error('Change password error:', err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Không thể đổi mật khẩu. Vui lòng kiểm tra lại mật khẩu hiện tại.';
-      setPassError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      const msg = err?.message || 'Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại.';
+      setPassError(msg);
+      toast.error(msg);
+    } finally {
       setIsSavingPass(false);
     }
   };
 
-  const getInitials = (name?: string, mail?: string) => {
+  const roleName = (currentUser?.role || 'OPERATIONS_STAFF').toUpperCase();
+  const roleDisplay =
+    roleName === 'FACILITY_MANAGER'
+      ? 'Quản Lý Chi Nhánh'
+      : roleName === 'SYSTEM_ADMINISTRATOR' || roleName === 'ADMIN'
+      ? 'Quản Trị Viên Hệ Thống'
+      : roleName === 'BUSINESS_OPERATIONS_MANAGER'
+      ? 'Quản Lý Kinh Doanh Toàn Chuỗi'
+      : 'Nhân Viên Vận Hành Kho';
+
+  const rawFacilityDisplay =
+    currentUser?.assignedFacility?.name ||
+    currentUser?.facilityName ||
+    'Trụ Sở Chính Võ Nguyên Giáp';
+  const facilityDisplay = rawFacilityDisplay.replace(/^Kho\s+Tự\s+Quản\s+/i, '').trim();
+
+  const getInitials = (name?: string, em?: string) => {
     if (name && name.trim()) {
       const parts = name.trim().split(/\s+/);
       if (parts.length >= 2) {
@@ -222,21 +213,13 @@ export default function CustomerProfileView({
       }
       return name.slice(0, 2).toUpperCase();
     }
-    if (mail) return mail.slice(0, 2).toUpperCase();
-    return 'KH';
+    if (em) return em.slice(0, 2).toUpperCase();
+    return 'NV';
   };
-
-  const formattedCreatedDate = createdAt
-    ? new Date(createdAt).toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-    : null;
 
   return (
     <div className="w-full max-w-[1800px] mx-auto space-y-6 pb-12 animate-slide-up-fade">
-      {/* ================= 1. CLEAN MINIMALIST HEADER (VERCEL / LINEAR STYLE) ================= */}
+      {/* ================= 1. CLEAN MINIMALIST HEADER (MATCHING DASHBOARD PROFILE) ================= */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80">
         <div className="flex items-center gap-4 sm:gap-5">
           {/* Avatar with status indicator */}
@@ -251,50 +234,41 @@ export default function CustomerProfileView({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                {fullName || 'Chưa cập nhật họ tên'}
+                {fullName || 'Nhân Viên Vận Hành'}
               </h1>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                Đang hoạt động
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                <BadgeCheck className="w-3.5 h-3.5 text-blue-600" />
+                {roleDisplay}
               </span>
             </div>
 
             <p className="text-xs sm:text-sm text-slate-500 flex items-center flex-wrap gap-2">
               <span className="flex items-center gap-1.5 text-slate-700 font-medium">
                 <Mail className="w-3.5 h-3.5 text-blue-600" />
-                {email || 'Chưa có email'}
+                {email || 'staff@selfstorage.vn'}
               </span>
-              {phone && (
-                <>
-                  <span className="text-slate-300">•</span>
-                  <span className="flex items-center gap-1.5 text-slate-700 tabular-nums font-medium">
-                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                    {phone}
-                  </span>
-                </>
-              )}
-              {formattedCreatedDate && (
+              <span className="text-slate-300">•</span>
+              <span className="flex items-center gap-1.5 text-blue-700 font-semibold">
+                <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                {facilityDisplay}
+              </span>
+              {createdAt && (
                 <>
                   <span className="text-slate-300">•</span>
                   <span className="flex items-center gap-1.5 text-slate-500">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    Tham gia từ {formattedCreatedDate}
+                    Tham gia từ {new Date(createdAt).toLocaleDateString('vi-VN')}
                   </span>
                 </>
               )}
             </p>
           </div>
         </div>
-
-        {/* Security badge pill */}
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          
-        </div>
       </div>
 
       {/* ================= 2. TWO EQUAL-WIDTH CARDS SPANNING FULL SCREEN ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-        {/* CARD A: THÔNG TIN CÁ NHÂN */}
+        {/* CARD A: THÔNG TIN NHÂN SỰ */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 flex flex-col justify-between space-y-6">
           <div className="space-y-6">
             {/* Header */}
@@ -303,14 +277,14 @@ export default function CustomerProfileView({
                 <User className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Thông Tin Cá Nhân</h2>
+                <h2 className="text-lg font-bold text-slate-900">Thông Tin Nhân Sự</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Cập nhật họ và tên và số điện thoại liên lạc của bạn
+                  Cập nhật họ tên và số điện thoại công tác của bạn
                 </p>
               </div>
             </div>
 
-            {/* Thông báo lỗi / thành công thông tin */}
+            {/* Thông báo lỗi / thành công */}
             {infoError && (
               <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -325,46 +299,43 @@ export default function CustomerProfileView({
             )}
 
             {/* Form */}
-            <form id="profile-form" onSubmit={handleUpdateProfile} className="space-y-4">
-              {/* Họ và tên */}
+            <form id="staff-profile-form" onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Họ và tên *
+                  Họ và tên nhân viên *
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     required
-                    placeholder="Ví dụ: Nguyễn Văn A"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Ví dụ: Nguyễn Văn Vận Hành"
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 rounded-xl text-sm text-slate-800 transition outline-none"
                   />
                 </div>
               </div>
 
-              {/* Số điện thoại */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Số điện thoại
+                  Số điện thoại liên hệ
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="tel"
-                    placeholder="Ví dụ: 0912345678"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Ví dụ: 0901234567"
                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 rounded-xl text-sm text-slate-800 transition outline-none tabular-nums"
                   />
                 </div>
               </div>
 
-              {/* Email (Cố định) */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
-                  <span>Địa chỉ Email</span>
+                  <span>Email đăng nhập hệ thống</span>
                   <span className="text-[10px] text-slate-400 font-normal">Cố định theo tài khoản</span>
                 </label>
                 <div className="relative">
@@ -376,6 +347,20 @@ export default function CustomerProfileView({
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-500 font-medium cursor-not-allowed select-none"
                   />
                 </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Email nội bộ do Quản trị viên cấp. Liên hệ quản lý cơ sở nếu cần đổi email.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-2">
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Vai trò vận hành:</span>
+                  <span className="font-bold text-blue-700">{roleDisplay}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Cơ sở trực thuộc:</span>
+                  <span className="font-bold text-slate-900">{facilityDisplay}</span>
+                </div>
               </div>
             </form>
           </div>
@@ -383,7 +368,7 @@ export default function CustomerProfileView({
           <div className="pt-4 border-t border-slate-100">
             <button
               type="submit"
-              form="profile-form"
+              form="staff-profile-form"
               disabled={isSavingInfo}
               className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-semibold text-sm text-white bg-blue-600 hover:bg-blue-700 active:scale-95 shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
@@ -399,7 +384,7 @@ export default function CustomerProfileView({
           </div>
         </div>
 
-        {/* CARD B: BẢO MẬT & ĐỔI MẬT KHẨU */}
+        {/* CARD B: BẢO MẬT & ĐỔI MẬT KHẨU NHÂN VIÊN */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-8 flex flex-col justify-between space-y-6">
           <div className="space-y-6">
             {/* Header */}
@@ -410,7 +395,7 @@ export default function CustomerProfileView({
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Bảo Mật &amp; Đổi Mật Khẩu</h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Đổi mật khẩu định kỳ để bảo vệ quyền truy cập vào ô kho
+                  Tăng cường an toàn khi đăng nhập cổng bàn giao cơ sở
                 </p>
               </div>
             </div>
@@ -430,7 +415,7 @@ export default function CustomerProfileView({
             )}
 
             {/* Form */}
-            <form id="password-form" onSubmit={handleChangePassword} className="space-y-4">
+            <form id="staff-password-form" onSubmit={handleChangePassword} className="space-y-4">
               {/* Mật khẩu hiện tại */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -448,7 +433,7 @@ export default function CustomerProfileView({
                   <button
                     type="button"
                     onClick={() => setShowCurrentPass(!showCurrentPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
                   >
                     {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -472,7 +457,7 @@ export default function CustomerProfileView({
                   <button
                     type="button"
                     onClick={() => setShowNewPass(!showNewPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
                   >
                     {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -496,7 +481,7 @@ export default function CustomerProfileView({
                   <button
                     type="button"
                     onClick={() => setShowConfirmPass(!showConfirmPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
                   >
                     {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -508,14 +493,14 @@ export default function CustomerProfileView({
           <div className="pt-4 border-t border-slate-100">
             <button
               type="submit"
-              form="password-form"
+              form="staff-password-form"
               disabled={isSavingPass}
               className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-semibold text-sm text-white bg-slate-900 hover:bg-slate-800 active:scale-95 shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
               {isSavingPass ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{passSuccess ? 'Đang chuyển về đăng nhập...' : 'Đang cập nhật...'}</span>
+                  <span>Đang cập nhật...</span>
                 </>
               ) : (
                 <>
@@ -528,7 +513,28 @@ export default function CustomerProfileView({
         </div>
       </div>
 
-      
+      {/* Phiên làm việc & Đăng xuất */}
+      {onLogout && (
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <LogOut className="w-4 h-4 text-rose-600" />
+              <span>Phiên Làm Việc Hiện Tại</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Đăng xuất khỏi cổng nhân viên trên thiết bị này và chuyển hướng về trang chủ.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition cursor-pointer shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Đăng Xuất Khỏi Hệ Thống</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

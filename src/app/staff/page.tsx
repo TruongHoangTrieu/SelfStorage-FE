@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Clock,
   ArrowLeft,
@@ -15,7 +16,6 @@ import {
   LogIn,
   LogOut,
   Building2,
-  Boxes,
   Menu,
   ShieldCheck,
   CheckCircle2,
@@ -36,8 +36,12 @@ import HandoverSuccess from './components/HandoverSuccess';
 import ContractModal from './components/ContractModal';
 import PrintModal from './components/PrintModal';
 import StaffLoginModal from './components/StaffLoginModal';
+import StaffProfileView from './components/StaffProfileView';
+import UnitTypesPricingManager from './components/UnitTypesPricingManager';
 
 export default function StaffPortalPage() {
+  const router = useRouter();
+
   // Navigation & Sub-views State
   const [activeTab, setActiveTab] = useState<StaffTab>('queue');
   const [flowStep, setFlowStep] = useState<FlowStep>('queue');
@@ -100,29 +104,37 @@ export default function StaffPortalPage() {
     return 'NV';
   };
 
-  // Hàm tải dữ liệu từ Backend API
-  const loadBackendData = useCallback(async (showToast = false) => {
+  // Hàm tải dữ liệu từ Backend API theo phân công cơ sở của nhân viên
+  const loadBackendData = useCallback(async (showToast = false, facilityIdOverride?: number) => {
     setIsLoadingQueue(true);
     setIsRefreshing(true);
     try {
       const isOnline = await handoversApi.checkHealth();
       setIsBackendOnline(isOnline);
 
+      const storedUser = handoversApi.getStoredUser();
+      const staffFacilityId = facilityIdOverride !== undefined ? facilityIdOverride : storedUser?.facilityId;
+
       if (isOnline) {
-        // Lấy queue đơn đặt chỗ từ Backend API
-        const queueRes = await handoversApi.fetchCheckInQueue();
+        // Lấy queue đơn đặt chỗ từ Backend API theo cơ sở được phân công của nhân viên
+        const queueRes = await handoversApi.fetchCheckInQueue({
+          facilityId: staffFacilityId,
+        });
         if (queueRes.items && queueRes.items.length > 0) {
           setAppointments(queueRes.items);
           setSelectedAppointmentId(queueRes.items[0].id);
           setUsingLiveApi(true);
-          if (showToast) toast.success(`Đã cập nhật ${queueRes.items.length} đơn nhận kho từ máy chủ.`);
+          const facName = storedUser?.assignedFacility?.name || 'cơ sở';
+          if (showToast) toast.success(`Đã cập nhật ${queueRes.items.length} đơn nhận kho của ${facName}.`);
         } else {
+          setAppointments([]);
+          setSelectedAppointmentId('');
           setUsingLiveApi(true);
-          if (showToast) toast.info('Hệ thống chưa có đơn mới trong ngày.');
+          if (showToast) toast.info('Cơ sở hiện chưa có đơn nhận kho mới.');
         }
 
-        // Lấy danh sách ô kho trống khả dụng từ Backend API
-        const unitsRes = await handoversApi.fetchAvailableUnits();
+        // Lấy danh sách ô kho trống khả dụng của đúng cơ sở này
+        const unitsRes = await handoversApi.fetchAvailableUnits(staffFacilityId);
         if (unitsRes && unitsRes.length > 0) {
           setAvailableUnits(unitsRes);
         }
@@ -141,11 +153,50 @@ export default function StaffPortalPage() {
 
   // Khởi tạo kiểm tra kết nối & auth khi load trang
   useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     const stored = handoversApi.getStoredUser();
-    if (stored) {
-      setCurrentUser(stored);
+
+    if (!token || !stored) {
+      router.push('/login?redirect=/staff');
+      return;
     }
-    loadBackendData();
+
+    if (stored.role === 'STORAGE_CUSTOMER') {
+      toast.error('Tài khoản Khách hàng không có quyền truy cập Cổng Nhân Viên.');
+      router.push('/dashboard');
+      return;
+    }
+
+    setCurrentUser(stored);
+    loadBackendData(false, stored.facilityId);
+
+    // Check for query param tab (e.g. /staff?tab=profile)
+    const checkTabQuery = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab') as StaffTab;
+        if (
+          tabParam &&
+          ['queue', 'dashboard', 'checkout', 'facility', 'support', 'settings', 'profile', 'unit_types'].includes(
+            tabParam,
+          )
+        ) {
+          const isManager = ['FACILITY_MANAGER', 'BUSINESS_OPERATIONS_MANAGER', 'SYSTEM_ADMINISTRATOR', 'ADMIN'].includes(
+            (stored?.role || '').toUpperCase()
+          );
+          if (tabParam === 'unit_types' && !isManager) {
+            setActiveTab('queue');
+            setFlowStep('queue');
+            return;
+          }
+          setActiveTab(tabParam);
+          if (tabParam === 'queue') setFlowStep('queue');
+        }
+      }
+    };
+    checkTabQuery();
+    window.addEventListener('popstate', checkTabQuery);
+    return () => window.removeEventListener('popstate', checkTabQuery);
   }, [loadBackendData]);
 
   // Đồng bộ ô kho & mã pin khi chọn một cuộc hẹn
@@ -269,13 +320,39 @@ export default function StaffPortalPage() {
 
   // Logout handler
   const handleLogout = async () => {
-    await handoversApi.logout();
-    setCurrentUser(null);
-    toast.success('Đã đăng xuất tài khoản nhân viên');
+    try {
+      await handoversApi.logout();
+    } catch (err) {
+      console.warn('Staff logout notice:', err);
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        sessionStorage.clear();
+      }
+      setCurrentUser(null);
+      toast.success('Đã đăng xuất tài khoản thành công');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    }
   };
 
+  const userRole = (currentUser?.role || '').toUpperCase();
+  const canManagePricing = Boolean(
+    currentUser && (
+      userRole === 'FACILITY_MANAGER' ||
+      userRole === 'BUSINESS_OPERATIONS_MANAGER' ||
+      userRole === 'SYSTEM_ADMINISTRATOR' ||
+      userRole === 'ADMIN'
+    )
+  );
   const staffRole = currentUser?.role ? currentUser.role.replace('FACILITY_', '') : 'STAFF';
-  const facilityName = currentUser?.facilityName || 'Cơ sở Landmark 81';
+  const rawFacilityName =
+    currentUser?.assignedFacility?.name ||
+    currentUser?.facilityName ||
+    'Trụ Sở Chính Võ Nguyên Giáp';
+  const facilityName = rawFacilityName.replace(/^Kho\s+Tự\s+Quản\s+/i, '').trim();
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-600/20 selection:text-blue-600">
@@ -283,7 +360,7 @@ export default function StaffPortalPage() {
       {/* 1. TOP HEADER (Fixed Full-Width Header Matching /dashboard) */}
       <header className="fixed top-0 inset-x-0 z-40 h-18 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between transition-all">
         {/* Left: Brand + Hamburger button */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={handleToggleSidebar}
@@ -293,21 +370,17 @@ export default function StaffPortalPage() {
             <Menu className="w-5 h-5" />
           </button>
 
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
-              <Boxes className="w-4 h-4" />
-            </div>
-            <span className="font-black text-lg tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-              SmartStorage
-            </span>
+          {/* Logo hệ thống chuẩn nhận diện thương hiệu */}
+          <Link href="/" className="inline-flex items-center group py-1 pl-1" title="Về trang chủ SelfStorage">
+            <img
+              src="/logo.png"
+              alt="SelfStorage Logo"
+              className="h-10 sm:h-11 md:h-12 w-auto object-contain transition-transform group-hover:scale-102"
+            />
           </Link>
 
-          <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60 ml-1">
-            Cổng Nhân Viên
-          </span>
-
           {flowStep !== 'queue' && (
-            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 ml-2">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
               {flowStep === 'handover' ? 'Đang thực hiện bàn giao' : 'Đã hoàn tất bàn giao'}
             </span>
@@ -316,35 +389,11 @@ export default function StaffPortalPage() {
 
         {/* Right: Actions, Status & User Pill */}
         <div className="flex items-center gap-2.5 sm:gap-4">
-          
           {/* Facility Location Pill */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700">
             <Building2 className="w-3.5 h-3.5 text-blue-600" />
-            <span className="max-w-[160px] truncate">{facilityName}</span>
+            <span className="max-w-[180px] truncate">{facilityName}</span>
           </div>
-
-          {/* Backend Online Status Indicator */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-50 border border-slate-200">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isBackendOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
-              }`}
-            />
-            <span className="text-slate-600">
-              {isBackendOnline ? 'Backend Online (Port 3001)' : 'Dữ liệu Demo'}
-            </span>
-          </div>
-
-          {/* Refresh Button */}
-          <button
-            type="button"
-            onClick={() => loadBackendData(true)}
-            disabled={isRefreshing}
-            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Làm mới hàng đợi từ máy chủ"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
-          </button>
 
           {/* Back to Queue shortcut if inside handover */}
           {flowStep !== 'queue' && (
@@ -360,20 +409,26 @@ export default function StaffPortalPage() {
           {/* Staff Auth Button / Avatar Pill */}
           {currentUser ? (
             <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-              <div
-                className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white text-xs shadow-xs"
-                title={currentUser.fullName}
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="flex items-center gap-2 text-left cursor-pointer group hover:opacity-85 transition-opacity"
+                title="Hồ sơ & Đổi mật khẩu nhân viên"
               >
-                {getInitials(currentUser.fullName, currentUser.email)}
-              </div>
-              <div className="hidden md:block text-left">
-                <div className="text-xs font-bold text-slate-800 leading-tight">
-                  {currentUser.fullName}
+                <div
+                  className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs transition-transform"
+                >
+                  {getInitials(currentUser.fullName, currentUser.email)}
                 </div>
-                <div className="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider">
-                  {staffRole}
+                <div className="hidden md:block">
+                  <div className="text-xs font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">
+                    {currentUser.fullName}
+                  </div>
+                  <div className="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider">
+                    {staffRole}
+                  </div>
                 </div>
-              </div>
+              </button>
               <button
                 type="button"
                 onClick={handleLogout}
@@ -393,15 +448,6 @@ export default function StaffPortalPage() {
               <span>Đăng nhập Staff</span>
             </button>
           )}
-
-          {/* Link to Customer Portal */}
-          <Link
-            href="/dashboard"
-            className="hidden xl:inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 font-bold px-2 py-1 transition-colors"
-          >
-            <span>Cổng Khách Hàng</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
         </div>
       </header>
 
@@ -519,8 +565,49 @@ export default function StaffPortalPage() {
               />
             )}
 
+            {/* TRANG D: HỒ SƠ & ĐỔI MẬT KHẨU NHÂN VIÊN */}
+            {activeTab === 'profile' && (
+              <StaffProfileView
+                currentUser={currentUser}
+                onUserUpdated={(updated) => setCurrentUser(updated)}
+                onLogout={handleLogout}
+              />
+            )}
+
+            {/* TRANG E: QUẢN LÝ LOẠI KHO & BẢNG GIÁ THEO CƠ SỞ (Chỉ mở cho Manager & Admin) */}
+            {activeTab === 'unit_types' && canManagePricing && (
+              <UnitTypesPricingManager
+                currentFacilityId={currentUser?.facilityId}
+                currentUser={currentUser}
+              />
+            )}
+
+            {activeTab === 'unit_types' && !canManagePricing && (
+              <div className="max-w-xl mx-auto bg-white rounded-3xl border border-slate-200/90 p-8 text-center space-y-4 shadow-xs">
+                <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
+                  <ShieldCheck className="w-8 h-8" />
+                </div>
+                <h2 className="text-xl font-black text-slate-900">
+                  Mục Này Đã Được Ẩn
+                </h2>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Trang <strong>Quản lý loại kho &amp; Bảng giá</strong> đã được ẩn và chỉ dành riêng cho 3 vai trò: <strong>Facility Manager</strong>, <strong>Business Operations Manager</strong> và <strong>System Administrator</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('queue');
+                    setFlowStep('queue');
+                  }}
+                  className="px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition cursor-pointer"
+                >
+                  Quay Lại Hàng Đợi Nhận Kho
+                </button>
+              </div>
+            )}
+
             {/* CÁC TAB TÁC VỤ PHỤ TRỢ KHÁC */}
-            {activeTab !== 'queue' && flowStep === 'queue' && (
+            {activeTab !== 'queue' && activeTab !== 'profile' && activeTab !== 'unit_types' && flowStep === 'queue' && (
               <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200/90 p-10 text-center space-y-4 shadow-xs animate-slide-up-fade">
                 <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
                   {activeTab === 'dashboard' && <LayoutDashboard className="w-8 h-8" />}
@@ -582,7 +669,7 @@ export default function StaffPortalPage() {
         onLoginSuccess={(user) => {
           setCurrentUser(user);
           toast.success(`Đăng nhập thành công: ${user.fullName} (${user.role})`);
-          loadBackendData();
+          loadBackendData(true, user.facilityId);
         }}
       />
     </div>

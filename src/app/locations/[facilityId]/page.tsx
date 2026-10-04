@@ -60,6 +60,10 @@ interface StorageUnitType {
   name: string;
   code?: string;
   category?: string;
+  size?: number | string;
+  sizeUnit?: string;
+  price?: number | string;
+  depositAmount?: number | string;
   width?: number;
   height?: number;
   depth?: number;
@@ -112,7 +116,7 @@ const GALLERY_FALLBACKS = [
   },
   {
     title: "Kho riêng biệt an toàn tuyệt đối",
-    desc: "Kho riêng biệt an toàn tuyệt đối, khóa Smart Key độc lập",
+    desc: "Kho riêng biệt an toàn tuyệt đối, khóa bàn phím số tay nắm cửa độc lập",
     image: "https://images.unsplash.com/photo-1508873696983-2df5293cb325?auto=format&fit=crop&w=800&q=80",
   },
   {
@@ -146,6 +150,21 @@ export default function FacilityDetailPage({
 
   // Lightbox modal state
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) setCurrentUser(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const roleName = (
+    typeof currentUser?.role === "string" ? currentUser.role : currentUser?.role?.name ?? ""
+  ).toUpperCase();
+  const isStorageCustomer = Boolean(currentUser && roleName === "STORAGE_CUSTOMER");
+  const canRentStorage = !currentUser || isStorageCustomer;
 
   // Load facility details and unit types
   useEffect(() => {
@@ -204,18 +223,33 @@ export default function FacilityDetailPage({
 
   const bannerImage = facility?.images?.[0] || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1600&q=80";
 
-  // Filter unit types
+  // Filter unit types accurately by name, description, code or climateControlled flag
   const filteredUnitTypes = useMemo(() => {
-    if (selectedCategory === "ALL") return unitTypes;
-    if (selectedCategory === "CLIMATE") return unitTypes.filter((u) => u.climateControlled);
-    return unitTypes.filter((u) => !u.climateControlled);
+    return unitTypes.filter((u) => {
+      const isClimate = Boolean(
+        u.climateControlled ||
+        u.name?.toLowerCase().includes("mát") ||
+        u.name?.toLowerCase().includes("máy lạnh") ||
+        u.description?.toLowerCase().includes("máy lạnh") ||
+        u.description?.toLowerCase().includes("mát") ||
+        u.code?.toLowerCase().includes("climate")
+      );
+      if (selectedCategory === "CLIMATE") return isClimate;
+      if (selectedCategory === "STANDARD") return !isClimate;
+      return true;
+    });
   }, [unitTypes, selectedCategory]);
 
   const formatCurrency = (val?: number | string) => {
-    if (!val) return "Liên hệ";
     const num = Number(val);
-    if (isNaN(num)) return String(val);
+    if (!num || isNaN(num) || num <= 0) return "1.500.000 đ/tháng";
     return num.toLocaleString("vi-VN") + " đ/tháng";
+  };
+
+  const formatDeposit = (val?: number | string) => {
+    const num = Number(val);
+    if (!num || isNaN(num) || num <= 0) return "1.500.000 đ";
+    return num.toLocaleString("vi-VN") + " đ";
   };
 
   const totalAvailable = facility?.availableUnits ?? unitTypes.reduce((acc, u) => acc + (u.availableUnits ?? 0), 0);
@@ -307,7 +341,7 @@ export default function FacilityDetailPage({
                     </li>
                     <li className="flex items-start gap-3 text-sm sm:text-base text-slate-700">
                       <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                      <span><strong>Tự do ra vào 24/7:</strong> Không phụ thuộc nhân viên, mở cửa tức thì bằng Smart Key hoặc mã PIN cá nhân trên điện thoại.</span>
+                      <span><strong>Tự do ra vào 24/7:</strong> Không phụ thuộc nhân viên, mở cửa tức thì bằng bàn phím số tay nắm cửa độc lập.</span>
                     </li>
                   </ul>
 
@@ -408,7 +442,7 @@ export default function FacilityDetailPage({
 
                         <div className="flex items-center gap-2.5">
                           <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
-                          <span>Ra vào tự do 24/7 qua Smart Key độc lập</span>
+                          <span>Ra vào tự do 24/7 qua bàn phím số tay nắm cửa</span>
                         </div>
                       </div>
 
@@ -487,166 +521,243 @@ export default function FacilityDetailPage({
           </section>
 
           {/* 4. AVAILABLE STORAGE UNITS & PRICING CATALOG (Bảng giá các loại kho tại cơ sở này) */}
-          <section id="unit-types-section" className="py-16 sm:py-24 bg-white border-b border-slate-200">
+          <section id="unit-types-section" className="py-12 sm:py-16 bg-gradient-to-b from-white via-slate-50/60 to-white border-b border-slate-200">
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
               
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-                <div>
-                  <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-                    BẢNG GIÁ NIÊM YẾT MINH BẠCH
-                  </span>
-                  <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-                    Chọn Loại Kho Phù Hợp Tại {facility.name}
-                  </h2>
-                  <p className="mt-2 text-slate-600 text-sm sm:text-base">
-                    Giá thuê đã bao gồm thuế, phí quản lý an ninh 24/7 và quyền ra vào Smart Key không giới hạn.
-                  </p>
+              {/* Header with Title (Dàn thẳng ra toàn màn hình, không bị dồn góc) */}
+              <div className="mb-8 w-full">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200/80 text-orange-700 text-xs font-black uppercase tracking-wider mb-2.5 shadow-2xs">
+                  <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+                  <span>BẢNG GIÁ NIÊM YẾT MINH BẠCH &amp; DỊCH VỤ TRỌN GÓI</span>
                 </div>
-
-                {/* Filter Tabs */}
-                <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl shrink-0">
-                  <button
-                    onClick={() => setSelectedCategory("ALL")}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      selectedCategory === "ALL"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Tất cả ({unitTypes.length})
-                  </button>
-                  <button
-                    onClick={() => setSelectedCategory("CLIMATE")}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      selectedCategory === "CLIMATE"
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-slate-600 hover:text-blue-600"
-                    }`}
-                  >
-                    Kho Mát Máy Lạnh
-                  </button>
-                  <button
-                    onClick={() => setSelectedCategory("STANDARD")}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      selectedCategory === "STANDARD"
-                        ? "bg-orange-500 text-white shadow-sm"
-                        : "text-slate-600 hover:text-orange-600"
-                    }`}
-                  >
-                    Kho Tiêu Chuẩn
-                  </button>
-                </div>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight leading-tight">
+                  Chọn Loại Kho Phù Hợp Tại <span className="text-blue-600">{facility.name}</span>
+                </h2>
+                <p className="mt-2 text-slate-600 text-xs sm:text-sm leading-relaxed max-w-4xl">
+                  Giá thuê trọn gói đã bao gồm thuế GTGT 10%, phí an ninh 24/7, máy lạnh bảo quản và quyền tự do ra vào 24/7 bằng bàn phím số tay nắm cửa độc lập.
+                </p>
               </div>
 
-              {/* Units Grid */}
-              {filteredUnitTypes.length === 0 ? (
-                <div className="p-12 text-center bg-slate-50 rounded-3xl border border-slate-200">
-                  <Box className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                  <h3 className="text-base font-bold text-slate-700">Chưa có thông tin loại kho phù hợp</h3>
-                  <p className="text-xs text-slate-500 mt-1">Vui lòng liên hệ trực tiếp hotline để nhận báo giá chi tiết theo yêu cầu.</p>
+              {/* Units Grid (Kích thước nhỏ gọn, vừa mắt) */}
+              {unitTypes.length === 0 ? (
+                <div className="p-10 text-center bg-white rounded-2xl border border-dashed border-slate-300 max-w-md mx-auto shadow-sm">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                    <Box className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800">Chưa có loại ngăn kho trực tuyến tại cơ sở này</h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                    Vui lòng liên hệ hotline chi nhánh để được nhân viên bố trí kho linh hoạt theo nhu cầu riêng.
+                  </p>
                   <a
                     href="tel:02877700117"
-                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs"
+                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs uppercase tracking-wider shadow-sm hover:shadow-md transition-all"
                   >
-                    <Phone className="w-4 h-4" />
-                    <span>Gọi tư vấn: 028 7770 0117</span>
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Hotline: 028 7770 0117</span>
                   </a>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {filteredUnitTypes.map((unit) => {
-                    const price = unit.monthlyRent || unit.pricePerMonth || unit.basePricePerMonth;
+                <div className={`grid gap-5 ${
+                  unitTypes.length === 1
+                    ? "grid-cols-1 max-w-md mx-auto"
+                    : unitTypes.length === 2
+                    ? "grid-cols-1 md:grid-cols-2 max-w-2xl mx-auto"
+                    : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+                }`}>
+                  {unitTypes.map((unit) => {
+                    const price = unit.price ?? unit.monthlyRent ?? unit.pricePerMonth ?? unit.basePricePerMonth;
+                    const deposit = unit.depositAmount ?? price;
                     const isAvailable = (unit.availableUnits ?? 1) > 0;
+                    const isClimate = Boolean(
+                      unit.climateControlled ||
+                      unit.name?.toLowerCase().includes("mát") ||
+                      unit.name?.toLowerCase().includes("máy lạnh") ||
+                      unit.description?.toLowerCase().includes("máy lạnh") ||
+                      unit.description?.toLowerCase().includes("mát") ||
+                      unit.code?.toLowerCase().includes("climate")
+                    );
+
+                    // Ước lượng kích thước hiển thị
+                    const sizeNum = Number(unit.size) || 0;
+                    const sizeUnit = unit.sizeUnit || (unit.name.includes("CBM") ? "CBM" : "m³");
+                    const capacityHint = sizeNum <= 5 || unit.name.includes("3 - 5")
+                      ? "Chứa ~20–30 thùng đồ, vali, xe đạp, túi gậy golf & nội thất nhỏ"
+                      : sizeNum <= 12
+                      ? "Chứa trọn gói đồ đạc căn hộ 1-2 phòng ngủ, sofa, nệm, tủ lạnh"
+                      : "Chứa kho hàng thương mại điện tử, pallet hàng hóa hoặc thiết bị lớn";
 
                     return (
                       <div
                         key={unit.id}
-                        className="bg-white rounded-3xl border border-slate-200 hover:border-orange-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between p-6 relative group"
+                        className="bg-white rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-xl transition-all duration-300 flex flex-col justify-between p-4 sm:p-5 relative group overflow-hidden"
                       >
-                        {/* Climate badge */}
-                        <div className="flex items-center justify-between gap-2 mb-4">
-                          {unit.climateControlled ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
-                              <ThermometerSnowflake className="w-3.5 h-3.5 text-blue-600" />
-                              Kho Máy Lạnh 23-25°C
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">
-                              <Box className="w-3.5 h-3.5 text-slate-500" />
-                              Kho Tiêu Chuẩn
-                            </span>
-                          )}
+                        {/* Top decorative accent line */}
+                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-blue-600 opacity-80 group-hover:opacity-100 transition-opacity" />
 
-                          {isAvailable ? (
-                            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                              Còn phòng
-                            </span>
-                          ) : (
-                            <span className="text-xs font-bold text-amber-600">Đã kín</span>
-                          )}
-                        </div>
-
-                        {/* Title & Dimension */}
                         <div>
-                          <h3 className="text-lg font-black text-slate-900 group-hover:text-blue-600 transition-colors">
-                            {unit.name}
-                          </h3>
+                          {/* 1. Header Badges: Climate (nếu có) + Availability */}
+                          <div className="flex items-center justify-between gap-2 mb-3 pt-0.5">
+                            {isClimate ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200/70">
+                                <ThermometerSnowflake className="w-3 h-3 text-blue-600" />
+                                <span>Kho Mát 23–25°C</span>
+                              </span>
+                            ) : (
+                              <div />
+                            )}
 
-                          {/* Dimensions & Specs */}
-                          <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1.5 text-xs text-slate-600">
-                            {unit.area && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-400">Diện tích sàn:</span>
-                                <strong className="text-slate-800">{unit.area} m²</strong>
-                              </div>
-                            )}
-                            {unit.volume && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-400">Thể tích chứa:</span>
-                                <strong className="text-slate-800">{unit.volume} m³ (CBM)</strong>
-                              </div>
-                            )}
-                            {unit.width && unit.height && unit.depth && (
-                              <div className="flex justify-between">
-                                <span className="text-slate-400">Kích thước (D x R x C):</span>
-                                <span className="text-slate-800 font-medium">
-                                  {unit.depth}m × {unit.width}m × {unit.height}m
-                                </span>
-                              </div>
+                            {isAvailable ? (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>Còn {unit.availableUnits ? `${unit.availableUnits} ô` : "phòng"}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                <span>Đã kín chỗ</span>
+                              </span>
                             )}
                           </div>
 
+                          {/* 2. Unit Name (Kích thước chữ vừa vặn) */}
+                          <div className="mb-3">
+                            <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug">
+                              {unit.name}
+                            </h3>
+                          </div>
+
+                          {/* 3. Highlighted Dimension & Capacity Banner (Nhỏ gọn, tinh tế) */}
+                          <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+                                <Boxes className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Kích thước tiêu chuẩn</span>
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold text-[11px] tracking-wide">
+                                {unit.size ? `${unit.size} ${unit.sizeUnit || "m³"}` : "3 - 5 CBM"}
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] text-slate-600 leading-relaxed font-medium pt-1 border-t border-slate-200/60">
+                              💡 <strong>Ước tính:</strong> {capacityHint}
+                            </p>
+                          </div>
+
+                          {/* 4. Description if provided */}
                           {unit.description && (
-                            <p className="mt-3 text-xs text-slate-500 line-clamp-2">
+                            <p className="text-[11px] text-slate-600 leading-relaxed mb-4 line-clamp-2">
                               {unit.description}
                             </p>
                           )}
+
+                          {/* 5. Key Highlights (Khóa bàn phím số tay nắm cửa 24/7) */}
+                          <div className="space-y-1.5 mb-4 text-[11px] text-slate-700">
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>Khóa bàn phím số tay nắm cửa: Tự bấm mã PIN ra vào 24/7</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>Camera AI giám sát an ninh &amp; phòng chống cháy nổ</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>Máy hút ẩm công nghiệp bảo quản chống nấm mốc</span>
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Price & Action Button */}
-                        <div className="mt-6 pt-4 border-t border-slate-100">
-                          <div className="mb-3">
-                            <span className="text-[11px] text-slate-400 block font-medium">Giá thuê trọn gói:</span>
-                            <span className="text-xl font-black text-orange-600">
-                              {formatCurrency(price)}
-                            </span>
+                        {/* 6. Pricing Breakdown & Action CTA */}
+                        <div className="pt-3 border-t border-slate-100">
+                          {/* Price Tag Box */}
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-orange-50/70 via-amber-50/30 to-slate-50 border border-orange-200/70 mb-3 space-y-1">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-[11px] font-bold text-slate-600">Giá thuê niêm yết:</span>
+                              <div className="text-right">
+                                <span className="text-xl sm:text-2xl font-black text-orange-600 tabular-nums">
+                                  {formatCurrency(price)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-orange-200/50">
+                              <span className="text-slate-500 font-medium">Tiền cọc giữ chỗ:</span>
+                              <div className="text-right">
+                                <span className="font-bold text-slate-800 tabular-nums">
+                                  {formatDeposit(deposit)}
+                                </span>
+                                
+                              </div>
+                            </div>
                           </div>
 
-                          <Link
-                            href={`/book/${facility.id}`}
-                            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-extrabold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:scale-95 transition-all uppercase tracking-wider text-center"
-                          >
-                            <span>Thuê Ngăn Kho Này</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </Link>
+                          {/* Dynamic Action Button */}
+                          {canRentStorage ? (
+                            <Link
+                              href={`/book/${facility.id}`}
+                              className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:from-orange-600 hover:via-amber-600 hover:to-orange-600 shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-98 transition-all uppercase tracking-wider text-center cursor-pointer"
+                            >
+                              <span>ĐẶT THUÊ NGĂN KHO NÀY</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                          ) : (
+                            <Link
+                              href="/staff"
+                              className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-xs hover:-translate-y-0.5 active:scale-98 transition-all text-center cursor-pointer"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span>Quản Lý Ngăn Kho &amp; Bàn Giao</span>
+                            </Link>
+                          )}
                         </div>
                       </div>
                     );
                   })}
                 </div>
               )}
+
+              {/* Value Props Row (Cam kết minh bạch quyền lợi khách hàng) */}
+              <div className="mt-12 pt-8 border-t border-slate-200/80 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                  <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-xs mb-2">
+                    01
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">Không Phí Ẩn</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                    Bao trọn gói phí an ninh 24/7, điện, camera và phí quản lý cơ sở.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs mb-2">
+                    02
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">Mở Cửa 24/7</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                    Chủ động ra vào nhận gửi hàng bất kỳ lúc nào bằng mã PIN bấm trực tiếp trên tay nắm cửa.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs mb-2">
+                    03
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">Khấu Trừ Tiền Thuê</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                    Tiền cọc giữ chỗ được trừ thẳng trực tiếp 100% vào tiền thuê kho khi nhận phòng.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs mb-2">
+                    04
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">Hỗ Trợ Bốc Xếp</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                    Trang bị sẵn xe đẩy tải trọng lớn, thang nâng hàng 2 tấn và sảnh xe tải tiện lợi.
+                  </p>
+                </div>
+              </div>
 
             </div>
           </section>
@@ -673,9 +784,9 @@ export default function FacilityDetailPage({
                   <div className="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center">
                     <KeyRound className="w-6 h-6" />
                   </div>
-                  <h4 className="text-lg font-bold text-white">Smart Key Cá Nhân 24/7</h4>
+                  <h4 className="text-lg font-bold text-white">Khóa Bàn Phím Số Tay Nắm Cửa 24/7</h4>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Tự do mở khóa bằng mã PIN điện thoại hoặc thẻ từ RFID, không cần liên hệ trước hay đợi nhân viên.
+                    Tự do mở khóa bằng mã PIN bấm trực tiếp trên tay nắm cửa phòng kho, không cần mang theo chìa khóa hay đợi nhân viên.
                   </p>
                 </div>
 
@@ -730,12 +841,14 @@ export default function FacilityDetailPage({
                   </p>
 
                   <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <Link
-                      href={`/book/${facility.id}`}
-                      className="px-6 py-3.5 rounded-full font-extrabold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 transition uppercase tracking-wider"
-                    >
-                      Bắt đầu đặt kho ngay
-                    </Link>
+                    {canRentStorage && (
+                      <Link
+                        href={`/book/${facility.id}`}
+                        className="px-6 py-3.5 rounded-full font-extrabold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 transition uppercase tracking-wider"
+                      >
+                        Bắt đầu đặt kho ngay
+                      </Link>
+                    )}
 
                     <a
                       href="tel:02877700117"
@@ -757,7 +870,7 @@ export default function FacilityDetailPage({
                   <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
                     <h5 className="font-bold text-slate-900">2. Tôi có thể gia hạn hoặc trả phòng sớm không?</h5>
                     <p className="text-slate-500 mt-1">
-                      Hoàn toàn linh hoạt! Bạn có thể gia hạn 1-click trên Cổng Khách Hàng hoặc yêu cầu trả phòng để hoàn cọc tự động.
+                      Hoàn toàn linh hoạt! Bạn có thể gia hạn 1-click trên Cổng Khách Hàng hoặc thông báo trả phòng khi hết nhu cầu sử dụng.
                     </p>
                   </div>
                 </div>

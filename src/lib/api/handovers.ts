@@ -85,6 +85,8 @@ export function normalizeReservation(item: any): CheckInAppointment {
     uiStatus = 'arrived';
   } else if (rawStatus === 'IN_PROGRESS' || rawStatus === 'PROCESSING') {
     uiStatus = 'in_progress';
+  } else if (rawStatus === 'CANCELLED') {
+    uiStatus = 'cancelled';
   } else {
     uiStatus = 'pending';
   }
@@ -232,6 +234,9 @@ export const handoversApi = {
     if (params?.status && params.status !== 'all') {
       const beStatus = params.status === 'completed' ? 'COMPLETED' : 'PENDING';
       query.set('status', beStatus);
+    } else {
+      // Loại trừ các đơn đã hủy để không hiển thị trong hàng đợi đón khách
+      query.set('excludeStatus', 'CANCELLED');
     }
     if (params?.facilityId) query.set('facilityId', String(params.facilityId));
     if (params?.search) query.set('search', params.search);
@@ -239,10 +244,15 @@ export const handoversApi = {
 
     const res = await api.get(`/reservations?${query.toString()}`);
     const rawList = Array.isArray(res) ? res : (res?.data || []);
-    const total = res?.total || rawList.length;
 
-    const items = rawList.map(normalizeReservation);
-    return { items, total };
+    // Loại bỏ triệt để các đơn đã hủy (CANCELLED) hoặc hết hạn (EXPIRED) khỏi danh sách đón khách
+    const activeList = rawList.filter((item: any) => {
+      const s = (item.status || '').toUpperCase();
+      return s !== 'CANCELLED' && s !== 'EXPIRED';
+    });
+
+    const items = activeList.map(normalizeReservation);
+    return { items, total: items.length };
   },
 
   /**

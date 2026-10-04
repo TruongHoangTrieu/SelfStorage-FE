@@ -207,10 +207,23 @@ export default function CustomerDashboardPage() {
 
   // Handle Logout
   const handleLogout = async () => {
-    await customerUnitsApi.logout();
-    setCustomerUser(null);
-    triggerToast('Đã đăng xuất khỏi cổng khách hàng.');
-    loadContractsData(true);
+    try {
+      await customerUnitsApi.logout();
+    } catch (e) {
+      console.warn('Customer logout notice:', e);
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('customer_user');
+        sessionStorage.clear();
+      }
+      setCustomerUser(null);
+      triggerToast('Đã đăng xuất khỏi tài khoản thành công.');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    }
   };
 
   // Ô kho đang được chọn xem chi tiết (Trang B)
@@ -574,54 +587,90 @@ export default function CustomerDashboardPage() {
       />
 
       {/* 6. Modal [ Xác nhận hủy đơn đặt chỗ (Thay thế window.confirm) ] */}
-      {cancelReservationId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 animate-scale-up">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-6 h-6" />
+      {cancelReservationId !== null && (() => {
+        const targetRes = reservations.find((r) => r.id === cancelReservationId);
+        const item = targetRes?.items?.[0];
+        const depositVal = item?.depositAmount ? Number(item.depositAmount) : 0;
+        const unitName = item?.unitType?.name || 'Ngăn kho lưu trữ';
+        const unitNum = item?.unit?.unitNumber ? `Ô ${item.unit.unitNumber}` : '';
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs animate-fade-in">
+            <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 animate-scale-up">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Xác nhận hủy đơn đặt chỗ
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Mã đơn: <span className="font-semibold text-slate-700">{targetRes?.reservationCode || `#${cancelReservationId}`}</span>
+                    {unitNum && ` • ${unitNum}`}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Xác nhận hủy đơn đặt chỗ
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-                  Bạn có chắc chắn muốn hủy đơn đặt chỗ này không? Ngăn kho sẽ được giải phóng cho khách hàng khác và thông tin đặt cọc sẽ được chuyển sang trạng thái đã hủy.
+
+              {/* Thông tin đơn và tiền cọc */}
+              <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-xs space-y-2">
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Kho đã đặt:</span>
+                  <span className="font-semibold text-slate-800">{unitName}</span>
+                </div>
+                {depositVal > 0 && (
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200/60">
+                    <span className="text-slate-600">Tiền cọc giữ chỗ đã nộp:</span>
+                    <span className="font-bold text-rose-600 text-sm tabular-nums">
+                      {depositVal.toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Cảnh báo không hoàn cọc nổi bật */}
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-1.5">
+                <div className="flex items-center gap-2 text-rose-900 font-bold text-xs uppercase tracking-wide">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Lưu ý quan trọng: Không hoàn lại tiền cọc</span>
+                </div>
+                <p className="text-xs text-rose-800 leading-relaxed">
+                  Theo quy định và chính sách đặt chỗ của hệ thống, khi bạn xác nhận hủy đơn, <strong>toàn bộ số tiền cọc đã thanh toán sẽ KHÔNG ĐƯỢC HOÀN LẠI</strong>. Ngăn kho sẽ được mở công khai ngay lập tức cho khách hàng khác đặt thuê.
                 </p>
               </div>
-            </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setCancelReservationId(null)}
-                disabled={isCancellingReservation}
-                className="px-4 py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Giữ lại đơn
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmCancelReservation}
-                disabled={isCancellingReservation}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-700 active:scale-95 shadow-md shadow-rose-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isCancellingReservation ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Đang xử lý hủy...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    <span>Đồng ý hủy đơn</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setCancelReservationId(null)}
+                  disabled={isCancellingReservation}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Giữ lại đơn
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCancelReservation}
+                  disabled={isCancellingReservation}
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-700 active:scale-95 shadow-md shadow-rose-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isCancellingReservation ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Đang xử lý hủy...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Xác nhận hủy (Không hoàn cọc)</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
