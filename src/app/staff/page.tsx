@@ -25,7 +25,6 @@ import { toast } from 'sonner';
 
 // Import Types & Mock Data
 import { CheckInAppointment, AvailableUnit, StaffTab, FlowStep, StaffUser } from './types';
-import { INITIAL_APPOINTMENTS, INITIAL_AVAILABLE_UNITS } from './mockData';
 import { handoversApi } from '../../lib/api/handovers';
 
 // Import Sub-Components
@@ -56,18 +55,19 @@ export default function StaffPortalPage() {
     }
   };
 
-  // Backend Connection & Auth State
+  // Hydration & Auth State
+  const [isMounted, setIsMounted] = useState(false);
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
   const [isBackendOnline, setIsBackendOnline] = useState<boolean | null>(null);
   const [usingLiveApi, setUsingLiveApi] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoadingQueue, setIsLoadingQueue] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Appointments & Units State
-  const [appointments, setAppointments] = useState<CheckInAppointment[]>(INITIAL_APPOINTMENTS);
-  const [availableUnits, setAvailableUnits] = useState<AvailableUnit[]>(INITIAL_AVAILABLE_UNITS);
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('SS-BK-2026-8910');
+  const [appointments, setAppointments] = useState<CheckInAppointment[]>([]);
+  const [availableUnits, setAvailableUnits] = useState<AvailableUnit[]>([]);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('');
 
   // Handover Operations State (Trang B)
   const [selectedUnitCode, setSelectedUnitCode] = useState<string>('');
@@ -105,7 +105,7 @@ export default function StaffPortalPage() {
   };
 
   // Hàm tải dữ liệu từ Backend API theo phân công cơ sở của nhân viên
-  const loadBackendData = useCallback(async (showToast = false, facilityIdOverride?: number) => {
+  const loadBackendData = useCallback(async (showToast = false, facilityIdOverride?: string | number) => {
     setIsLoadingQueue(true);
     setIsRefreshing(true);
     try {
@@ -135,16 +135,16 @@ export default function StaffPortalPage() {
 
         // Lấy danh sách ô kho trống khả dụng của đúng cơ sở này
         const unitsRes = await handoversApi.fetchAvailableUnits(staffFacilityId);
-        if (unitsRes && unitsRes.length > 0) {
-          setAvailableUnits(unitsRes);
-        }
+        setAvailableUnits(unitsRes || []);
       } else {
         setUsingLiveApi(false);
-        if (showToast) toast.info('Đang hoạt động ở chế độ dữ liệu mô phỏng.');
+        setAppointments([]);
+        if (showToast) toast.info('Không thể kết nối đến máy chủ.');
       }
     } catch {
       setIsBackendOnline(false);
       setUsingLiveApi(false);
+      setAppointments([]);
     } finally {
       setIsLoadingQueue(false);
       setIsRefreshing(false);
@@ -153,17 +153,22 @@ export default function StaffPortalPage() {
 
   // Khởi tạo kiểm tra kết nối & auth khi load trang
   useEffect(() => {
+    setIsMounted(true);
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     const stored = handoversApi.getStoredUser();
 
     if (!token || !stored) {
-      router.push('/login?redirect=/staff');
+      if (typeof window !== 'undefined') {
+        window.location.replace('/login?redirect=/staff');
+      }
       return;
     }
 
     if (stored.role === 'STORAGE_CUSTOMER') {
       toast.error('Tài khoản Khách hàng không có quyền truy cập Cổng Nhân Viên.');
-      router.push('/dashboard');
+      if (typeof window !== 'undefined') {
+        window.location.replace('/dashboard');
+      }
       return;
     }
 
@@ -234,6 +239,105 @@ export default function StaffPortalPage() {
       } catch {
         // Dùng dữ liệu hiện tại
       }
+    }
+  };
+
+  // Action: Dời lịch hẹn khi khách trễ hoặc bận (Reschedule)
+  const handleReschedule = async (
+    apt: CheckInAppointment,
+    newDateIso: string,
+    newSlotTime: string,
+    notes?: string
+  ) => {
+    try {
+      if (isBackendOnline && apt.rawId) {
+        await handoversApi.rescheduleReservation(apt.rawId, newDateIso, notes);
+      }
+
+      // Cập nhật local appointment state
+      const dateObj = new Date(newDateIso);
+      const day = dateObj.getDate().toString().padStart(2, '0');
+      const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+      const year = dateObj.getFullYear();
+      const startDateStr = `${day}/${month}/${year}`;
+
+      const now = new Date();
+      let dateDisplay = `${day}/${month}/${year}`;
+      if (dateObj.toDateString() === now.toDateString()) {
+        dateDisplay = 'Hôm nay';
+      } else {
+        const tom = new Date();
+        tom.setDate(tom.getDate() + 1);
+        if (dateObj.toDateString() === tom.toDateString()) {
+          dateDisplay = `Ngày mai (${day}/${month})`;
+        }
+      }
+
+      const hour = dateObj.getHours();
+      const timeCategory: 'morning' | 'afternoon' = hour < 12 ? 'morning' : 'afternoon';
+
+      setAppointments((prev) =>
+        prev.map((item) =>
+          item.id === apt.id
+            ? {
+                ...item,
+                appointmentDateRaw: newDateIso,
+                slotTime: newSlotTime,
+                startDate: startDateStr,
+                dateDisplay,
+                timeCategory,
+                specialNotes: notes ? `Dời hẹn: ${notes}` : item.specialNotes,
+              }
+            : item
+        )
+      );
+
+      toast.success(
+        `Đã dời lịch hẹn của khách ${apt.customerName} sang ${dateDisplay} (${newSlotTime}) thành công!`
+      );
+    } catch (err: any) {
+      console.error('Error rescheduling appointment:', err);
+      toast.error(err?.message || 'Không thể dời lịch hẹn. Vui lòng thử lại.');
+      throw err;
+    }
+  };
+
+  // Action: Báo vắng mặt / Hủy giữ chỗ và giải phóng ô kho (No-show / Cancel)
+  const handleCancelOrNoShow = async (
+    apt: CheckInAppointment,
+    reason: string,
+    depositHandling: 'forfeit' = 'forfeit'
+  ) => {
+    try {
+      if (isBackendOnline && apt.rawId) {
+        await handoversApi.cancelReservation(apt.rawId, reason);
+      }
+
+      // Cập nhật trạng thái sang cancelled & giải phóng ô kho
+      setAppointments((prev) =>
+        prev.map((item) =>
+          item.id === apt.id
+            ? {
+                ...item,
+                status: 'cancelled',
+                cancelReason: `${reason} (Khấu trừ 100% tiền cọc về hệ thống)`,
+              }
+            : item
+        )
+      );
+
+      // Giải phóng ô kho trên danh sách khả dụng
+      setAvailableUnits((prev) =>
+        prev.map((u) => (u.code === apt.assignedUnit ? { ...u, status: 'vacant' } : u))
+      );
+
+      toast.success(
+        `Đã hủy lịch hẹn ${apt.id}, khấu trừ 100% cọc về hệ thống và giải phóng ô kho ${apt.assignedUnit} về trạng thái Khả dụng!`
+      );
+    } catch (err: any) {
+      console.error('Error cancelling appointment:', err);
+      toast.error(err?.message || 'Không thể hủy lịch hẹn. Vui lòng thử lại.');
+      throw err;
     }
   };
 
@@ -324,7 +428,7 @@ export default function StaffPortalPage() {
     }, 400);
   };
 
-  // Logout handler
+  // Logout handler: dọn dẹp sạch phiên làm việc và chuyển ngay sang trang đăng nhập
   const handleLogout = async () => {
     try {
       await handoversApi.logout();
@@ -339,7 +443,7 @@ export default function StaffPortalPage() {
       setCurrentUser(null);
       toast.success('Đã đăng xuất tài khoản thành công');
       if (typeof window !== 'undefined') {
-        window.location.href = '/';
+        window.location.replace('/login');
       }
     }
   };
@@ -359,6 +463,11 @@ export default function StaffPortalPage() {
     currentUser?.facilityName ||
     'Trụ Sở Chính Võ Nguyên Giáp';
   const facilityName = rawFacilityName.replace(/^Kho\s+Tự\s+Quản\s+/i, '').trim();
+
+  // Chờ hydration và kiểm tra phiên đăng nhập: giữ giao diện đồng nhất SSR/CSR
+  if (!isMounted || !currentUser) {
+    return <div className="min-h-screen bg-[#F8FAFC]" />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-600/20 selection:text-blue-600">
@@ -500,9 +609,7 @@ export default function StaffPortalPage() {
                       <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                         Hàng Đợi Tiếp Nhận &amp; Bàn Giao Ô Kho
                       </h1>
-                      <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-700">
-                        Luồng 2 (Check-in)
-                      </span>
+                      
                     </div>
                     <p className="text-xs sm:text-sm text-slate-500 mt-1">
                       Xác thực khách hàng theo khung giờ hẹn, kiểm tra tiền cọc và kích hoạt mã khóa Smart Lock tại quầy.
@@ -530,6 +637,8 @@ export default function StaffPortalPage() {
                 appointments={appointments}
                 onStartCheckIn={handleStartCheckIn}
                 selectedAppointmentId={selectedAppointmentId}
+                onReschedule={handleReschedule}
+                onCancelOrNoShow={handleCancelOrNoShow}
               />
             )}
 

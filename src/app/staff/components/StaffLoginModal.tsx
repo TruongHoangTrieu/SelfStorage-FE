@@ -16,8 +16,8 @@ export default function StaffLoginModal({
   onClose,
   onLoginSuccess,
 }: StaffLoginModalProps) {
-  const [email, setEmail] = useState('staff@selfstorage.com');
-  const [password, setPassword] = useState('Staff@123456');
+  const [email, setEmail] = useState('staff@selfstorage.vn');
+  const [password, setPassword] = useState('123456');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 

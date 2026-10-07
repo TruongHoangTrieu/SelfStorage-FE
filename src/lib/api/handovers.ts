@@ -138,6 +138,8 @@ export function normalizeReservation(item: any): CheckInAppointment {
     uiStatus = 'in_progress';
   } else if (rawStatus === 'CANCELLED') {
     uiStatus = 'cancelled';
+  } else if (rawStatus === 'EXPIRED') {
+    uiStatus = 'expired';
   } else {
     uiStatus = 'pending';
   }
@@ -183,6 +185,7 @@ export function normalizeReservation(item: any): CheckInAppointment {
     accessPin: firstItem.accessCode || undefined,
     contractCode: item.rentalContract?.contractCode || undefined,
     completedAt: rawStatus === 'COMPLETED' ? 'Đã hoàn tất' : undefined,
+    cancelReason: item.cancelReason || item.cancellationReason || (rawStatus === 'CANCELLED' ? item.notes : undefined),
   };
 }
 
@@ -213,8 +216,8 @@ export const handoversApi = {
    */
   async checkHealth(): Promise<boolean> {
     try {
-      // Gọi nhẹ endpoint public hoặc login test
-      await api.get('/storage-units?limit=1', { timeoutMs: 3000 });
+      // Gọi nhẹ endpoint public kiểm tra backend hoạt động
+      await api.get('/storage-units', { timeoutMs: 3000 });
       return true;
     } catch (err: any) {
       if (err instanceof ApiError && err.status > 0) {
@@ -275,7 +278,7 @@ export const handoversApi = {
    */
   async fetchCheckInQueue(params?: {
     status?: string;
-    facilityId?: number;
+    facilityId?: number | string;
     search?: string;
     phone?: string;
     page?: number;
@@ -285,11 +288,13 @@ export const handoversApi = {
     query.set('page', String(params?.page || 1));
     query.set('limit', String(params?.limit || 50));
     if (params?.status && params.status !== 'all') {
-      const beStatus = params.status === 'completed' ? 'COMPLETED' : 'PENDING';
-      query.set('status', beStatus);
-    } else {
-      // Loại trừ các đơn đã hủy để không hiển thị trong hàng đợi đón khách
-      query.set('excludeStatus', 'CANCELLED');
+      if (params.status === 'completed') {
+        query.set('status', 'COMPLETED');
+      } else if (params.status === 'cancelled') {
+        query.set('status', 'CANCELLED');
+      } else {
+        query.set('status', 'PENDING');
+      }
     }
     if (params?.facilityId) query.set('facilityId', String(params.facilityId));
     if (params?.search) query.set('search', params.search);
@@ -298,14 +303,42 @@ export const handoversApi = {
     const res = await api.get(`/reservations?${query.toString()}`);
     const rawList = Array.isArray(res) ? res : (res?.data || []);
 
-    // Loại bỏ triệt để các đơn đã hủy (CANCELLED) hoặc hết hạn (EXPIRED) khỏi danh sách đón khách
-    const activeList = rawList.filter((item: any) => {
-      const s = (item.status || '').toUpperCase();
-      return s !== 'CANCELLED' && s !== 'EXPIRED';
-    });
-
-    const items = activeList.map(normalizeReservation);
+    const items = rawList.map(normalizeReservation);
     return { items, total: items.length };
+  },
+
+  /**
+   * Dời lịch hẹn nhận kho (Reschedule)
+   */
+  async rescheduleReservation(
+    reservationId: string | number,
+    newAppointmentDate: string,
+    notes?: string
+  ): Promise<any> {
+    const rawId = typeof reservationId === 'string' && reservationId.startsWith('RSV-')
+      ? reservationId.replace('RSV-', '')
+      : reservationId;
+
+    return await api.patch(`/reservations/${rawId}`, {
+      appointmentDate: newAppointmentDate,
+      notes: notes || undefined,
+    });
+  },
+
+  /**
+   * Báo vắng mặt / Hủy đơn và giải phóng ô kho (No-show / Cancel)
+   */
+  async cancelReservation(
+    reservationId: string | number,
+    reason: string
+  ): Promise<any> {
+    const rawId = typeof reservationId === 'string' && reservationId.startsWith('RSV-')
+      ? reservationId.replace('RSV-', '')
+      : reservationId;
+
+    return await api.post(`/reservations/${rawId}/cancel`, {
+      reason: reason || 'Khách không đến (No-show) quá thời hạn quy định',
+    });
   },
 
   /**
@@ -319,7 +352,7 @@ export const handoversApi = {
   /**
    * Fetch available storage units for reassignment (Trang B dropdown)
    */
-  async fetchAvailableUnits(facilityId?: number): Promise<AvailableUnit[]> {
+  async fetchAvailableUnits(facilityId?: number | string): Promise<AvailableUnit[]> {
     const query = new URLSearchParams();
     query.set('status', 'AVAILABLE');
     if (facilityId) query.set('facilityId', String(facilityId));
@@ -333,7 +366,7 @@ export const handoversApi = {
    * Perform Check-in and Handover (Trang B -> Trang C)
    */
   async performCheckIn(payload: {
-    reservationId: number;
+    reservationId: number | string;
     condition: string;
     notes?: string;
     photos?: string[];

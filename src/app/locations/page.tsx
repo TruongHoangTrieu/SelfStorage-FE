@@ -35,7 +35,7 @@ import { api } from "@/lib/api";
 
 /** Raw structure from GET /api/facilities */
 interface ApiFacility {
-  id: number;
+  id: string | number;
   name: string;
   code: string;
   description?: string | null;
@@ -57,7 +57,7 @@ interface ApiFacility {
 
 /** Formatted structure for rendering */
 interface FormattedFacility {
-  id: number;
+  id: string | number;
   name: string;
   code: string;
   district: string;

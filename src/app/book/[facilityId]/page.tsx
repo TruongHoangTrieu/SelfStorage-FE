@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { api } from "@/lib/api";
@@ -90,10 +90,12 @@ function formatDateVi(dateStr: string): string {
   return dateStr;
 }
 
-export default function BookingFlow() {
+function BookingFlowContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const facilityId = Number(params.facilityId);
+  const facilityId = (params.facilityId as string) || "";
+  const unitTypeIdParam = searchParams.get("unitTypeId");
 
   const [facility, setFacility] = useState<any>(null);
   const [unitTypes, setUnitTypes] = useState<any[]>([]);
@@ -109,7 +111,7 @@ export default function BookingFlow() {
 
   const [submitting, setSubmitting] = useState(false);
   const [reservationCode, setReservationCode] = useState("");
-  const [reservationId, setReservationId] = useState<number | null>(null);
+  const [reservationId, setReservationId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [authError, setAuthError] = useState(false);
   const [qrData, setQrData] = useState<any>(null);
@@ -216,9 +218,19 @@ export default function BookingFlow() {
           api.get("/facilities/" + facilityId + "/rental-durations").catch(() => null),
         ]);
         setFacility(facilityData);
-        setUnitTypes(unitTypesData.data || unitTypesData || []);
+        const typesList = unitTypesData.data || unitTypesData || [];
+        setUnitTypes(typesList);
         if (Array.isArray(durationsData) && durationsData.length > 0) {
           setDurationOptions(durationsData);
+        }
+
+        // Tự động nhận diện loại kho từ URL và nhảy thẳng sang Bước 2 (Lịch Dọn Đồ)
+        if (unitTypeIdParam && Array.isArray(typesList) && typesList.length > 0) {
+          const matched = typesList.find((t: any) => String(t.id) === String(unitTypeIdParam));
+          if (matched) {
+            setSelectedUnitType(matched);
+            setStep("schedule");
+          }
         }
       } catch (e) {
         console.error("Failed to load facility data", e);
@@ -228,7 +240,7 @@ export default function BookingFlow() {
       }
     }
     if (facilityId) loadData();
-  }, [facilityId]);
+  }, [facilityId, unitTypeIdParam]);
 
   useEffect(() => {
     if (!facilityId || !moveInDate) {
@@ -657,7 +669,20 @@ export default function BookingFlow() {
                 { s: 3, label: "3. Thanh Toán Cọc" },
               ].map((item, idx) => (
                 <React.Fragment key={item.s}>
-                  <div className="flex items-center gap-2.5">
+                  <div
+                    onClick={() => {
+                      if (item.s === 1 && (step === "schedule" || step === "unit")) {
+                        setStep("unit");
+                      } else if (item.s === 2 && selectedUnitType && step === "unit") {
+                        setStep("schedule");
+                      }
+                    }}
+                    className={`flex items-center gap-2.5 ${
+                      (item.s === 1 && step === "schedule") || (item.s === 2 && selectedUnitType && step === "unit")
+                        ? "cursor-pointer hover:opacity-80 transition-opacity"
+                        : ""
+                    }`}
+                  >
                     <div
                       className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-bold transition-all ${
                         stepNumber === item.s
@@ -775,7 +800,7 @@ export default function BookingFlow() {
 
                             <div>
                               <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center text-lg mb-4 border border-orange-100">
-                                📦
+                                <Boxes className="w-5 h-5 text-orange-600" />
                               </div>
 
                               <h3 className="text-lg font-bold text-slate-900 leading-snug mb-1">
@@ -840,6 +865,49 @@ export default function BookingFlow() {
                       Lựa chọn ngày nhận kho, khung giờ hẹn nhân viên và thời gian dự kiến thuê.
                     </p>
                   </div>
+
+                  {/* Card tóm tắt loại kho đang chọn & Nút đổi nhanh */}
+                  {selectedUnitType && (
+                    <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-50/80 via-white to-slate-50 border border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-xs">
+                          <Boxes className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full">
+                              Loại kho đã chọn
+                            </span>
+                            <span className="text-xs text-slate-500 font-semibold">
+                              Quy cách: {selectedUnitType.size} {selectedUnitType.sizeUnit}
+                            </span>
+                          </div>
+                          <h3 className="text-base sm:text-lg font-black text-slate-900 mt-1">
+                            {selectedUnitType.name}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 self-end sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto justify-between sm:justify-end">
+                        <div className="text-left sm:text-right">
+                          <span className="text-base font-black text-blue-700 tabular-nums">
+                            {Number(selectedUnitType.price ?? selectedUnitType.depositAmount).toLocaleString("vi-VN")} đ/tháng
+                          </span>
+                          <span className="block text-[11px] text-slate-500 font-medium">
+                            Cọc giữ chỗ: {Number(selectedUnitType.depositAmount).toLocaleString("vi-VN")} đ
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setStep("unit")}
+                          className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-blue-700 text-xs font-bold border border-blue-200 transition cursor-pointer shrink-0 shadow-xs hover:border-blue-300"
+                        >
+                          Đổi loại kho
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-10">
                     {/* HÀNG 1: NGÀY BẮT ĐẦU & KHUNG GIỜ NẰM CÙNG HÀNG */}
@@ -1362,8 +1430,9 @@ export default function BookingFlow() {
                               {depositAmount.toLocaleString("vi-VN")} đ
                             </span>
                           </div>
-                          <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                            ✓ Trừ thẳng vào tiền thuê khi ký hợp đồng nhận phòng
+                          <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1.5">
+                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>Trừ thẳng vào tiền thuê khi ký hợp đồng nhận phòng</span>
                           </p>
                         </div>
                       </div>
@@ -1412,5 +1481,19 @@ export default function BookingFlow() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function BookingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      }
+    >
+      <BookingFlowContent />
+    </Suspense>
   );
 }

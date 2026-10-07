@@ -28,15 +28,15 @@ import { api } from '@/lib/api';
 import { StaffUser } from '../types';
 
 interface Facility {
-  id: number;
+  id: string | number;
   name: string;
   code: string;
   address?: string;
 }
 
 export interface UnitTypeItem {
-  id: number;
-  facilityId: number;
+  id: string | number;
+  facilityId: string | number;
   name: string;
   code: string;
   description: string | null;
@@ -48,14 +48,14 @@ export interface UnitTypeItem {
   totalUnits: number;
   availableUnits: number;
   facility?: {
-    id: number;
+    id: string | number;
     name: string;
     code: string;
   };
 }
 
 interface UnitTypesPricingManagerProps {
-  currentFacilityId?: number;
+  currentFacilityId?: string | number;
   currentUser?: StaffUser | null;
 }
 
@@ -74,7 +74,7 @@ export default function UnitTypesPricingManager({
   );
 
   const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string | number | null>(
     currentFacilityId || null,
   );
   const [unitTypes, setUnitTypes] = useState<UnitTypeItem[]>([]);
@@ -469,8 +469,8 @@ export default function UnitTypesPricingManager({
                       {/* Name & Code */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm border border-orange-100 shrink-0">
-                            📦
+                          <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100 shrink-0">
+                            <Boxes className="w-4 h-4 text-orange-600" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">

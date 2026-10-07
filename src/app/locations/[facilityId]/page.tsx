@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 
 interface ApiFacility {
-  id: number;
+  id: string | number;
   name: string;
   code: string;
   description?: string | null;
@@ -56,7 +56,7 @@ interface ApiFacility {
 }
 
 interface StorageUnitType {
-  id: number;
+  id: string | number;
   name: string;
   code?: string;
   category?: string;
@@ -138,7 +138,7 @@ export default function FacilityDetailPage({
 }) {
   const router = useRouter();
   const resolvedParams = use(params);
-  const facilityId = Number(resolvedParams.facilityId);
+  const facilityId = resolvedParams.facilityId;
 
   const [facility, setFacility] = useState<ApiFacility | null>(null);
   const [unitTypes, setUnitTypes] = useState<StorageUnitType[]>([]);
@@ -638,8 +638,9 @@ export default function FacilityDetailPage({
                               </span>
                             </div>
 
-                            <p className="text-[11px] text-slate-600 leading-relaxed font-medium pt-1 border-t border-slate-200/60">
-                              💡 <strong>Ước tính:</strong> {capacityHint}
+                            <p className="text-[11px] text-slate-600 leading-relaxed font-medium pt-1 border-t border-slate-200/60 flex items-center">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 mr-1.5" />
+                              <span><strong className="text-slate-700">Ước tính:</strong> {capacityHint}</span>
                             </p>
                           </div>
 
@@ -694,7 +695,7 @@ export default function FacilityDetailPage({
                           {/* Dynamic Action Button */}
                           {canRentStorage ? (
                             <Link
-                              href={`/book/${facility.id}`}
+                              href={`/book/${facility.id}?unitTypeId=${unit.id}`}
                               className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:from-orange-600 hover:via-amber-600 hover:to-orange-600 shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-98 transition-all uppercase tracking-wider text-center cursor-pointer"
                             >
                               <span>ĐẶT THUÊ NGĂN KHO NÀY</span>

@@ -18,7 +18,7 @@ export interface CheckInAppointment {
   unitId?: number; // ID ô kho vật lý trong database
   assignedUnit: string;
   preferredFloor: string;
-  status: 'pending' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
   depositStatus: 'paid' | 'unpaid';
   depositAmount: string;
   monthlyRent: string;
@@ -30,6 +30,8 @@ export interface CheckInAppointment {
   rfidCard?: string;
   contractCode?: string; // Mã hợp đồng sinh ra từ Backend (CON-...)
   completedAt?: string;
+  cancelReason?: string;
+  rescheduledAt?: string;
 }
 
 export interface AvailableUnit {
@@ -45,15 +47,15 @@ export interface AvailableUnit {
 }
 
 export interface StaffUser {
-  id: number;
+  id: string | number;
   fullName: string;
   email: string;
   phone?: string;
   role: string;
-  facilityId?: number;
+  facilityId?: string | number;
   facilityName?: string;
   assignedFacility?: {
-    id: number;
+    id: string | number;
     name: string;
     code: string;
     address?: string;
