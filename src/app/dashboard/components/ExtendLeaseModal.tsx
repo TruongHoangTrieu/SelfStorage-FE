@@ -15,7 +15,7 @@ interface ExtendLeaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   unit: CustomerUnit;
-  onConfirmExtend: (months: number, newTotal: string) => void;
+  onConfirmExtend: (months: number, newTotal: string, paymentMethod: string, rawAmount: number) => Promise<void> | void;
 }
 
 export default function ExtendLeaseModal({
@@ -26,6 +26,7 @@ export default function ExtendLeaseModal({
 }: ExtendLeaseModalProps) {
   const [selectedMonths, setSelectedMonths] = useState<number>(6);
   const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'card' | 'bank'>('vnpay');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -37,23 +38,29 @@ export default function ExtendLeaseModal({
 
   const formattedFinalTotal = `${new Intl.NumberFormat('vi-VN').format(finalTotal)} đ`;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onConfirmExtend(selectedMonths, formattedFinalTotal);
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await onConfirmExtend(selectedMonths, formattedFinalTotal, paymentMethod, finalTotal);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 animate-slide-up-fade overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 animate-slide-up-fade overflow-hidden">
+
         {/* Header */}
-        <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 border border-orange-100 flex items-center justify-center font-bold">
               <Clock className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900">
+              <h3 className="font-extrabold text-base text-slate-900">
                 Gia Hạn Hợp Đồng Thuê Kho
               </h3>
               <p className="text-xs text-slate-500">Ô {unit.unitNumber} • Hết hạn hiện tại: {unit.contractEndDate}</p>
@@ -61,7 +68,7 @@ export default function ExtendLeaseModal({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 text-lg leading-none"
+            className="w-8 h-8 rounded-full hover:bg-slate-200/60 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
           >
             ✕
           </button>
@@ -70,7 +77,7 @@ export default function ExtendLeaseModal({
         {/* Body Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-2">
+            <label className="text-xs font-bold text-slate-800 block mb-2">
               Chọn thời gian kéo dài thời hạn thuê:
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
@@ -84,21 +91,21 @@ export default function ExtendLeaseModal({
                   type="button"
                   key={opt.months}
                   onClick={() => setSelectedMonths(opt.months)}
-                  className={`p-3 rounded-xl border text-center transition-all ${
+                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
                     selectedMonths === opt.months
-                      ? 'border-blue-600 bg-blue-50 text-blue-600 font-bold shadow-xs ring-2 ring-blue-600/20'
-                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                      ? 'border-orange-500 bg-orange-50/70 text-orange-700 font-extrabold shadow-2xs ring-2 ring-orange-500/20'
+                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium'
                   }`}
                 >
                   <div className="text-sm">{opt.label}</div>
-                  <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">{opt.discount}</div>
+                  <div className="text-[10px] text-emerald-600 font-bold mt-0.5">{opt.discount}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Pricing summary */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
             <div className="flex justify-between text-slate-600">
               <span>Đơn giá niêm yết:</span>
               <span>{unit.monthlyRent}</span>
@@ -115,18 +122,18 @@ export default function ExtendLeaseModal({
             )}
             <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm font-bold text-slate-900">
               <span>Tổng thanh toán gia hạn:</span>
-              <span className="text-base font-extrabold text-orange-600">{formattedFinalTotal}</span>
+              <span className="text-base font-black text-orange-600">{formattedFinalTotal}</span>
             </div>
           </div>
 
           {/* Cổng thanh toán trực tuyến */}
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+            <label className="text-xs font-bold text-slate-800 block mb-1.5">
               Phương thức thanh toán (Tích hợp Luồng 4):
             </label>
             <div className="grid grid-cols-3 gap-2 text-xs">
               <label className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
-                paymentMethod === 'vnpay' ? 'border-blue-600 bg-blue-50 text-blue-600 font-bold ring-1 ring-blue-600/30' : 'border-slate-200 text-slate-600'
+                paymentMethod === 'vnpay' ? 'border-orange-500 bg-orange-50 text-orange-700 font-bold ring-1 ring-orange-500/30' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}>
                 <input
                   type="radio"
@@ -135,11 +142,11 @@ export default function ExtendLeaseModal({
                   onChange={() => setPaymentMethod('vnpay')}
                   className="sr-only"
                 />
-                VNPay QR
+                VietQR / SePay
               </label>
 
               <label className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
-                paymentMethod === 'card' ? 'border-blue-600 bg-blue-50 text-blue-600 font-bold ring-1 ring-blue-600/30' : 'border-slate-200 text-slate-600'
+                paymentMethod === 'card' ? 'border-orange-500 bg-orange-50 text-orange-700 font-bold ring-1 ring-orange-500/30' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}>
                 <input
                   type="radio"
@@ -152,7 +159,7 @@ export default function ExtendLeaseModal({
               </label>
 
               <label className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
-                paymentMethod === 'bank' ? 'border-blue-600 bg-blue-50 text-blue-600 font-bold ring-1 ring-blue-600/30' : 'border-slate-200 text-slate-600'
+                paymentMethod === 'bank' ? 'border-orange-500 bg-orange-50 text-orange-700 font-bold ring-1 ring-orange-500/30' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}>
                 <input
                   type="radio"
@@ -161,25 +168,33 @@ export default function ExtendLeaseModal({
                   onChange={() => setPaymentMethod('bank')}
                   className="sr-only"
                 />
-                Chuyển khoản 24/7
+                Ví MoMo / PayOS
               </label>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
             >
-              Đóng
+              Hủy bỏ
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
             >
-              Xác nhận thanh toán gia hạn
+              {isSubmitting ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Đang xử lý thanh toán...</span>
+                </>
+              ) : (
+                <span>Xác nhận thanh toán gia hạn</span>
+              )}
             </button>
           </div>
         </form>

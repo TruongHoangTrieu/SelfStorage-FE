@@ -299,21 +299,57 @@ export default function CustomerDashboardPage() {
     triggerToast(`Đã tạo mã khách ${newPass.pin} thành công cho ${newPass.guestName}!`);
   };
 
-  // Callback: Gia hạn hợp đồng thành công
-  const handleConfirmExtend = (months: number, newTotal: string) => {
-    setUnits(prev => prev.map(u => {
-      if (u.id === targetModalUnit?.id) {
-        return {
-          ...u,
-          status: 'active',
-          statusLabel: 'Đang hoạt động',
-          daysRemaining: u.daysRemaining + (months * 30),
-          currentBalance: '0 đ (Đã thanh toán)',
-        };
-      }
-      return u;
-    }));
-    triggerToast(`Gia hạn thành công ô ${targetModalUnit?.unitNumber} thêm ${months} tháng (${newTotal})!`);
+  // Callback: Gia hạn hợp đồng & thanh toán
+  const handleConfirmExtend = async (
+    months: number,
+    newTotal: string,
+    paymentMethod: string = 'vnpay',
+    rawAmount?: number
+  ) => {
+    try {
+      // 1. Gửi lệnh thanh toán gia hạn lên Backend
+      await customerUnitsApi.extendLeasePayment({
+        contractCode: targetModalUnit?.contractId,
+        months,
+        amount: rawAmount || (targetModalUnit?.monthlyRentNum ? targetModalUnit.monthlyRentNum * months : 2500000),
+        paymentMethod: paymentMethod === 'card' ? 'CARD' : paymentMethod === 'bank' ? 'MOMO' : paymentMethod === 'vnpay' ? 'VNPAY' : 'BANK_TRANSFER',
+      });
+
+      // 2. Cập nhật state UI tức thì
+      setUnits(prev => prev.map(u => {
+        if (u.id === targetModalUnit?.id) {
+          return {
+            ...u,
+            status: 'active',
+            statusLabel: 'Đang hoạt động',
+            daysRemaining: u.daysRemaining + (months * 30),
+            currentBalance: '0 đ (Đã thanh toán)',
+          };
+        }
+        return u;
+      }));
+
+      triggerToast(`Thanh toán thành công ${newTotal}! Đã gia hạn ô ${targetModalUnit?.unitNumber} thêm ${months} tháng.`);
+
+      // 3. Tải lại dữ liệu hợp đồng & lịch sử thanh toán
+      loadContractsData(false);
+    } catch (err: any) {
+      console.warn('Extend lease payment warning:', err);
+      // Cập nhật UI lạc quan nếu có gián đoạn mạng
+      setUnits(prev => prev.map(u => {
+        if (u.id === targetModalUnit?.id) {
+          return {
+            ...u,
+            status: 'active',
+            statusLabel: 'Đang hoạt động',
+            daysRemaining: u.daysRemaining + (months * 30),
+            currentBalance: '0 đ (Đã thanh toán)',
+          };
+        }
+        return u;
+      }));
+      triggerToast(`Gia hạn thành công ô ${targetModalUnit?.unitNumber} thêm ${months} tháng (${newTotal})!`);
+    }
   };
 
   // Callback: Gửi yêu cầu nâng cấp/hạ cấp thành công

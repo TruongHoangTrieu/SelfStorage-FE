@@ -7,12 +7,23 @@ import {
   Search, ArrowUpRight, ArrowDownRight, Clock,
   FileText, Activity, Lock, LogOut
 } from 'lucide-react';
+import BusinessOpsFlow4 from './components/BusinessOpsFlow4';
 
 type Role = 'STAFF' | 'MANAGER' | 'OPS' | 'ADMIN';
 
 export default function AdminPortal() {
   const [role, setRole] = useState<Role>('MANAGER');
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlRole = params.get('role')?.toUpperCase();
+      if (urlRole && ['STAFF', 'MANAGER', 'OPS', 'ADMIN'].includes(urlRole)) {
+        setRole(urlRole as Role);
+      }
+    }
+  }, []);
 
   const handleAdminLogout = () => {
     if (typeof window !== 'undefined') {
@@ -67,30 +78,33 @@ export default function AdminPortal() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       
+      {/* Signature Brand Stripe on Top Header */}
+      <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-blue-600 w-full z-30" />
+
       {/* Top Navbar */}
-      <header className="h-16 bg-slate-950 flex items-center justify-between px-6 z-20">
+      <header className="h-16 bg-slate-950 flex items-center justify-between px-6 z-20 shadow-xs">
         <div className="flex items-center text-white">
-          <div className="w-8 h-8 bg-[#7E22CE] rounded flex items-center justify-center mr-3">
+          <div className="w-9 h-9 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mr-3 shadow-sm shadow-orange-500/25">
             <Lock className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-lg tracking-tight">SelfStorage <span className="font-normal text-slate-400">Internal</span></span>
+          <span className="font-extrabold text-lg tracking-tight">SelfStorage <span className="font-normal text-slate-400 text-sm">| Quản Trị Hệ Thống</span></span>
         </div>
 
         {/* Role Switcher */}
         <div className="relative">
           <button 
             onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-            className="flex items-center px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors border border-slate-700 text-sm font-bold"
+            className="flex items-center px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-colors border border-slate-800 text-xs font-bold"
           >
-            <Shield className="w-4 h-4 mr-2 text-[#7E22CE]" />
-            Viewing as: {getRoleName(role)}
+            <Shield className="w-4 h-4 mr-2 text-orange-400" />
+            Vai trò: {getRoleName(role)}
             <ChevronDown className="w-4 h-4 ml-3 text-slate-400" />
           </button>
           
           {isRoleDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Switch Role</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Chuyển Đổi Vai Trò</p>
               </div>
               {(['STAFF', 'MANAGER', 'OPS', 'ADMIN'] as Role[]).map(r => (
                 <button 
@@ -98,8 +112,8 @@ export default function AdminPortal() {
                   onClick={() => { setRole(r); setIsRoleDropdownOpen(false); }}
                   className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between transition-colors border-b border-slate-50 last:border-0"
                 >
-                  <span className={`text-sm font-bold ${role === r ? 'text-[#1e1b4b]' : 'text-slate-600'}`}>{getRoleName(r)}</span>
-                  {role === r && <Check className="w-4 h-4 text-[#7E22CE]" />}
+                  <span className={`text-xs font-bold ${role === r ? 'text-orange-600' : 'text-slate-700'}`}>{getRoleName(r)}</span>
+                  {role === r && <Check className="w-4 h-4 text-orange-500" />}
                 </button>
               ))}
             </div>
@@ -122,13 +136,13 @@ export default function AdminPortal() {
                 return (
                   <button 
                     key={link.label}
-                    className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                    className={`w-full flex items-center px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
                       isActive 
-                        ? 'bg-[#7E22CE]/20 text-white' 
+                        ? 'bg-orange-500/15 text-orange-400 font-extrabold shadow-2xs' 
                         : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-[#7E22CE]' : 'text-slate-500'}`} />
+                    <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-orange-400' : 'text-slate-500'}`} />
                     {link.label}
                   </button>
                 )
@@ -299,10 +313,10 @@ function FacilityManagerView() {
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Jump to Unit, PIN..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-[#7E22CE]" />
+            <input type="text" placeholder="Jump to Unit, PIN..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" />
           </div>
-          <button className="px-4 py-2 bg-[#1e1b4b] text-white text-sm font-bold rounded-lg shadow-md hover:bg-[#7E22CE] transition-colors flex items-center">
-            <Lock className="w-4 h-4 mr-2" /> Bulk Overlock
+          <button className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-md hover:bg-slate-800 transition-colors flex items-center">
+            <Lock className="w-4 h-4 mr-2 text-orange-400" /> Bulk Overlock
           </button>
         </div>
       </div>
@@ -405,7 +419,7 @@ function FacilityManagerView() {
                     <button 
                       key={unit.id}
                       onClick={() => setSelectedUnit(unit)}
-                      className={`flex flex-col justify-between p-3 rounded-lg border text-left h-24 transition-all hover:shadow-md ${bgColor} ${isSelected ? 'ring-2 ring-[#7E22CE] shadow-md' : ''}`}
+                      className={`flex flex-col justify-between p-3 rounded-xl border text-left h-24 transition-all hover:shadow-md ${bgColor} ${isSelected ? 'ring-2 ring-orange-500 shadow-md' : ''}`}
                     >
                       <div className="flex items-center justify-between w-full">
                         <span className={`text-xs font-black ${textColor}`}>{unit.id}</span>
@@ -481,7 +495,7 @@ function FacilityManagerView() {
           </div>
 
           <div className="space-y-2 mt-6">
-            <button className="w-full py-3 bg-[#1e1b4b] hover:bg-[#7E22CE] text-white text-sm font-bold rounded-xl transition-colors shadow-sm">
+            <button className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-orange-500/20 active:scale-98">
               {selectedUnit.status === 'Available' ? 'Assign to Reservation' : 'View Contract & Invoices'}
             </button>
             <button className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors">
@@ -544,367 +558,7 @@ function FacilityManagerView() {
 // ROLE 3: BUSINESS OPERATIONS
 // ----------------------------------------------------------------------
 function BusinessOpsView() {
-  return (
-    <div className="animate-in fade-in duration-300 max-w-[1400px] mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-bold text-xs uppercase tracking-wider text-white bg-[#7E22CE] px-2 py-0.5 rounded">HQ Operations Control</span>
-            <span className="text-xs text-slate-500 font-bold flex items-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 inline-block"></span>
-              Sync Active • Realtime Vault Policy Engine
-            </span>
-          </div>
-          <h1 className="text-3xl font-black text-[#1e1b4b] tracking-tight">Pricing & Business Rules</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-lg transition-colors shadow-sm">
-            Bulk Dynamic Surge
-          </button>
-          <button className="px-4 py-2 bg-[#1e1b4b] hover:bg-[#7E22CE] text-white font-bold text-sm rounded-lg transition-colors shadow-md">
-            + Add New Unit Type
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 relative overflow-hidden">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Monthly Recurring Revenue</span>
-              <div className="text-2xl font-black text-[#1e1b4b] mt-1">384.5M <span className="text-sm font-normal text-slate-400">VND</span></div>
-            </div>
-            <div className="p-2 bg-purple-100 rounded-lg text-[#7E22CE]"><Wallet className="w-5 h-5" /></div>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold flex items-center"><ArrowUpRight className="w-3 h-3 mr-1" /> 12.4%</span>
-            <span className="text-slate-400 font-medium">vs last month</span>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#7E22CE]"></div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 relative overflow-hidden">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Average Rate / m²</span>
-              <div className="text-2xl font-black text-[#1e1b4b] mt-1">457k <span className="text-sm font-normal text-slate-400">VND</span></div>
-            </div>
-            <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Map className="w-5 h-5" /></div>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400 font-medium">Normalized floor yield</span>
-            <span className="text-blue-600 font-bold ml-auto">98.2% target</span>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500"></div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 relative overflow-hidden">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Outstanding Unpaid</span>
-              <div className="text-2xl font-black text-red-600 mt-1">9.0M <span className="text-sm font-normal text-red-400">VND</span></div>
-            </div>
-            <div className="p-2 bg-red-100 rounded-lg text-red-600"><AlertTriangle className="w-5 h-5" /></div>
-          </div>
-          <div className="flex items-center justify-between text-xs mt-2">
-            <div className="flex items-center gap-1 font-bold text-red-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping"></span>
-              2 Overdue
-            </div>
-            <span className="text-slate-400 font-medium">Action required</span>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-500"></div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 relative overflow-hidden">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Paying Leases</span>
-              <div className="text-2xl font-black text-[#1e1b4b] mt-1">102 <span className="text-sm font-normal text-slate-400">/ 120</span></div>
-            </div>
-            <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600"><Key className="w-5 h-5" /></div>
-          </div>
-          <div className="flex flex-col gap-1 text-xs mt-1">
-            <div className="flex justify-between font-bold">
-              <span className="text-emerald-600">85% Occupancy</span>
-              <span className="text-slate-400">18 Avail</span>
-            </div>
-            <div className="w-full h-1 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full w-[85%]"></div></div>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500"></div>
-        </div>
-      </div>
-
-      {/* Main Workspace Split */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        
-        {/* Left Column */}
-        <div className="xl:col-span-8 flex flex-col gap-6">
-          
-          {/* Unit Tier & Rate Matrix */}
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-3">
-                <Database className="w-6 h-6 text-[#7E22CE]" />
-                <div>
-                  <h2 className="text-lg font-black text-[#1e1b4b]">Unit Tier & Rate Matrix</h2>
-                  <p className="text-xs font-bold text-slate-500">Base lease figures, security thresholds & capacity</p>
-                </div>
-              </div>
-              <div className="flex bg-slate-100 p-1 rounded-lg">
-                <button className="px-3 py-1 bg-white text-[#1e1b4b] text-xs font-bold rounded-md shadow-sm">All Facilities</button>
-                <button className="px-3 py-1 text-slate-500 hover:text-[#1e1b4b] text-xs font-bold rounded-md">Cầu Giấy</button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <tr>
-                    <th className="py-3 px-4">Type / Branch</th>
-                    <th className="py-3 px-4">Dimension</th>
-                    <th className="py-3 px-4 text-right">Base Rent / Mo</th>
-                    <th className="py-3 px-4 text-center">Occupancy</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center font-bold text-[#7E22CE] text-xs">LK-S</div>
-                        <div>
-                          <p className="font-bold text-[#1e1b4b]">Small Locker</p>
-                          <p className="text-[10px] font-bold text-slate-400">Cầu Giấy Branch</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="font-bold text-[#1e1b4b]">1.50 m²</p>
-                      <p className="text-[10px] font-medium text-slate-400">1.0 x 1.5 x 2.4m</p>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <p className="font-black text-[#1e1b4b]">750,000 ₫</p>
-                      <p className="text-[10px] font-bold text-[#7E22CE]">500k ₫/m²</p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex flex-col items-center gap-1 w-24 mx-auto">
-                        <div className="flex justify-between w-full text-[10px] font-bold text-slate-500">
-                          <span className="text-[#1e1b4b]">36/40</span>
-                          <span className="text-emerald-600">90%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full w-[90%]"></div></div>
-                      </div>
-                    </td>
-                  </tr>
-                  
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center font-bold text-[#7E22CE] text-xs">LK-M</div>
-                        <div>
-                          <p className="font-bold text-[#1e1b4b]">Medium Locker</p>
-                          <p className="text-[10px] font-bold text-slate-400">All Facilities</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="font-bold text-[#1e1b4b]">5.00 m²</p>
-                      <p className="text-[10px] font-medium text-slate-400">2.0 x 2.5 x 2.6m</p>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <p className="font-black text-[#1e1b4b]">2,150,000 ₫</p>
-                      <p className="text-[10px] font-bold text-[#7E22CE]">430k ₫/m²</p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex flex-col items-center gap-1 w-24 mx-auto">
-                        <div className="flex justify-between w-full text-[10px] font-bold text-slate-500">
-                          <span className="text-[#1e1b4b]">42/50</span>
-                          <span className="text-emerald-600">84%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full w-[84%]"></div></div>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center font-bold text-[#7E22CE] text-xs">VT-L</div>
-                        <div>
-                          <p className="font-bold text-[#1e1b4b]">Climate Vault</p>
-                          <p className="text-[10px] font-bold text-slate-400">Cầu Giấy Branch</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="font-bold text-[#1e1b4b]">12.00 m²</p>
-                      <p className="text-[10px] font-medium text-slate-400">3.0 x 4.0 x 2.8m</p>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <p className="font-black text-[#1e1b4b]">4,800,000 ₫</p>
-                      <p className="text-[10px] font-bold text-[#7E22CE]">400k ₫/m²</p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex flex-col items-center gap-1 w-24 mx-auto">
-                        <div className="flex justify-between w-full text-[10px] font-bold text-slate-500">
-                          <span className="text-[#1e1b4b]">18/20</span>
-                          <span className="text-emerald-600">90%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full"><div className="h-full bg-emerald-500 rounded-full w-[90%]"></div></div>
-                      </div>
-                    </td>
-                  </tr>
-                  
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center font-bold text-[#7E22CE] text-xs">CM-X</div>
-                        <div>
-                          <p className="font-bold text-[#1e1b4b]">Warehouse Flex</p>
-                          <p className="text-[10px] font-bold text-slate-400">Quận 7 Mega</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="font-bold text-[#1e1b4b]">25.00 m²</p>
-                      <p className="text-[10px] font-medium text-slate-400">5.0 x 5.0 x 3.5m</p>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <p className="font-black text-[#1e1b4b]">9,500,000 ₫</p>
-                      <p className="text-[10px] font-bold text-[#7E22CE]">380k ₫/m²</p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex flex-col items-center gap-1 w-24 mx-auto">
-                        <div className="flex justify-between w-full text-[10px] font-bold text-slate-500">
-                          <span className="text-[#1e1b4b]">6/10</span>
-                          <span className="text-blue-600">60%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full"><div className="h-full bg-blue-500 rounded-full w-[60%]"></div></div>
-                      </div>
-                    </td>
-                  </tr>
-
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Revenue Analytics Chart */}
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200">
-             <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-lg font-black text-[#1e1b4b]">Revenue Breakdown</h2>
-                  <p className="text-xs font-bold text-slate-500">Last 6 months across all facilities</p>
-                </div>
-                <div className="flex gap-4 text-[10px] font-bold">
-                  <span className="flex items-center"><div className="w-2 h-2 bg-[#1e1b4b] rounded-sm mr-1"></div> Base Lease</span>
-                  <span className="flex items-center"><div className="w-2 h-2 bg-blue-400 rounded-sm mr-1"></div> Deposits</span>
-                  <span className="flex items-center"><div className="w-2 h-2 bg-amber-400 rounded-sm mr-1"></div> Fines</span>
-                </div>
-             </div>
-
-             <div className="h-48 flex items-end justify-between gap-2 border-b border-slate-100 pb-2">
-               {/* Just mocking the stacked bars */}
-               {[
-                 { base: '40%', dep: '15%', fine: '5%', m: 'May' },
-                 { base: '45%', dep: '15%', fine: '6%', m: 'Jun' },
-                 { base: '50%', dep: '18%', fine: '4%', m: 'Jul' },
-                 { base: '55%', dep: '18%', fine: '5%', m: 'Aug' },
-                 { base: '60%', dep: '20%', fine: '4%', m: 'Sep' },
-                 { base: '70%', dep: '22%', fine: '3%', m: 'Oct' },
-               ].map((col, idx) => (
-                 <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group">
-                   <div className="w-full max-w-[40px] flex flex-col rounded-t-md overflow-hidden hover:brightness-110 transition-all cursor-pointer">
-                     <div className="bg-amber-400 w-full" style={{ height: col.fine }}></div>
-                     <div className="bg-blue-400 w-full" style={{ height: col.dep }}></div>
-                     <div className="bg-[#1e1b4b] w-full" style={{ height: col.base }}></div>
-                   </div>
-                   <span className="text-xs font-bold text-slate-400 mt-2">{col.m}</span>
-                 </div>
-               ))}
-             </div>
-          </div>
-
-        </div>
-
-        {/* Right Column: Enforcement Rules */}
-        <div className="xl:col-span-4 flex flex-col gap-6">
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 text-[#7E22CE] flex items-center justify-center">
-                <Shield className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-black text-[#1e1b4b]">Enforcement Rules</h2>
-                <p className="text-xs font-bold text-slate-500">Automated lockouts & deposits</p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-sm font-bold text-[#1e1b4b]">Grace Period Days</label>
-                  <span className="text-[10px] font-bold text-slate-400">Before auto-overlock</span>
-                </div>
-                <div className="relative">
-                  <input type="number" defaultValue={7} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm font-bold outline-none focus:border-[#7E22CE]" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">Days</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-sm font-bold text-[#1e1b4b]">Overdue Daily Fine</label>
-                  <span className="text-[10px] font-bold text-blue-600">Compounding daily</span>
-                </div>
-                <div className="relative">
-                  <input type="number" step="0.1" defaultValue={1.5} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm font-bold outline-none focus:border-[#7E22CE]" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">% per day</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-sm font-bold text-[#1e1b4b]">Reservation Deposit</label>
-                  <span className="text-[10px] font-bold text-slate-400">Holds unit 72h</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm font-bold outline-none">
-                    <option>Percentage</option>
-                    <option>Flat Fee</option>
-                  </select>
-                  <div className="relative">
-                    <input type="number" defaultValue={25} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm font-bold outline-none focus:border-[#7E22CE]" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-bold text-[#1e1b4b] block mb-1">Security Deposit Multiplier</label>
-                <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm font-bold outline-none">
-                  <option>1.0x Monthly Rent (Standard)</option>
-                  <option>1.5x Monthly Rent (High-Value)</option>
-                  <option>2.0x Monthly Rent (Commercial)</option>
-                </select>
-                <p className="text-[10px] font-medium text-slate-400 mt-1">Refunded 48h after physical checkout.</p>
-              </div>
-
-            </div>
-
-            <button className="w-full py-3 mt-6 bg-[#1e1b4b] hover:bg-[#7E22CE] text-white text-sm font-bold rounded-xl transition-colors shadow-md">
-              Save Policy Changes
-            </button>
-            
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
+  return <BusinessOpsFlow4 />;
 }
 
 // ----------------------------------------------------------------------
@@ -924,7 +578,7 @@ function SystemAdminView() {
             <button className="px-4 py-2 bg-white border border-slate-200 text-sm font-bold text-[#1e1b4b] rounded-lg shadow-sm">Internal Staff</button>
             <button className="px-4 py-2 bg-transparent text-sm font-bold text-slate-500 hover:text-[#1e1b4b] rounded-lg">Customers</button>
           </div>
-          <button className="px-4 py-2 bg-[#7E22CE] text-white text-sm font-bold rounded-lg hover:bg-purple-600 transition-colors">
+          <button className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/20 transition-all">
             + Add User
           </button>
         </div>
@@ -948,7 +602,7 @@ function SystemAdminView() {
             ].map((row, idx) => (
               <tr key={idx} className="hover:bg-slate-50 group">
                 <td className="px-6 py-4">
-                  <p className="font-bold text-[#1e1b4b]">{row.name}</p>
+                  <p className="font-bold text-slate-900">{row.name}</p>
                   <p className="text-xs text-slate-500">{row.email}</p>
                 </td>
                 <td className="px-6 py-4">
@@ -959,7 +613,7 @@ function SystemAdminView() {
                 <td className="px-6 py-4 font-medium text-slate-500">{row.access}</td>
                 <td className="px-6 py-4 text-xs font-medium text-slate-400">{row.login}</td>
                 <td className="px-6 py-4 text-right">
-                  <button className="text-xs font-bold text-[#7E22CE] hover:text-[#1e1b4b] transition-colors">Edit</button>
+                  <button className="text-xs font-bold text-blue-600 hover:text-orange-600 transition-colors">Edit</button>
                 </td>
               </tr>
             ))}

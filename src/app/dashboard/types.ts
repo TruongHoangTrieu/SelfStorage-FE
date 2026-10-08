@@ -28,6 +28,28 @@ export interface SupportTicket {
   lastReply: string;
 }
 
+export interface StoredItem {
+  id: number;
+  contractItemId: number;
+  name: string;
+  category?: string;
+  quantity: number;
+  photoUrl?: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AccessLog {
+  id: number;
+  contractItemId: number;
+  accessCode?: string;
+  accessMethod: string; // 'PIN_CODE' | 'RFID_CARD' | 'REMOTE_APP'
+  status: string; // 'SUCCESS' | 'DENIED'
+  notes?: string;
+  accessedAt: string;
+}
+
 export interface CustomerUnit {
   id: string;
   unitNumber: string; // ví dụ: "Ô A-104"
@@ -58,6 +80,12 @@ export interface CustomerUnit {
   guestPasses: GuestPass[];
   paymentHistory: PaymentRecord[];
   supportTickets: SupportTicket[];
+  storedItems?: StoredItem[];
+  accessLogs?: AccessLog[];
+  contractStatus?: 'ACTIVE' | 'PENDING_SIGN' | 'TERMINATED' | 'EXPIRED';
+  isSigned?: boolean;
+  terms?: string;
+  smartLockStatus?: string;
   facilityId?: number;
   rawContractId?: number;
   rawContractItemId?: number;

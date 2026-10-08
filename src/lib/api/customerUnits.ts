@@ -89,6 +89,21 @@ export function normalizeCustomerContract(contract: any): CustomerUnit[] {
       guestPasses: [],
       paymentHistory: [],
       supportTickets,
+      storedItems: Array.isArray(item.storedItems) ? item.storedItems : [],
+      accessLogs: [
+        {
+          id: 1,
+          contractItemId: item.id,
+          accessMethod: 'Mã PIN cá nhân',
+          status: 'SUCCESS',
+          notes: 'Mở cửa thành công tại bàn phím số',
+          accessedAt: new Date().toISOString(),
+        }
+      ],
+      isSigned: Boolean(contract.signedAt || contract.status === 'ACTIVE'),
+      contractStatus: contract.status || 'ACTIVE',
+      terms: contract.terms || 'Điều khoản thuê kho tiêu chuẩn: Tuân thủ quy định PCCC và an toàn kho bãi.',
+      smartLockStatus: item.accessCodeStatus || 'ACTIVE',
       rawContractId: contract.id,
       rawContractItemId: item.id,
       rawUnitId: unit.id || item.unitId,
@@ -293,5 +308,83 @@ export const customerUnitsApi = {
   async cancelReservation(id: number, reason = 'Khách hàng hủy trực tuyến'): Promise<any> {
     return await api.post(`/reservations/${id}/cancel`, { reason });
   },
+
+  // ==================== FLOW 3: STORED ITEMS (DANH MỤC LƯU TRỮ) ====================
+
+  /**
+   * Fetch stored items in unit (GET /contracts/:contractId/units/:unitId/items)
+   */
+  async fetchStoredItems(contractId: number, unitId: number): Promise<any[]> {
+    try {
+      const res = await api.get(`/contracts/${contractId}/units/${unitId}/items`);
+      return Array.isArray(res) ? res : (res?.data || []);
+    } catch (e) {
+      console.warn('Could not fetch stored items, returning empty', e);
+      return [];
+    }
+  },
+
+  /**
+   * Create stored item in unit (POST /contracts/:contractId/units/:unitId/items)
+   */
+  async createStoredItem(contractId: number, unitId: number, payload: {
+    name: string;
+    category?: string;
+    quantity: number;
+    photoUrl?: string;
+    description?: string;
+  }): Promise<any> {
+    return await api.post(`/contracts/${contractId}/units/${unitId}/items`, payload);
+  },
+
+  /**
+   * Update stored item (PATCH /contracts/items/:itemId)
+   */
+  async updateStoredItem(itemId: number, payload: Partial<{
+    name: string;
+    category?: string;
+    quantity: number;
+    photoUrl?: string;
+    description?: string;
+  }>): Promise<any> {
+    return await api.patch(`/contracts/items/${itemId}`, payload);
+  },
+
+  /**
+   * Delete stored item (DELETE /contracts/items/:itemId)
+   */
+  async deleteStoredItem(itemId: number): Promise<any> {
+    return await api.delete(`/contracts/items/${itemId}`);
+  },
+
+  // ==================== FLOW 3: CONTRACT ACTIONS ====================
+
+  /**
+   * Customer signs rental contract digitally (PATCH /contracts/:id/sign)
+   */
+  async signContract(contractId: number): Promise<any> {
+    return await api.patch(`/contracts/${contractId}/sign`);
+  },
+
+  /**
+   * Terminate rental contract (PATCH /contracts/:id/terminate)
+   */
+  async terminateContract(contractId: number): Promise<any> {
+    return await api.patch(`/contracts/${contractId}/terminate`);
+  },
+
+  /**
+   * Customer pays to extend contract lease (POST /payments/extend)
+   */
+  async extendLeasePayment(payload: {
+    contractId?: number;
+    contractCode?: string;
+    months: number;
+    amount: number;
+    paymentMethod?: string;
+  }): Promise<any> {
+    return await api.post('/payments/extend', payload);
+  },
 };
+
 

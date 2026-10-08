@@ -68,16 +68,16 @@ export default function GuestPassModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 animate-slide-up-fade overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 animate-slide-up-fade overflow-hidden">
         {/* Header */}
-        <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
               <UserPlus className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900">
+              <h3 className="font-extrabold text-base text-slate-900">
                 Tạo Mã Cho Khách Tạm Thời (Guest Pass)
               </h3>
               <p className="text-xs text-slate-500">Áp dụng cho: {unit.unitNumber} • {unit.facilityName}</p>
@@ -85,7 +85,7 @@ export default function GuestPassModal({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 text-lg leading-none"
+            className="w-8 h-8 rounded-full hover:bg-slate-200/60 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
           >
             ✕
           </button>
@@ -94,13 +94,13 @@ export default function GuestPassModal({
         {/* Form Body */}
         <form onSubmit={handleCreate} className="p-6 space-y-4">
           {shareSuccess && (
-            <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200">
+            <div className="p-3 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200 font-semibold">
               {shareSuccess}
             </div>
           )}
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
+            <label className="text-xs font-bold text-slate-800 block mb-1">
               Tên người nhận (Bạn bè, Người chuyển nhà, Đối tác):
             </label>
             <input
@@ -109,19 +109,19 @@ export default function GuestPassModal({
               placeholder="ví dụ: Đội chuyển nhà Thành Hưng, Anh Nam, Chị Linh..."
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-orange-500 focus:outline-none font-medium text-slate-900"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">
+              <label className="text-xs font-bold text-slate-800 block mb-1">
                 Thời hạn hiệu lực:
               </label>
               <select
                 value={durationDays}
                 onChange={(e) => setDurationDays(Number(e.target.value))}
-                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-orange-500 focus:outline-none font-medium text-slate-900"
               >
                 <option value={1}>24 giờ (1 ngày)</option>
                 <option value={3}>3 ngày</option>
@@ -130,22 +130,22 @@ export default function GuestPassModal({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">
+              <label className="text-xs font-bold text-slate-800 block mb-1">
                 Mục đích vào kho:
               </label>
               <input
                 type="text"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-orange-500 focus:outline-none font-medium text-slate-900"
               />
             </div>
           </div>
 
           {/* Generated PIN Card */}
-          <div className="p-4 rounded-xl bg-slate-900 text-white space-y-2 text-center">
-            <div className="text-xs text-slate-400">Mã PIN Smart Lock ngẫu nhiên dành riêng cho khách:</div>
-            <div className="text-3xl tabular-nums font-extrabold tracking-widest text-blue-400">
+          <div className="p-4 rounded-2xl bg-slate-950 text-white space-y-2 text-center border border-slate-800">
+            <div className="text-xs text-slate-400 font-medium">Mã PIN Smart Lock ngẫu nhiên dành riêng cho khách:</div>
+            <div className="text-3xl tabular-nums font-black tracking-widest text-amber-400 font-mono">
               {generatedPin}
             </div>
             <div className="text-[11px] text-slate-400">
@@ -158,9 +158,9 @@ export default function GuestPassModal({
             <button
               type="button"
               onClick={handleCopy}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
               <span>{copied ? 'Đã sao chép!' : 'Sao chép mã'}</span>
             </button>
 
@@ -168,25 +168,25 @@ export default function GuestPassModal({
             <button
               type="button"
               onClick={handleShareZalo}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-all"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-all cursor-pointer"
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>Chia sẻ qua Zalo/Email</span>
+              <span>Chia sẻ Zalo/SMS</span>
             </button>
           </div>
 
           {/* Footer actions */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25"
+              className="px-5 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all cursor-pointer"
             >
               Xác nhận cấp mã
             </button>

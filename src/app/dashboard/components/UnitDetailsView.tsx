@@ -25,9 +25,13 @@ import {
   HelpCircle,
   Download,
   KeyRound,
-  Check
+  Check,
+  Boxes,
+  History,
 } from 'lucide-react';
 import { CustomerUnit } from '../types';
+import StoredItemsTab from './StoredItemsTab';
+import ContractSignModal from './ContractSignModal';
 
 interface UnitDetailsViewProps {
   unit: CustomerUnit;
@@ -46,8 +50,9 @@ export default function UnitDetailsView({
   onOpenUpgradeUnit,
   onOpenReportIncident,
 }: UnitDetailsViewProps) {
-  // Tabs: 'overview' (Tab 1), 'access' (Tab 2), 'history' (Tab 3)
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'access' | 'history'>('overview');
+  // Tabs: 'overview' (Tab 1), 'items' (Tab 2 - Flow 3), 'access' (Tab 3), 'history' (Tab 4)
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'items' | 'access' | 'history'>('overview');
+  const [isContractSignOpen, setIsContractSignOpen] = useState(false);
   const [unlockStatus, setUnlockStatus] = useState<'idle' | 'unlocking' | 'unlocked'>('idle');
   const [fetchedPin, setFetchedPin] = useState<string>(unit.mainPin || '682914');
   const [showPinChange, setShowPinChange] = useState(false);
@@ -121,18 +126,18 @@ export default function UnitDetailsView({
   return (
     <div className="w-full max-w-[1800px] mx-auto space-y-6 animate-slide-up-fade">
       {/* Top Header & Back Breadcrumb */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors"
+            className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer border border-slate-200"
             title="Quay lại danh sách ô kho"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                 Chi tiết Quản lý: {unit.unitNumber}
               </h1>
               {unit.status === 'active' && (
@@ -158,11 +163,25 @@ export default function UnitDetailsView({
         </div>
 
         {/* Top Quick Actions */}
-        <div className="flex items-center gap-2 self-end sm:self-center">
+        <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
+          {/* [ Nút Xem & Ký Hợp Đồng ] */}
+          <button
+            onClick={() => setIsContractSignOpen(true)}
+            className="px-4 py-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 border border-slate-200 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <FileText className="w-4 h-4 text-blue-600" />
+            <span>Hợp đồng điện tử</span>
+            {unit.isSigned ? (
+              <span className="w-2 h-2 rounded-full bg-emerald-500" title="Đã ký" />
+            ) : (
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Chờ ký" />
+            )}
+          </button>
+
           {/* [ Nút Báo cáo sự cố ] */}
           <button
             onClick={() => onOpenReportIncident(unit)}
-            className="px-3 py-2 text-xs font-semibold text-slate-700 hover:text-red-600 bg-slate-100 hover:bg-red-50 rounded-xl transition-all"
+            className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 rounded-xl transition-all cursor-pointer"
           >
             Báo cáo sự cố
           </button>
@@ -170,55 +189,67 @@ export default function UnitDetailsView({
           {/* [ Nút Gia hạn hợp đồng ] */}
           <button
             onClick={() => onOpenExtendLease(unit)}
-            className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
           >
-            Gia hạn hợp đồng
+            <Clock className="w-3.5 h-3.5" />
+            <span>Gia hạn hợp đồng</span>
           </button>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200 px-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 px-2 overflow-x-auto scrollbar-none pb-px">
         <button
           onClick={() => setActiveSubTab('overview')}
-          className={`pb-3 px-4 text-sm font-semibold transition-all relative ${
+          className={`pb-3 px-4 text-xs font-semibold transition-all relative whitespace-nowrap flex items-center gap-2 cursor-pointer ${
             activeSubTab === 'overview'
-              ? 'text-blue-600'
+              ? 'text-blue-600 border-b-2 border-blue-600 font-bold'
               : 'text-slate-500 hover:text-slate-900'
           }`}
         >
-          Tab 1: Tổng quan hợp đồng & Ô kho
-          {activeSubTab === 'overview' && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+          <Sliders className="w-4 h-4" />
+          <span>Tổng quan hợp đồng</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('items')}
+          className={`pb-3 px-4 text-xs font-semibold transition-all relative whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+            activeSubTab === 'items'
+              ? 'text-blue-600 border-b-2 border-blue-600 font-bold'
+              : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Boxes className="w-4 h-4" />
+          <span>Đồ đạc lưu kho (Inventory)</span>
+          {unit.storedItems && unit.storedItems.length > 0 && (
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full">
+              {unit.storedItems.length}
+            </span>
           )}
         </button>
 
         <button
           onClick={() => setActiveSubTab('access')}
-          className={`pb-3 px-4 text-sm font-semibold transition-all relative ${
+          className={`pb-3 px-4 text-xs font-semibold transition-all relative whitespace-nowrap flex items-center gap-2 cursor-pointer ${
             activeSubTab === 'access'
-              ? 'text-blue-600'
+              ? 'text-blue-600 border-b-2 border-blue-600 font-bold'
               : 'text-slate-500 hover:text-slate-900'
           }`}
         >
-          Tab 2: Truy cập & Khóa an toàn
-          {activeSubTab === 'access' && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
-          )}
+          <KeyRound className="w-4 h-4" />
+          <span>Khóa Smart Lock & Ra vào</span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('history')}
-          className={`pb-3 px-4 text-sm font-semibold transition-all relative ${
+          className={`pb-3 px-4 text-xs font-semibold transition-all relative whitespace-nowrap flex items-center gap-2 cursor-pointer ${
             activeSubTab === 'history'
-              ? 'text-blue-600'
+              ? 'text-blue-600 border-b-2 border-blue-600 font-bold'
               : 'text-slate-500 hover:text-slate-900'
           }`}
         >
-          Tab 3: Lịch sử thanh toán & Hỗ trợ
-          {activeSubTab === 'history' && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
-          )}
+          <CreditCard className="w-4 h-4" />
+          <span>Lịch sử thanh toán & CSKH</span>
         </button>
       </div>
 
@@ -326,7 +357,7 @@ export default function UnitDetailsView({
               {/* [ Gia hạn hợp đồng ] */}
               <button
                 onClick={() => onOpenExtendLease(unit)}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all active:scale-95"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-6 py-2.5 text-xs font-black text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all active:scale-95 uppercase tracking-wider"
               >
                 <Clock className="w-4 h-4" />
                 <span>Gia hạn hợp đồng</span>
@@ -337,16 +368,23 @@ export default function UnitDetailsView({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: TRUY CẬP & KHÓA AN TOÀN */}
+      {/* TAB 2: ĐỒ ĐẠC LƯU KHO (STORED ITEMS - FLOW 3) */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'items' && (
+        <StoredItemsTab unit={unit} />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 3: TRUY CẬP & KHÓA AN TOÀN */}
       {/* ========================================================================= */}
       {activeSubTab === 'access' && (
         <div className="space-y-6">
           {/* Smart Lock Remote Control */}
-          <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xs border border-slate-800">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-3 max-w-md">
-                <span className="text-xs uppercase font-bold tracking-wider text-blue-400">
-                  Khóa Thông Minh Trực Tuyến (IoT Smart Lock)
+                <span className="text-xs uppercase font-semibold tracking-wider text-blue-400">
+                  Khóa Thông Minh (Smart Lock)
                 </span>
                 <h3 className="text-2xl font-extrabold text-white">
                   Mở Khóa Từ Xa Cho Ô {unit.unitNumber}
@@ -466,7 +504,7 @@ export default function UnitDetailsView({
               {/* [ Nút Tạo mã cho khách tạm thời ] */}
               <button
                 onClick={() => onOpenGuestPass(unit)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all active:scale-95"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>+ Tạo mã cho khách mới</span>
@@ -496,6 +534,57 @@ export default function UnitDetailsView({
                       <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                         Đang hoạt động
                       </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Lịch Sử Ra Vào Ô Kho (Access Logs - Flow 3) */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                  <History className="w-4 h-4 text-blue-600" />
+                  Nhật Ký & Lịch Sử Ra Vào Ô Kho (Access Logs)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Ghi nhận tự động từng lần mở cửa bằng mã PIN, thẻ từ RFID hoặc điều khiển từ xa qua ứng dụng.
+                </p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+                IoT Realtime Log
+              </span>
+            </div>
+
+            {(!unit.accessLogs || unit.accessLogs.length === 0) ? (
+              <div className="text-center py-6 text-slate-400 text-xs">
+                Chưa có nhật ký ra vào nào được ghi nhận cho ô kho này.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {unit.accessLogs.map((log) => (
+                  <div key={log.id} className="py-3.5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                        <KeyRound className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-xs text-slate-900 flex items-center gap-2">
+                          <span>{log.accessMethod}</span>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                            {log.status === 'SUCCESS' ? 'Mở cửa thành công' : 'Từ chối'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          {log.notes || 'Khách hàng thao tác trực tiếp tại ổ khóa'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right text-[11px] text-slate-400 tabular-nums">
+                      {new Date(log.accessedAt).toLocaleString('vi-VN')}
                     </div>
                   </div>
                 ))}
@@ -611,6 +700,17 @@ export default function UnitDetailsView({
           </div>
         </div>
       )}
+
+      {/* Contract Sign Modal */}
+      <ContractSignModal
+        unit={unit}
+        isOpen={isContractSignOpen}
+        onClose={() => setIsContractSignOpen(false)}
+        onSignedSuccess={() => {
+          unit.isSigned = true;
+          setIsContractSignOpen(false);
+        }}
+      />
     </div>
   );
 }

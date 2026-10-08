@@ -255,7 +255,7 @@ export default function MyUnitsGrid({
             <div className="pt-2">
               <Link
                 href="/locations"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/25 transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition cursor-pointer"
               >
                 <span>Tìm &amp; Đặt Thuê Ngăn Kho Mới</span>
                 <ChevronRight className="w-4 h-4" />
@@ -407,7 +407,7 @@ export default function MyUnitsGrid({
                     <button
                       type="button"
                       onClick={() => onSelectUnit(unit)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-98 cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-xs active:scale-98 cursor-pointer"
                     >
                       <span>Xem chi tiết</span>
                       <ChevronRight className="w-3.5 h-3.5" />

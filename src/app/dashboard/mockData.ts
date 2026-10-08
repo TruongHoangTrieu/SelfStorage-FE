@@ -78,6 +78,85 @@ export const INITIAL_CUSTOMER_UNITS: CustomerUnit[] = [
         status: 'resolved',
         lastReply: 'Nhân viên trực ca đã bố trí xe đẩy tại cửa xuất nhập.'
       }
+    ],
+    isSigned: true,
+    contractStatus: 'ACTIVE',
+    smartLockStatus: 'ACTIVE',
+    storedItems: [
+      {
+        id: 1,
+        contractItemId: 1,
+        name: 'Bộ sofa phòng khách bọc nỉ',
+        category: 'Nội thất & Gia dụng',
+        quantity: 1,
+        description: 'Bọc màng PE chống bụi, tình trạng nguyên vẹn',
+        photoUrl: '',
+        createdAt: '2026-03-22T09:00:00Z',
+      },
+      {
+        id: 2,
+        contractItemId: 1,
+        name: 'Thùng hồ sơ kế toán & hợp đồng năm 2024-2025',
+        category: 'Tài liệu & Hồ sơ',
+        quantity: 5,
+        description: 'Thùng carton tiêu chuẩn, niêm phong băng dính xanh',
+        photoUrl: '',
+        createdAt: '2026-03-25T14:30:00Z',
+      },
+      {
+        id: 3,
+        contractItemId: 1,
+        name: 'Màn hình máy tính Dell UltraSharp 27 inch',
+        category: 'Thiết bị điện tử',
+        quantity: 2,
+        description: 'Có lót xốp chống sốc, kèm dây nguồn cáp HDMI',
+        photoUrl: '',
+        createdAt: '2026-04-10T11:15:00Z',
+      },
+      {
+        id: 4,
+        contractItemId: 1,
+        name: 'Vali quần áo mùa đông & áo khoác da',
+        category: 'Quần áo & Thời trang',
+        quantity: 3,
+        description: 'Vali kéo Samsonite khóa số có túi hút chân không',
+        photoUrl: '',
+        createdAt: '2026-05-02T16:45:00Z',
+      }
+    ],
+    accessLogs: [
+      {
+        id: 101,
+        contractItemId: 1,
+        accessMethod: 'Mở từ xa qua App',
+        status: 'SUCCESS',
+        notes: 'Chủ kho mở cửa tự động qua điện thoại',
+        accessedAt: '2026-10-06T15:20:10Z'
+      },
+      {
+        id: 102,
+        contractItemId: 1,
+        accessMethod: 'Mã PIN cá nhân',
+        status: 'SUCCESS',
+        notes: 'Khách hàng nhập mã số bàn phím',
+        accessedAt: '2026-10-02T09:12:45Z'
+      },
+      {
+        id: 103,
+        contractItemId: 1,
+        accessMethod: 'Thẻ từ RFID',
+        status: 'SUCCESS',
+        notes: 'Quẹt thẻ RFID-9921 tại cửa ô kho',
+        accessedAt: '2026-09-21T14:05:00Z'
+      },
+      {
+        id: 104,
+        contractItemId: 1,
+        accessMethod: 'Mã PIN khách tạm',
+        status: 'SUCCESS',
+        notes: 'Nguyễn Văn Tuấn nhập mã PIN khách 839201',
+        accessedAt: '2026-09-20T10:30:22Z'
+      }
     ]
   },
   {

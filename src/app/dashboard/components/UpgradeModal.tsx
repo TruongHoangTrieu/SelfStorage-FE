@@ -36,16 +36,16 @@ export default function UpgradeModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 animate-slide-up-fade overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 animate-slide-up-fade overflow-hidden">
         {/* Header */}
-        <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
               <ArrowUpDown className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900">
+              <h3 className="font-extrabold text-base text-slate-900">
                 Yêu Cầu Nâng Cấp / Hạ Cấp Ô Kho
               </h3>
               <p className="text-xs text-slate-500">Ô hiện tại: {unit.unitNumber} ({unit.size})</p>
@@ -53,7 +53,7 @@ export default function UpgradeModal({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 text-lg leading-none"
+            className="w-8 h-8 rounded-full hover:bg-slate-200/60 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
           >
             ✕
           </button>
@@ -62,13 +62,13 @@ export default function UpgradeModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
+            <label className="text-xs font-bold text-slate-800 block mb-1">
               Chọn loại diện tích ô kho muốn chuyển sang:
             </label>
             <select
               value={targetType}
               onChange={(e) => setTargetType(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-orange-500 focus:outline-none font-medium text-slate-900"
             >
               <optgroup label="Nâng cấp diện tích lớn hơn">
                 <option value="Kho Doanh nghiệp Lớn (12m² - 15m²)">
@@ -90,48 +90,48 @@ export default function UpgradeModal({
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
+            <label className="text-xs font-bold text-slate-800 block mb-1">
               Ngày mong muốn dọn đồ sang kho mới:
             </label>
             <input
               type="text"
               value={preferredDate}
               onChange={(e) => setPreferredDate(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-orange-500 focus:outline-none font-medium text-slate-900"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
+            <label className="text-xs font-bold text-slate-800 block mb-1">
               Lý do hoặc yêu cầu vị trí đặc biệt (tầng trệt, gần cửa xuất nhập...):
             </label>
             <textarea
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-orange-500 focus:outline-none font-medium text-slate-900"
             />
           </div>
 
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-950 space-y-1">
+          <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl text-xs text-blue-950 space-y-1">
             <div className="font-bold text-blue-900">Quy trình điều chuyển kho:</div>
-            <p className="text-[11px] text-slate-600">
+            <p className="text-[11px] text-slate-600 leading-relaxed">
               Quản lý cơ sở sẽ kiểm tra ô kho khả dụng và liên hệ với bạn trong vòng 2 giờ làm việc để sắp xếp bàn giao và hỗ trợ xe đẩy chuyển đồ.
             </p>
           </div>
 
           {/* Footer */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all"
+              className="px-5 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all cursor-pointer"
             >
               Gửi yêu cầu điều chuyển
             </button>
