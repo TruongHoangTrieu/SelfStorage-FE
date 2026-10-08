@@ -344,7 +344,7 @@ export const handoversApi = {
   /**
    * Fetch single reservation detail prepared for check-in (Trang B)
    */
-  async fetchReservationForCheckIn(reservationId: number): Promise<CheckInAppointment> {
+  async fetchReservationForCheckIn(reservationId: string | number): Promise<CheckInAppointment> {
     const res = await api.get(`/handovers/reservations/${reservationId}`);
     return normalizeReservation(res);
   },
@@ -372,7 +372,7 @@ export const handoversApi = {
     photos?: string[];
   }): Promise<BackendCheckInResponse> {
     const body = {
-      reservationId: Number(payload.reservationId),
+      reservationId: String(payload.reservationId),
       condition: payload.condition || 'Kho sạch sẽ, khóa thông minh hoạt động tốt, đã bàn giao mã',
       notes: payload.notes || 'Đã bàn giao mã PIN và hướng dẫn khách sử dụng kho',
       photos: payload.photos || [],

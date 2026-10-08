@@ -315,7 +315,7 @@ export default function UnitTypesPricingManager({
               <div className="relative">
                 <select
                   value={selectedFacilityId || ''}
-                  onChange={(e) => setSelectedFacilityId(Number(e.target.value))}
+                  onChange={(e) => setSelectedFacilityId(e.target.value)}
                   className="w-full pl-9 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 transition appearance-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 >
                   {facilities.map((fac) => (

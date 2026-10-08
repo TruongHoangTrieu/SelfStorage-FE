@@ -276,15 +276,19 @@ export const customerUnitsApi = {
    * Create a new support ticket / incident report (POST /support/requests)
    */
   async createSupportRequest(payload: {
-    facilityId: number;
-    contractItemId?: number;
+    facilityId: string | number;
+    contractItemId?: string | number;
     category: string;
     subject: string;
     description: string;
     priority?: string;
     photos?: string[];
   }): Promise<SupportTicket> {
-    const res = await api.post('/support/requests', payload);
+    const res = await api.post('/support/requests', {
+      ...payload,
+      facilityId: String(payload.facilityId),
+      contractItemId: payload.contractItemId ? String(payload.contractItemId) : undefined,
+    });
     return normalizeSupportRequest(res);
   },
 

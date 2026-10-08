@@ -56,8 +56,8 @@ export default function IncidentReportModal({
 
     try {
       const createdTicket = await customerUnitsApi.createSupportRequest({
-        facilityId: unit.facilityId || 1,
-        contractItemId: unit.rawContractItemId || (unit.rawContractId ? Number(unit.id) : undefined),
+        facilityId: unit.facilityId ? String(unit.facilityId) : '',
+        contractItemId: unit.rawContractItemId ? String(unit.rawContractItemId) : (unit.rawContractId ? String(unit.id) : undefined),
         category: CATEGORY_MAP[category] || 'OTHER',
         subject: ticketTitle,
         description: description.trim(),
