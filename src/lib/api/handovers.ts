@@ -231,16 +231,15 @@ export const handoversApi = {
   /**
    * Staff login
    */
-  async loginStaff(email: string, password: string): Promise<{ token: string; user: StaffUser }> {
+  async loginStaff(email: string, password: string): Promise<{ user: StaffUser }> {
     const res = await api.post('/auth/login', { email, password });
-    if (res?.accessToken) {
+    if (res?.user) {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('token', res.accessToken);
         localStorage.setItem('user', JSON.stringify(res.user));
       }
-      return { token: res.accessToken, user: res.user };
+      return { user: res.user };
     }
-    throw new Error('Đăng nhập thất bại: Không nhận được token');
+    throw new Error('Đăng nhập thất bại: Không nhận được thông tin xác thực');
   },
 
   /**
@@ -267,7 +266,6 @@ export const handoversApi = {
       console.warn('Backend staff logout notice:', err);
     } finally {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
     }
@@ -337,7 +335,7 @@ export const handoversApi = {
       : reservationId;
 
     return await api.post(`/reservations/${rawId}/cancel`, {
-      reason: reason || 'Khách không đến (No-show) quá thời hạn quy định',
+      reason: reason || 'Khách không đến quá thời hạn quy định',
     });
   },
 

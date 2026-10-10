@@ -112,14 +112,14 @@ export default function Sidebar({
           )}
         </div>
         <Link href="/" className="inline-flex items-center gap-2 pr-4">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-xs">
             <Boxes className="w-4 h-4" />
           </div>
           <div>
             <span className="font-black text-base tracking-tight text-slate-900">
               SmartStorage
             </span>
-            <span className="block text-[10px] text-blue-600 font-bold uppercase tracking-wider">
+            <span className="block text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
               Cổng Quản Lý &amp; Vận Hành
             </span>
           </div>
@@ -131,12 +131,12 @@ export default function Sidebar({
         
         {/* Facility Info Card (visible when expanded) */}
         <div
-          className={`mx-2 mb-3 p-3 rounded-2xl bg-blue-50/70 border border-blue-100 transition-all duration-300 ${
+          className={`mx-2 mb-3 p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100 transition-all duration-300 ${
             isCollapsed ? 'max-h-0 opacity-0 p-0 m-0 border-0 overflow-hidden' : 'opacity-100'
           }`}
         >
-          <div className="flex items-center gap-2.5 text-xs font-bold text-blue-900">
-            <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+          <div className="flex items-center gap-2.5 text-xs font-bold text-emerald-950">
+            <Building2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span className="line-clamp-2 leading-tight break-words flex-1" title={facilityName}>
               {facilityName}
             </span>
@@ -164,14 +164,14 @@ export default function Sidebar({
               onClick={() => onSelectTab(item.id)}
               className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer overflow-hidden ${
                 isActive
-                  ? 'bg-blue-50 text-blue-600 font-bold shadow-2xs'
+                  ? 'bg-emerald-50 text-emerald-700 font-bold shadow-2xs'
                   : 'text-slate-700 hover:bg-slate-100 font-medium'
               }`}
               title={isCollapsed ? item.label : undefined}
             >
               {/* Căn giữa tuyệt đối trong khung 56px (tâm đúng x=36px) */}
               <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
-                <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-600'}`} />
+                <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-600'}`} />
               </div>
 
               <span
@@ -186,8 +186,8 @@ export default function Sidebar({
                 <span
                   className={`mr-2 text-xs font-bold px-2 py-0.5 rounded-full transition-all duration-300 ease-in-out shrink-0 ${
                     isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-100 text-blue-700'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-100 text-emerald-800'
                   } ${isCollapsed ? 'max-w-0 opacity-0 overflow-hidden px-0 pointer-events-none' : 'max-w-[40px] opacity-100'}`}
                 >
                   {item.badge}
@@ -221,14 +221,14 @@ export default function Sidebar({
               onClick={() => onSelectTab(item.id)}
               className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer overflow-hidden ${
                 isActive
-                  ? 'bg-blue-50 text-blue-600 font-bold shadow-2xs'
+                  ? 'bg-emerald-50 text-emerald-700 font-bold shadow-2xs'
                   : 'text-slate-700 hover:bg-slate-100 font-medium'
               }`}
               title={isCollapsed ? item.label : undefined}
             >
               {/* Căn giữa tuyệt đối trong khung 56px (tâm đúng x=36px) */}
               <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
-                <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-600'}`} />
+                <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-600'}`} />
               </div>
 
               <span
@@ -263,7 +263,7 @@ export default function Sidebar({
             >
               <div className="w-[56px] shrink-0 flex items-center justify-center">
                 <div
-                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs shrink-0 tracking-wider transition-transform"
+                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs shrink-0 tracking-wider transition-transform"
                 >
                   {getInitials(currentUser.fullName, currentUser.email)}
                 </div>
@@ -274,9 +274,9 @@ export default function Sidebar({
                   isCollapsed ? 'max-w-0 opacity-0' : 'max-w-[125px] opacity-100'
                 }`}
               >
-                <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
+                <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5 group-hover:text-emerald-600 transition-colors">
                   <span>{currentUser.fullName}</span>
-                  <span className="text-[9px] px-1 py-0.2 rounded bg-blue-100 text-blue-700 font-extrabold uppercase">
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-extrabold uppercase">
                     {staffRole}
                   </span>
                 </div>
@@ -303,7 +303,7 @@ export default function Sidebar({
           <div className="px-1 py-1">
             <Link
               href="/login"
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
             >
               <LogIn className="w-4 h-4 shrink-0" />
               {!isCollapsed && <span>Đăng nhập Staff</span>}

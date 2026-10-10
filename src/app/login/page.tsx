@@ -106,9 +106,6 @@ export default function LoginPage() {
           password: formData.password
         });
 
-        if (res?.accessToken) {
-          localStorage.setItem("token", res.accessToken);
-        }
         if (res?.user) {
           localStorage.setItem("user", JSON.stringify(res.user));
         }
@@ -131,29 +128,12 @@ export default function LoginPage() {
           password: formData.password
         });
 
-        if (regRes?.accessToken) {
-          localStorage.setItem("token", regRes.accessToken);
+        if (regRes?.user) {
           localStorage.setItem("user", JSON.stringify(regRes.user));
           window.dispatchEvent(new Event("storage"));
           window.dispatchEvent(new Event("auth-change"));
-          toast.success("Đăng ký tài khoản thành công!");
-          router.push(getTargetRoute(regRes?.user));
-        } else {
-          // Auto login after successful registration
-          const loginRes = await api.post("/auth/login", {
-            email: formData.email.trim(),
-            password: formData.password
-          });
-          if (loginRes?.accessToken) {
-            localStorage.setItem("token", loginRes.accessToken);
-          }
-          if (loginRes?.user) {
-            localStorage.setItem("user", JSON.stringify(loginRes.user));
-          }
-          window.dispatchEvent(new Event("storage"));
-          window.dispatchEvent(new Event("auth-change"));
           toast.success("Tạo tài khoản và đăng nhập thành công!");
-          router.push(getTargetRoute(loginRes?.user));
+          router.push(getTargetRoute(regRes.user));
         }
       }
     } catch (err: any) {

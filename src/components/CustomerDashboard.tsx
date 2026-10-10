@@ -173,7 +173,6 @@ export default function CustomerDashboard() {
                     } catch (e) {
                       console.warn('Logout notice:', e);
                     } finally {
-                      localStorage.removeItem('token');
                       localStorage.removeItem('user');
                       window.location.href = '/';
                     }

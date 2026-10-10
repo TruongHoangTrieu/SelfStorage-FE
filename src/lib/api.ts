@@ -51,8 +51,6 @@ export const api = {
 async function request<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const { data, headers, timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...customConfig } = options;
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
   // Abort if the backend hangs so the UI never spins on the loader forever.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -60,10 +58,11 @@ async function request<T>(endpoint: string, options: FetchOptions = {}): Promise
 
   const config: RequestInit = {
     ...customConfig,
+    credentials: 'include',
     signal: controller.signal,
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
+      'X-Requested-With': 'XMLHttpRequest',
       ...headers,
     },
   };

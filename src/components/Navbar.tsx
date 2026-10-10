@@ -40,26 +40,45 @@ export default function Navbar() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifMenuRef = useRef<HTMLDivElement>(null);
 
-  // Sync auth state from localStorage
-  const readAuth = () => {
+  // Sync auth state from localStorage and verify session with backend via /auth/me
+  const verifySession = async () => {
     try {
       const raw = localStorage.getItem("user");
-      const token = localStorage.getItem("token");
-      setUser(token && raw ? JSON.parse(raw) : null);
+      if (raw) {
+        setUser(JSON.parse(raw));
+      }
     } catch {
       setUser(null);
+    }
+
+    try {
+      const me = await api.get("/auth/me");
+      if (me && me.id) {
+        setUser(me);
+        localStorage.setItem("user", JSON.stringify(me));
+      } else {
+        setUser(null);
+        localStorage.removeItem("user");
+        localStorage.removeItem("customer_user");
+      }
+    } catch {
+      // Session expired or unauthenticated
+      setUser(null);
+      localStorage.removeItem("user");
+      localStorage.removeItem("customer_user");
+    } finally {
+      setHydrated(true);
     }
   };
 
   useEffect(() => {
-    readAuth();
-    setHydrated(true);
+    verifySession();
   }, [pathname]);
 
   // Listen to storage & custom auth-change events
   useEffect(() => {
     const handleAuthSync = () => {
-      readAuth();
+      verifySession();
     };
 
     window.addEventListener("storage", handleAuthSync);
@@ -97,7 +116,6 @@ export default function Navbar() {
     } catch (err) {
       console.warn("Backend logout notice:", err);
     } finally {
-      localStorage.removeItem("token");
       localStorage.removeItem("user");
       localStorage.removeItem("customer_user");
       sessionStorage.clear();
@@ -134,13 +152,54 @@ export default function Navbar() {
   // Chỉ khách vãng lai hoặc tài khoản STORAGE_CUSTOMER mới thấy các nút thuê kho
   const canRentStorage = !user || isStorageCustomer;
 
-  const getRoleBadgeLabel = () => {
-    if (roleName === "FACILITY_MANAGER") return "Quản Lý Chi Nhánh";
-    if (roleName === "SYSTEM_ADMINISTRATOR" || roleName === "ADMIN") return "Quản Trị Viên";
-    if (roleName === "BUSINESS_OPERATIONS_MANAGER") return "Quản Lý Chuỗi";
-    if (isStaff) return "Nhân Viên Vận Hành";
-    return "Khách Hàng";
+  const getRoleTheme = () => {
+    if (roleName === "SYSTEM_ADMINISTRATOR" || roleName === "ADMIN") {
+      return {
+        label: "Quản Trị Viên",
+        pillHover: "hover:border-rose-400",
+        avatarGrad: "from-rose-600 to-red-600",
+        badge: "bg-rose-100 text-rose-800 border border-rose-200",
+        nameHover: "group-hover:text-rose-600",
+      };
+    }
+    if (roleName === "BUSINESS_OPERATIONS_MANAGER" || roleName === "OPS") {
+      return {
+        label: "Quản Lý Chuỗi",
+        pillHover: "hover:border-amber-400",
+        avatarGrad: "from-amber-500 to-orange-600",
+        badge: "bg-amber-100 text-amber-800 border border-amber-200",
+        nameHover: "group-hover:text-amber-600",
+      };
+    }
+    if (roleName === "FACILITY_MANAGER" || roleName === "MANAGER") {
+      return {
+        label: "Quản Lý Chi Nhánh",
+        pillHover: "hover:border-indigo-400",
+        avatarGrad: "from-indigo-600 to-purple-600",
+        badge: "bg-indigo-100 text-indigo-800 border border-indigo-200",
+        nameHover: "group-hover:text-indigo-600",
+      };
+    }
+    if (isStaff) {
+      return {
+        label: "Nhân Viên Vận Hành",
+        pillHover: "hover:border-emerald-400",
+        avatarGrad: "from-emerald-600 to-teal-600",
+        badge: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+        nameHover: "group-hover:text-emerald-600",
+      };
+    }
+    return {
+      label: "Khách Hàng",
+      pillHover: "hover:border-blue-400",
+      avatarGrad: "from-blue-600 to-indigo-600",
+      badge: "bg-blue-100 text-blue-700 border border-blue-200",
+      nameHover: "group-hover:text-blue-600",
+    };
   };
+
+  const roleTheme = getRoleTheme();
+  const getRoleBadgeLabel = () => roleTheme.label;
 
   const getInitials = (name?: string, email?: string) => {
     if (name && name.trim()) {
@@ -288,18 +347,18 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2.5 p-1.5 pr-3 rounded-full border border-slate-200 hover:border-blue-400 bg-slate-50/80 hover:bg-white transition-all shadow-2xs group cursor-pointer focus:outline-hidden"
+                  className={`flex items-center gap-2.5 p-1.5 pr-3 rounded-full border border-slate-200 ${roleTheme.pillHover} bg-slate-50/80 hover:bg-white transition-all shadow-2xs group cursor-pointer focus:outline-hidden`}
                   aria-expanded={userMenuOpen}
                   aria-label="Thông tin tài khoản"
                 >
                   {/* Avatar Circle with initials */}
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0 tracking-wider">
+                  <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${roleTheme.avatarGrad} text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0 tracking-wider`}>
                     {getInitials(user.fullName, user.email)}
                   </div>
 
                   {/* Concise User Name */}
                   <div className="text-left hidden lg:block">
-                    <div className="text-xs font-bold text-slate-800 truncate max-w-[130px] xl:max-w-[150px] leading-tight">
+                    <div className={`text-xs font-bold text-slate-800 ${roleTheme.nameHover} transition-colors truncate max-w-[130px] xl:max-w-[150px] leading-tight`}>
                       {getConciseName(user.fullName, user.email)}
                     </div>
                   </div>
@@ -315,9 +374,9 @@ export default function Navbar() {
                 {userMenuOpen && (
                   <div className="absolute right-0 mt-2.5 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 p-2.5 z-50 animate-slide-up-fade">
                     {/* Full User Details Card */}
-                    <div className="p-3.5 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 rounded-xl border border-slate-100 mb-2">
+                    <div className="p-3.5 bg-gradient-to-br from-slate-50 via-slate-100/50 to-slate-50 rounded-xl border border-slate-100 mb-2">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shadow-xs shrink-0 tracking-wider">
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-tr ${roleTheme.avatarGrad} text-white font-bold text-sm flex items-center justify-center shadow-xs shrink-0 tracking-wider`}>
                           {getInitials(user.fullName, user.email)}
                         </div>
                         <div className="overflow-hidden flex-1 min-w-0">
@@ -328,8 +387,8 @@ export default function Navbar() {
                             {user.email}
                           </p>
                           <div className="mt-1">
-                            <span className="inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                              {getRoleBadgeLabel()}
+                            <span className={`inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-full ${roleTheme.badge}`}>
+                              {roleTheme.label}
                             </span>
                           </div>
                         </div>

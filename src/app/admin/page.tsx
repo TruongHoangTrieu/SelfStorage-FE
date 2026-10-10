@@ -7,6 +7,7 @@ import {
   Search, ArrowUpRight, ArrowDownRight, Clock,
   FileText, Activity, Lock, LogOut
 } from 'lucide-react';
+import { api } from '@/lib/api';
 import BusinessOpsFlow4 from './components/BusinessOpsFlow4';
 
 type Role = 'STAFF' | 'MANAGER' | 'OPS' | 'ADMIN';
@@ -25,13 +26,18 @@ export default function AdminPortal() {
     }
   }, []);
 
-  const handleAdminLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('customer_user');
-      sessionStorage.clear();
-      window.location.href = '/';
+  const handleAdminLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      console.warn('Admin logout notice:', e);
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        localStorage.removeItem('customer_user');
+        sessionStorage.clear();
+        window.location.href = '/';
+      }
     }
   };
 
@@ -66,25 +72,82 @@ export default function AdminPortal() {
     }
   };
 
-  const getRoleName = (r: Role) => {
-    return {
-      'STAFF': 'Facility Staff',
-      'MANAGER': 'Facility Manager',
-      'OPS': 'Business Operations',
-      'ADMIN': 'System Administrator'
-    }[r];
+  const ROLE_THEMES: Record<Role, {
+    name: string;
+    nameVi: string;
+    stripe: string;
+    brandGradient: string;
+    brandShadow: string;
+    activeText: string;
+    activeBg: string;
+    avatarGradient: string;
+    dotColor: string;
+    badgeStyle: string;
+  }> = {
+    STAFF: {
+      name: 'Facility Staff',
+      nameVi: 'Nhân Viên Vận Hành',
+      stripe: 'from-emerald-500 via-teal-400 to-emerald-600',
+      brandGradient: 'from-emerald-500 to-teal-600',
+      brandShadow: 'shadow-emerald-500/25',
+      activeText: 'text-emerald-400',
+      activeBg: 'bg-emerald-500/15',
+      avatarGradient: 'from-emerald-600 to-teal-600',
+      dotColor: 'bg-emerald-500',
+      badgeStyle: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    },
+    MANAGER: {
+      name: 'Facility Manager',
+      nameVi: 'Quản Lý Chi Nhánh',
+      stripe: 'from-indigo-600 via-purple-500 to-indigo-700',
+      brandGradient: 'from-indigo-600 to-purple-600',
+      brandShadow: 'shadow-indigo-500/25',
+      activeText: 'text-indigo-400',
+      activeBg: 'bg-indigo-500/15',
+      avatarGradient: 'from-indigo-600 to-purple-600',
+      dotColor: 'bg-indigo-500',
+      badgeStyle: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    },
+    OPS: {
+      name: 'Business Operations',
+      nameVi: 'Quản Lý Chuỗi Vận Hành',
+      stripe: 'from-amber-500 via-orange-400 to-amber-600',
+      brandGradient: 'from-amber-500 to-orange-500',
+      brandShadow: 'shadow-amber-500/25',
+      activeText: 'text-amber-400',
+      activeBg: 'bg-amber-500/15',
+      avatarGradient: 'from-amber-500 to-orange-600',
+      dotColor: 'bg-amber-500',
+      badgeStyle: 'bg-amber-50 text-amber-700 border-amber-200',
+    },
+    ADMIN: {
+      name: 'System Administrator',
+      nameVi: 'Quản Trị Viên Hệ Thống',
+      stripe: 'from-rose-600 via-red-500 to-slate-900',
+      brandGradient: 'from-rose-600 to-red-600',
+      brandShadow: 'shadow-rose-500/25',
+      activeText: 'text-rose-400',
+      activeBg: 'bg-rose-500/15',
+      avatarGradient: 'from-rose-600 to-red-600',
+      dotColor: 'bg-rose-500',
+      badgeStyle: 'bg-rose-50 text-rose-700 border-rose-200',
+    },
   };
+
+  const currentTheme = ROLE_THEMES[role];
+
+  const getRoleName = (r: Role) => ROLE_THEMES[r].name;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       
-      {/* Signature Brand Stripe on Top Header */}
-      <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-blue-600 w-full z-30" />
+      {/* Signature Brand Stripe on Top Header (Dynamic per Role) */}
+      <div className={`h-1 bg-gradient-to-r ${currentTheme.stripe} w-full z-30 transition-all duration-300`} />
 
       {/* Top Navbar */}
       <header className="h-16 bg-slate-950 flex items-center justify-between px-6 z-20 shadow-xs">
         <div className="flex items-center text-white">
-          <div className="w-9 h-9 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mr-3 shadow-sm shadow-orange-500/25">
+          <div className={`w-9 h-9 bg-gradient-to-r ${currentTheme.brandGradient} rounded-xl flex items-center justify-center mr-3 shadow-sm ${currentTheme.brandShadow} transition-all duration-300`}>
             <Lock className="w-4 h-4 text-white" />
           </div>
           <span className="font-extrabold text-lg tracking-tight">SelfStorage <span className="font-normal text-slate-400 text-sm">| Quản Trị Hệ Thống</span></span>
@@ -96,26 +159,38 @@ export default function AdminPortal() {
             onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
             className="flex items-center px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-colors border border-slate-800 text-xs font-bold"
           >
-            <Shield className="w-4 h-4 mr-2 text-orange-400" />
+            <Shield className={`w-4 h-4 mr-2 ${currentTheme.activeText}`} />
             Vai trò: {getRoleName(role)}
             <ChevronDown className="w-4 h-4 ml-3 text-slate-400" />
           </button>
           
           {isRoleDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50">
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Chuyển Đổi Vai Trò</p>
               </div>
-              {(['STAFF', 'MANAGER', 'OPS', 'ADMIN'] as Role[]).map(r => (
-                <button 
-                  key={r}
-                  onClick={() => { setRole(r); setIsRoleDropdownOpen(false); }}
-                  className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between transition-colors border-b border-slate-50 last:border-0"
-                >
-                  <span className={`text-xs font-bold ${role === r ? 'text-orange-600' : 'text-slate-700'}`}>{getRoleName(r)}</span>
-                  {role === r && <Check className="w-4 h-4 text-orange-500" />}
-                </button>
-              ))}
+              {(['STAFF', 'MANAGER', 'OPS', 'ADMIN'] as Role[]).map(r => {
+                const itemTheme = ROLE_THEMES[r];
+                const isSelected = role === r;
+                return (
+                  <button 
+                    key={r}
+                    onClick={() => { setRole(r); setIsRoleDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between transition-colors border-b border-slate-50 last:border-0"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-2.5 h-2.5 rounded-full ${itemTheme.dotColor}`} />
+                      <div>
+                        <span className={`text-xs font-bold block ${isSelected ? itemTheme.activeText.replace('text-', 'text-').replace('-400', '-600') : 'text-slate-700'}`}>
+                          {itemTheme.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block">{itemTheme.nameVi}</span>
+                      </div>
+                    </div>
+                    {isSelected && <Check className={`w-4 h-4 ${itemTheme.activeText.replace('-400', '-600')}`} />}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -138,11 +213,11 @@ export default function AdminPortal() {
                     key={link.label}
                     className={`w-full flex items-center px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
                       isActive 
-                        ? 'bg-orange-500/15 text-orange-400 font-extrabold shadow-2xs' 
+                        ? `${currentTheme.activeBg} ${currentTheme.activeText} font-extrabold shadow-2xs` 
                         : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-orange-400' : 'text-slate-500'}`} />
+                    <Icon className={`w-4 h-4 mr-3 ${isActive ? currentTheme.activeText : 'text-slate-500'}`} />
                     {link.label}
                   </button>
                 )
@@ -153,12 +228,12 @@ export default function AdminPortal() {
           {/* User Profile Footer */}
           <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
             <div className="flex items-center min-w-0">
-              <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center text-slate-300 font-bold mr-3 border border-slate-700 shrink-0">
+              <div className={`w-10 h-10 bg-gradient-to-tr ${currentTheme.avatarGradient} rounded-full flex items-center justify-center text-white font-black text-sm mr-3 shadow-xs shrink-0`}>
                 {role.charAt(0)}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-white leading-tight truncate">Admin User</p>
-                <p className="text-xs text-slate-500 truncate">{getRoleName(role)}</p>
+                <p className={`text-xs font-bold truncate ${currentTheme.activeText}`}>{currentTheme.nameVi}</p>
               </div>
             </div>
             <button
@@ -201,18 +276,18 @@ function FacilityStaffView() {
         {/* Check-ins Column */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[600px]">
           <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
-            <h3 className="font-bold text-[#1e1b4b] flex items-center"><Key className="w-4 h-4 mr-2 text-amber-500" /> Check-ins Today</h3>
-            <span className="bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full text-xs font-bold">3 Pending</span>
+            <h3 className="font-bold text-[#1e1b4b] flex items-center"><Key className="w-4 h-4 mr-2 text-emerald-600" /> Check-ins Today</h3>
+            <span className="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full text-xs font-bold">3 Pending</span>
           </div>
           <div className="p-4 flex-grow overflow-y-auto space-y-3">
             {[1,2,3].map(i => (
-              <div key={i} className="p-4 border border-slate-200 rounded-xl hover:border-amber-300 transition-colors cursor-pointer bg-white">
+              <div key={i} className="p-4 border border-slate-200 rounded-xl hover:border-emerald-400 transition-colors cursor-pointer bg-white">
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-bold text-[#1e1b4b]">Unit #A{100+i}</span>
                   <span className="text-xs font-bold text-slate-400">10:00 AM</span>
                 </div>
                 <p className="text-sm text-slate-500 font-medium mb-4">Customer: John Doe</p>
-                <button className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-lg transition-colors border border-amber-200">
+                <button className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg transition-colors border border-emerald-200">
                   Begin Handover
                 </button>
               </div>
@@ -223,17 +298,17 @@ function FacilityStaffView() {
         {/* Move-outs Column */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[600px]">
           <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
-            <h3 className="font-bold text-[#1e1b4b] flex items-center"><Calendar className="w-4 h-4 mr-2 text-indigo-500" /> Move-outs Today</h3>
-            <span className="bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full text-xs font-bold">1 Pending</span>
+            <h3 className="font-bold text-[#1e1b4b] flex items-center"><Calendar className="w-4 h-4 mr-2 text-teal-600" /> Move-outs Today</h3>
+            <span className="bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full text-xs font-bold">1 Pending</span>
           </div>
           <div className="p-4 flex-grow overflow-y-auto space-y-3">
-            <div className="p-4 border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors cursor-pointer bg-white">
+            <div className="p-4 border border-slate-200 rounded-xl hover:border-teal-400 transition-colors cursor-pointer bg-white">
               <div className="flex justify-between items-start mb-2">
                 <span className="font-bold text-[#1e1b4b]">Unit #C42</span>
                 <span className="text-xs font-bold text-slate-400">02:00 PM</span>
               </div>
               <p className="text-sm text-slate-500 font-medium mb-4">Customer: Alice Smith</p>
-              <button className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-colors border border-indigo-200">
+              <button className="w-full py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-bold rounded-lg transition-colors border border-teal-200">
                 Inspect Unit
               </button>
             </div>
@@ -495,7 +570,7 @@ function FacilityManagerView() {
           </div>
 
           <div className="space-y-2 mt-6">
-            <button className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-orange-500/20 active:scale-98">
+            <button className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-extrabold rounded-xl transition-all shadow-md shadow-indigo-600/20 active:scale-98">
               {selectedUnit.status === 'Available' ? 'Assign to Reservation' : 'View Contract & Invoices'}
             </button>
             <button className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors">
@@ -578,7 +653,7 @@ function SystemAdminView() {
             <button className="px-4 py-2 bg-white border border-slate-200 text-sm font-bold text-[#1e1b4b] rounded-lg shadow-sm">Internal Staff</button>
             <button className="px-4 py-2 bg-transparent text-sm font-bold text-slate-500 hover:text-[#1e1b4b] rounded-lg">Customers</button>
           </div>
-          <button className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/20 transition-all">
+          <button className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-600/20 transition-all">
             + Add User
           </button>
         </div>
@@ -613,7 +688,7 @@ function SystemAdminView() {
                 <td className="px-6 py-4 font-medium text-slate-500">{row.access}</td>
                 <td className="px-6 py-4 text-xs font-medium text-slate-400">{row.login}</td>
                 <td className="px-6 py-4 text-right">
-                  <button className="text-xs font-bold text-blue-600 hover:text-orange-600 transition-colors">Edit</button>
+                  <button className="text-xs font-bold text-rose-600 hover:text-rose-700 transition-colors">Edit</button>
                 </td>
               </tr>
             ))}

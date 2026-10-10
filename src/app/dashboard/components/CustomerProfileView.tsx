@@ -193,7 +193,6 @@ export default function CustomerProfileView({
       } catch (logoutErr) {
         console.warn('Backend logout notice:', logoutErr);
       }
-      localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('customer_user');
       window.dispatchEvent(new Event('storage'));

@@ -167,16 +167,15 @@ export const customerUnitsApi = {
   /**
    * Customer login
    */
-  async loginCustomer(email: string, password: string): Promise<{ token: string; user: CustomerUser }> {
+  async loginCustomer(email: string, password: string): Promise<{ user: CustomerUser }> {
     const res = await api.post('/auth/login', { email, password });
-    if (res?.accessToken) {
+    if (res?.user) {
       if (typeof window !== 'undefined') {
-        localStorage.setItem('token', res.accessToken);
         localStorage.setItem('customer_user', JSON.stringify(res.user));
       }
-      return { token: res.accessToken, user: res.user };
+      return { user: res.user };
     }
-    throw new Error('Đăng nhập thất bại: Không nhận được token từ máy chủ');
+    throw new Error('Đăng nhập thất bại: Không nhận được thông tin xác thực từ máy chủ');
   },
 
   /**
@@ -203,7 +202,6 @@ export const customerUnitsApi = {
       console.warn('Backend customer logout notice:', err);
     } finally {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('customer_user');
       }

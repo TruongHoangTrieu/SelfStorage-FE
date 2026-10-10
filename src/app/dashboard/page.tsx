@@ -213,7 +213,6 @@ export default function CustomerDashboardPage() {
       console.warn('Customer logout notice:', e);
     } finally {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('customer_user');
         sessionStorage.clear();

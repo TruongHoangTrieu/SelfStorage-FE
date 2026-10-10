@@ -124,8 +124,7 @@ function BookingFlowContent() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem("user");
-      const token = localStorage.getItem("token");
-      if (raw && token) {
+      if (raw) {
         setCurrentUser(JSON.parse(raw));
       } else {
         setCurrentUser(null);
@@ -318,9 +317,9 @@ function BookingFlowContent() {
   const handleGenerateQR = async () => {
     if (!selectedUnitType || !isStep2Valid) return;
 
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const user = typeof window !== "undefined" ? localStorage.getItem("user") : null;
 
-    if (!token) {
+    if (!user) {
       sessionStorage.setItem(
         "pendingBooking",
         JSON.stringify({
@@ -386,7 +385,6 @@ function BookingFlowContent() {
           "Tài khoản của bạn là tài khoản Nội bộ (Nhân viên / Quản lý) nên không có quyền đặt thuê kho trực tuyến. Hệ thống chỉ cho phép tài khoản Khách hàng (STORAGE_CUSTOMER) thực hiện đặt giữ chỗ.",
         );
       } else if (isAuthError(err)) {
-        localStorage.removeItem("token");
         localStorage.removeItem("user");
         setAuthError(true);
         setErrorMsg(

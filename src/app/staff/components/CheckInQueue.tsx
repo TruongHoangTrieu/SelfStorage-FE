@@ -51,7 +51,7 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
       lateMinutes: 0,
       isOnTime: false,
       isUpcoming: false,
-      label: 'Đã hủy / No-show',
+      label: 'Đã hủy',
       badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200',
     };
   }
@@ -724,7 +724,7 @@ export default function CheckInQueue({
             <div className="text-right">
               <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 flex items-center gap-1.5">
                 <XCircle className="w-3.5 h-3.5" />
-                Đã hủy / Nhả ô kho
+                Đã hủy 
               </span>
             </div>
           ) : (
@@ -979,7 +979,7 @@ export default function CheckInQueue({
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
-            Đã hủy / No-show
+            Đã hủy
           </span>
         );
       default:
