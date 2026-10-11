@@ -39,6 +39,11 @@ import UpgradeModal from './components/UpgradeModal';
 import IncidentReportModal from './components/IncidentReportModal';
 import CustomerLoginModal from './components/CustomerLoginModal';
 import CustomerProfileView from './components/CustomerProfileView';
+import CustomerSupportView from './components/CustomerSupportView';
+import CustomerAccessView from './components/CustomerAccessView';
+import CustomerDocumentsView from './components/CustomerDocumentsView';
+import CustomerBillingView from './components/CustomerBillingView';
+import { renewalsApi } from '@/lib/api/renewals';
 
 export default function CustomerDashboardPage() {
   // Navigation & Sub-views State
@@ -306,7 +311,20 @@ export default function CustomerDashboardPage() {
     rawAmount?: number
   ) => {
     try {
-      // 1. Gửi lệnh thanh toán gia hạn lên Backend
+      // 1. Gửi yêu cầu gia hạn qua API Renewals (Flow 6)
+      if (targetModalUnit?.rawContractId) {
+        try {
+          await renewalsApi.requestRenewal({
+            contractId: String(targetModalUnit.rawContractId),
+            months,
+            notes: `Khách hàng gia hạn ${months} tháng qua cổng trực tuyến (${paymentMethod.toUpperCase()})`,
+          });
+        } catch (renErr) {
+          console.warn('Backend renewal request notice:', renErr);
+        }
+      }
+
+      // 2. Gửi lệnh thanh toán gia hạn lên Backend
       await customerUnitsApi.extendLeasePayment({
         contractCode: targetModalUnit?.contractId,
         months,
@@ -544,32 +562,38 @@ export default function CustomerDashboardPage() {
             />
           )}
 
-          {/* CÁC TAB KHÁC CỦA CỔNG KHÁCH HÀNG */}
-          {activeTab !== 'my_units' && activeTab !== 'profile' && (
-            <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200/90 p-10 text-center space-y-4 shadow-xs animate-slide-up-fade">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                {activeTab === 'billing' && <CreditCard className="w-8 h-8" />}
-                {activeTab === 'access' && <KeyRound className="w-8 h-8" />}
-                {activeTab === 'documents' && <FileText className="w-8 h-8" />}
-                {activeTab === 'support' && <Headphones className="w-8 h-8" />}
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">
-                {activeTab === 'billing' && 'Thanh Toán & Hóa Đơn (Tích hợp Luồng 4)'}
-                {activeTab === 'access' && 'Truy Cập & Khóa Thông Minh Smart Lock'}
-                {activeTab === 'documents' && 'Kho Tài Liệu & Hợp Đồng Ký Số'}
-                {activeTab === 'support' && 'Trung Tâm Hỗ Trợ & Yêu Cầu Kỹ Thuật (Luồng 7)'}
-              </h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-                Bạn đang xem tính năng mở rộng. Để quản lý danh sách các kho đã thuê và các thao tác liên quan, vui lòng quay lại tab <strong>Ô kho của tôi</strong>.
-              </p>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('my_units'); setViewMode('grid'); }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all cursor-pointer"
-              >
-                <span>Về Ô kho của tôi</span>
-              </button>
-            </div>
+          {/* TAB TRUY CẬP & KHÓA THÔNG MINH SMART LOCK (FLOW 3) */}
+          {activeTab === 'access' && (
+            <CustomerAccessView
+              units={units}
+              selectedUnit={selectedUnit}
+              onSelectUnit={(u) => setSelectedUnitId(u.id)}
+              onOpenGuestPassModal={() => {
+                setActiveModalUnit(selectedUnit || units[0]);
+                setIsGuestPassModalOpen(true);
+              }}
+            />
+          )}
+
+          {/* TAB HỢP ĐỒNG & KÝ SỐ ĐIỆN TỬ (FLOW 3) */}
+          {activeTab === 'documents' && (
+            <CustomerDocumentsView
+              units={units}
+              onRefresh={() => loadContractsData(false)}
+            />
+          )}
+
+          {/* TAB THANH TOÁN & HÓA ĐƠN (FLOW 4) */}
+          {activeTab === 'billing' && (
+            <CustomerBillingView units={units} />
+          )}
+
+          {/* TAB TRUNG TÂM HỖ TRỢ & TIẾP NHẬN SỰ CỐ (FLOW 7) */}
+          {activeTab === 'support' && (
+            <CustomerSupportView
+              units={units}
+              onOpenReportIncident={() => handleOpenReportIncident(selectedUnit || units[0])}
+            />
           )}
         </main>
       </div>

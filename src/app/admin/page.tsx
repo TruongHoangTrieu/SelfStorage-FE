@@ -9,11 +9,15 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import BusinessOpsFlow4 from './components/BusinessOpsFlow4';
+import FacilityLayoutView from '../staff/components/FacilityLayoutView';
+import StaffRenewalsOverdueView from '../staff/components/StaffRenewalsOverdueView';
+import StaffSupportTicketsView from '../staff/components/StaffSupportTicketsView';
 
 type Role = 'STAFF' | 'MANAGER' | 'OPS' | 'ADMIN';
 
 export default function AdminPortal() {
   const [role, setRole] = useState<Role>('MANAGER');
+  const [activeNavIndex, setActiveNavIndex] = useState<number>(0);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
   React.useEffect(() => {
@@ -25,6 +29,12 @@ export default function AdminPortal() {
       }
     }
   }, []);
+
+  const handleRoleChange = (newRole: Role) => {
+    setRole(newRole);
+    setActiveNavIndex(0);
+    setIsRoleDropdownOpen(false);
+  };
 
   const handleAdminLogout = async () => {
     try {
@@ -46,28 +56,25 @@ export default function AdminPortal() {
       case 'STAFF':
         return [
           { label: 'Daily Operations', icon: Calendar },
-          { label: 'Unit Handovers', icon: Key },
-          { label: 'Support Tickets', icon: AlertTriangle },
+          { label: 'Storage Layout (Sơ Đồ)', icon: Map },
+          { label: 'Support Tickets (Sự Cố)', icon: AlertTriangle },
         ];
       case 'MANAGER':
         return [
           { label: 'Facility Overview', icon: BarChart3 },
-          { label: 'Unit Allocation', icon: Map },
-          { label: 'Customers', icon: Users },
-          { label: 'Overdue Accounts', icon: Wallet },
+          { label: 'Storage Layout (Sơ Đồ Ô Kho)', icon: Map },
+          { label: 'Renewals & Quá Hạn', icon: Wallet },
+          { label: 'Overdue Accounts', icon: Shield },
         ];
       case 'OPS':
         return [
-          { label: 'System Analytics', icon: Activity },
-          { label: 'Facilities', icon: Database },
-          { label: 'Policy & Pricing', icon: Settings },
-          { label: 'Financial Reports', icon: FileText },
+          { label: 'Chính Sách & Biểu Phí & Doanh Thu', icon: Settings },
         ];
       case 'ADMIN':
         return [
           { label: 'Access Control', icon: Shield },
-          { label: 'Audit Logs', icon: ClipboardCheck },
-          { label: 'System Health', icon: Database },
+          { label: 'Gia Hạn & Cron Scan', icon: Wallet },
+          { label: 'Audit Stream', icon: ClipboardCheck },
         ];
     }
   };
@@ -175,7 +182,7 @@ export default function AdminPortal() {
                 return (
                   <button 
                     key={r}
-                    onClick={() => { setRole(r); setIsRoleDropdownOpen(false); }}
+                    onClick={() => handleRoleChange(r)}
                     className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between transition-colors border-b border-slate-50 last:border-0"
                   >
                     <div className="flex items-center gap-2.5">
@@ -199,7 +206,7 @@ export default function AdminPortal() {
       <div className="flex flex-grow overflow-hidden">
         
         {/* Sidebar */}
-        <aside className="w-64 bg-slate-900 flex flex-col">
+        <aside className="w-64 bg-slate-900 flex flex-col shrink-0">
           <div className="flex-grow py-6">
             <div className="px-6 mb-4">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Navigation</p>
@@ -207,11 +214,12 @@ export default function AdminPortal() {
             <nav className="space-y-1 px-3">
               {getSidebarLinks().map((link, idx) => {
                 const Icon = link.icon;
-                const isActive = idx === 0; // Just mocking the first item as active for now
+                const isActive = activeNavIndex === idx;
                 return (
                   <button 
                     key={link.label}
-                    className={`w-full flex items-center px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    onClick={() => setActiveNavIndex(idx)}
+                    className={`w-full flex items-center px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       isActive 
                         ? `${currentTheme.activeBg} ${currentTheme.activeText} font-extrabold shadow-2xs` 
                         : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -249,10 +257,31 @@ export default function AdminPortal() {
 
         {/* Main Content Area */}
         <main className="flex-grow overflow-y-auto p-8 relative">
-          {role === 'STAFF' && <FacilityStaffView />}
-          {role === 'MANAGER' && <FacilityManagerView />}
+          {role === 'STAFF' && (
+            <>
+              {activeNavIndex === 0 && <FacilityStaffView />}
+              {activeNavIndex === 1 && <FacilityLayoutView />}
+              {activeNavIndex === 2 && <StaffSupportTicketsView />}
+            </>
+          )}
+
+          {role === 'MANAGER' && (
+            <>
+              {activeNavIndex === 0 && <FacilityManagerView />}
+              {activeNavIndex === 1 && <FacilityLayoutView />}
+              {(activeNavIndex === 2 || activeNavIndex === 3) && <StaffRenewalsOverdueView />}
+            </>
+          )}
+
           {role === 'OPS' && <BusinessOpsView />}
-          {role === 'ADMIN' && <SystemAdminView />}
+
+          {role === 'ADMIN' && (
+            <>
+              {activeNavIndex === 0 && <SystemAdminView />}
+              {activeNavIndex === 1 && <StaffRenewalsOverdueView />}
+              {activeNavIndex >= 2 && <SystemAdminView />}
+            </>
+          )}
         </main>
 
       </div>

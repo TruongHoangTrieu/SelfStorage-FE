@@ -37,6 +37,10 @@ import PrintModal from './components/PrintModal';
 import StaffLoginModal from './components/StaffLoginModal';
 import StaffProfileView from './components/StaffProfileView';
 import UnitTypesPricingManager from './components/UnitTypesPricingManager';
+import FacilityLayoutView from './components/FacilityLayoutView';
+import StaffSupportTicketsView from './components/StaffSupportTicketsView';
+import StaffRenewalsOverdueView from './components/StaffRenewalsOverdueView';
+import StaffOverviewDashboard from './components/StaffOverviewDashboard';
 
 export default function StaffPortalPage() {
   const router = useRouter();
@@ -720,37 +724,31 @@ export default function StaffPortalPage() {
               </div>
             )}
 
-            {/* CÁC TAB TÁC VỤ PHỤ TRỢ KHÁC */}
-            {activeTab !== 'queue' && activeTab !== 'profile' && activeTab !== 'unit_types' && flowStep === 'queue' && (
-              <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200/90 p-10 text-center space-y-4 shadow-xs animate-slide-up-fade">
-                <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                  {activeTab === 'dashboard' && <LayoutDashboard className="w-8 h-8" />}
-                  {activeTab === 'checkout' && <ArrowUpRight className="w-8 h-8" />}
-                  {activeTab === 'facility' && <MapPin className="w-8 h-8" />}
-                  {activeTab === 'support' && <LifeBuoy className="w-8 h-8" />}
-                  {activeTab === 'settings' && <Settings className="w-8 h-8" />}
-                </div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  {activeTab === 'dashboard' && 'Bảng Điều Khiển Tổng Quan Cơ Sở'}
-                  {activeTab === 'checkout' && 'Quản Lý Trả Kho & Thanh Lý Hợp Đồng'}
-                  {activeTab === 'facility' && 'Sơ Đồ Mặt Bằng & Trạng Thái Ô Kho 24/7'}
-                  {activeTab === 'support' && 'Tiếp Nhận Hỗ Trợ & Xử Lý Sự Cố Khách Hàng'}
-                  {activeTab === 'settings' && 'Cài Đặt Cổng Nhân Viên Cơ Sở'}
-                </h2>
-                <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-                  Bạn đang ở chế độ xem tác vụ phụ trợ. Vui lòng chuyển sang <strong>Hàng đợi nhận kho</strong> để tiếp tục thao tác Luồng 2 (Check-in &amp; Handover).
-                </p>
-                <button
-                  onClick={() => {
-                    setActiveTab('queue');
-                    setFlowStep('queue');
-                  }}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-600/25 transition-all cursor-pointer"
-                >
-                  <Inbox className="w-4 h-4" />
-                  <span>Vào Hàng Đợi Nhận Kho Ngay</span>
-                </button>
-              </div>
+            {/* TAB BẢNG ĐIỀU KHIỂN TỔNG QUAN */}
+            {activeTab === 'dashboard' && flowStep === 'queue' && (
+              <StaffOverviewDashboard
+                facilityName={currentUser?.assignedFacility?.name || 'Chi nhánh Landmark 81'}
+                onNavigateTab={(t) => {
+                  setActiveTab(t);
+                  setFlowStep('queue');
+                }}
+                pendingCheckInsCount={pendingCount}
+              />
+            )}
+
+            {/* TAB SƠ ĐỒ MẶT BẰNG & TRẠNG THÁI Ô KHO 24/7 (FLOW 5) */}
+            {activeTab === 'facility' && flowStep === 'queue' && (
+              <FacilityLayoutView facilityId={currentUser?.facilityId || '1'} />
+            )}
+
+            {/* TAB GIA HẠN HỢP ĐỒNG & XỬ LÝ QUÁ HẠN (FLOW 6) */}
+            {activeTab === 'checkout' && flowStep === 'queue' && (
+              <StaffRenewalsOverdueView facilityId={currentUser?.facilityId || '1'} />
+            )}
+
+            {/* TAB TIẾP NHẬN HỖ TRỢ & XỬ LÝ SỰ CỐ (FLOW 7) */}
+            {activeTab === 'support' && flowStep === 'queue' && (
+              <StaffSupportTicketsView facilityId={currentUser?.facilityId || '1'} />
             )}
           </main>
         </div>
