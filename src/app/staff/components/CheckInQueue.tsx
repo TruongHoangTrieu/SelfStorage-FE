@@ -140,7 +140,7 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
       lateMinutes: diffMinutes,
       isOnTime: false,
       isUpcoming: false,
-      label: `⚠️ ${lateText}`,
+      label: `${lateText}`,
       badgeClass: 'bg-rose-50 text-rose-700 border border-rose-300 font-bold',
     };
   }
@@ -354,36 +354,55 @@ export default function CheckInQueue({
 
   return (
     <div className="space-y-6 w-full max-w-[1800px] mx-auto">
-      {/* 1. Thanh đo lường nhanh (Metrics Bar) */}
+      {/* 1. Thanh đo lường nhanh (Metrics Bar - Bấm vào thẻ để lọc trạng thái) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Tổng lịch hẹn */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Tổng lịch hẹn
+        {/* 1. Tổng lịch hẹn */}
+        <div
+          onClick={() => setStatusFilter('all')}
+          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+            statusFilter === 'all'
+              ? 'bg-slate-100/80 border-slate-400 ring-2 ring-slate-400/20 shadow-xs'
+              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+          }`}
+        >
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+            <span>Tổng lịch hẹn</span>
+            <span className={`w-2 h-2 rounded-full ${statusFilter === 'all' ? 'bg-slate-600' : 'bg-slate-300'}`} />
           </div>
           <div className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
+          <div className="text-[11px] text-slate-500 mt-0.5">
             {stats.todayCount} hôm nay • {Math.max(0, stats.total - stats.todayCount)} ngày khác
           </div>
         </div>
 
-        {/* Chờ đón tiếp (Đúng hẹn) */}
-        <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-2xs bg-blue-50/20">
+        {/* 2. Chờ đón tiếp (Đúng hẹn) */}
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'confirmed' ? 'all' : 'confirmed')}
+          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+            statusFilter === 'confirmed'
+              ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-500/25 shadow-xs'
+              : 'bg-white border-blue-100 hover:border-blue-300 hover:bg-blue-50/20'
+          }`}
+        >
           <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider flex items-center justify-between">
             <span>Chờ đón tiếp</span>
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className={`w-2 h-2 rounded-full ${statusFilter === 'confirmed' ? 'bg-blue-600 ring-2 ring-blue-200' : 'bg-blue-500'}`} />
           </div>
           <div className="text-2xl font-bold text-blue-900 mt-1">{stats.confirmed}</div>
-          <div className="text-[11px] text-blue-700/80 mt-0.5">Sẵn sàng phục vụ đúng hẹn</div>
+          <div className="text-[11px] text-blue-700/90 mt-0.5">
+            Sẵn sàng phục vụ đúng hẹn
+          </div>
         </div>
 
-        {/* Trễ hẹn / Cần gọi (Cảnh báo nghiệp vụ) */}
+        {/* 3. Trễ hẹn / Cần gọi (Cảnh báo nghiệp vụ) */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'late' ? 'all' : 'late')}
-          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all ${
-            stats.lateCount > 0
-              ? 'bg-rose-50/50 border-rose-300 hover:border-rose-400'
-              : 'bg-white border-slate-200'
+          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+            statusFilter === 'late'
+              ? 'bg-rose-50/90 border-rose-500 ring-2 ring-rose-500/25 shadow-xs'
+              : stats.lateCount > 0
+              ? 'bg-rose-50/40 border-rose-200 hover:border-rose-400'
+              : 'bg-white border-slate-200 hover:border-rose-200 hover:bg-rose-50/10'
           }`}
         >
           <div className="text-xs font-semibold text-rose-700 uppercase tracking-wider flex items-center justify-between">
@@ -392,33 +411,51 @@ export default function CheckInQueue({
               <span>Trễ hẹn / Cần gọi</span>
             </span>
             {stats.lateCount > 0 && (
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+              <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'late' ? 'bg-rose-600' : 'bg-rose-500 animate-ping'}`} />
             )}
           </div>
           <div className="text-2xl font-black text-rose-900 mt-1">{stats.lateCount}</div>
           <div className="text-[11px] text-rose-700/90 mt-0.5">
-            {stats.lateCount > 0 ? 'Bấm để lọc đơn cần liên hệ' : 'Không có đơn trễ giờ'}
+            {stats.lateCount > 0 ? 'Cần nhân viên hỗ trợ ngay' : 'Không có đơn trễ giờ'}
           </div>
         </div>
 
-        {/* Đang xử lý */}
-        <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-2xs bg-indigo-50/20">
+        {/* 4. Đang xử lý */}
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'in_progress' ? 'all' : 'in_progress')}
+          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+            statusFilter === 'in_progress'
+              ? 'bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-500/25 shadow-xs'
+              : 'bg-white border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50/20'
+          }`}
+        >
           <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wider flex items-center justify-between">
             <span>Đang xử lý</span>
-            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+            <span className={`w-2 h-2 rounded-full ${statusFilter === 'in_progress' ? 'bg-indigo-600 ring-2 ring-indigo-200' : 'bg-indigo-600 animate-pulse'}`} />
           </div>
           <div className="text-2xl font-bold text-indigo-600 mt-1">{stats.inProgress}</div>
-          <div className="text-[11px] text-slate-600 mt-0.5">Đang bàn giao tại chỗ</div>
+          <div className="text-[11px] text-indigo-700/90 mt-0.5">
+            Đang bàn giao tại chỗ
+          </div>
         </div>
 
-        {/* Hoàn tất */}
-        <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-2xs bg-emerald-50/20">
+        {/* 5. Hoàn tất */}
+        <div
+          onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
+          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+            statusFilter === 'completed'
+              ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/25 shadow-xs'
+              : 'bg-white border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/20'
+          }`}
+        >
           <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider flex items-center justify-between">
             <span>Hoàn tất</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className={`w-2 h-2 rounded-full ${statusFilter === 'completed' ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-emerald-500'}`} />
           </div>
           <div className="text-2xl font-bold text-emerald-900 mt-1">{stats.completed}</div>
-          <div className="text-[11px] text-emerald-700/80 mt-0.5">Đã bàn giao ô kho</div>
+          <div className="text-[11px] text-emerald-700/90 mt-0.5">
+            Đã bàn giao ô kho
+          </div>
         </div>
       </div>
 
@@ -561,13 +598,13 @@ export default function CheckInQueue({
       {viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
           {renderKanbanColumn(
-            'Chờ đón tiếp (Đúng hẹn)',
+            'Chờ đón tiếp',
             'confirmed',
             'bg-blue-50 text-blue-700',
             'border-t-4 border-blue-500'
           )}
           {renderKanbanColumn(
-            '⚠️ Trễ hẹn / Cần gọi',
+            ' Trễ hẹn / Cần gọi',
             'late',
             'bg-rose-50 text-rose-700',
             'border-t-4 border-rose-500'
@@ -592,12 +629,15 @@ export default function CheckInQueue({
         isOpen={!!contactModalApt}
         onClose={() => setContactModalApt(null)}
         appointment={contactModalApt}
+        onOpenReschedule={(apt) => setRescheduleModalApt(apt)}
+        onOpenNoShow={(apt) => setNoShowModalApt(apt)}
       />
 
       <RescheduleModal
         isOpen={!!rescheduleModalApt}
         onClose={() => setRescheduleModalApt(null)}
         appointment={rescheduleModalApt}
+        existingAppointments={appointments}
         onConfirm={async (apt, newIsoDate, newSlotTime, notes) => {
           if (onReschedule) {
             await onReschedule(apt, newIsoDate, newSlotTime, notes);
@@ -729,42 +769,17 @@ export default function CheckInQueue({
             </div>
           ) : (
             <>
-              {/* Nút Gọi / SMS, Dời Lịch, Báo Vắng: Chỉ hiển thị khi TRỄ HẸN (isLate) */}
+              {/* Khi TRỄ HẸN (isLate): Bắt buộc gọi điện / liên hệ xác nhận trước */}
               {isLate && (
-                <>
-                  {/* Nút Gọi / SMS */}
-                  <button
-                    type="button"
-                    onClick={() => setContactModalApt(apt)}
-                    title="Gọi điện hoặc sao chép SMS nhắc hẹn"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-xl border border-slate-200 transition-all cursor-pointer"
-                  >
-                    <Phone className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Liên hệ</span>
-                  </button>
-
-                  {/* Nút Dời Lịch Hẹn */}
-                  <button
-                    type="button"
-                    onClick={() => setRescheduleModalApt(apt)}
-                    title="Dời sang ca hoặc ngày khác khi khách bận"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-xl border border-slate-200 transition-all cursor-pointer"
-                  >
-                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Dời lịch</span>
-                  </button>
-
-                  {/* Nút Báo Vắng Mặt / Hủy Giữ Chỗ (No-show) */}
-                  <button
-                    type="button"
-                    onClick={() => setNoShowModalApt(apt)}
-                    title="Khách không đến quá 60 phút, hủy đơn và giải phóng kho"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all cursor-pointer"
-                  >
-                    <UserX className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Báo vắng</span>
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => setContactModalApt(apt)}
+                  title="Khách trễ hẹn: Bấm để gọi điện/liên hệ xác nhận tình trạng trước khi dời lịch hoặc báo vắng"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl border border-blue-200 transition-all cursor-pointer shadow-2xs"
+                >
+                  <Phone className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                  <span>Liên hệ xác nhận</span>
+                </button>
               )}
 
               {/* Nút Bắt đầu nhận kho */}
@@ -878,32 +893,15 @@ export default function CheckInQueue({
                   {apt.status !== 'completed' && apt.status !== 'cancelled' && (
                     <div className="pt-1 flex items-center gap-1.5 flex-wrap">
                       {isLate && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => setContactModalApt(apt)}
-                            title="Gọi / Nhắc hẹn"
-                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-colors"
-                          >
-                            <Phone className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setRescheduleModalApt(apt)}
-                            title="Dời lịch"
-                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-amber-600 hover:border-amber-200 cursor-pointer transition-colors"
-                          >
-                            <Clock className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setNoShowModalApt(apt)}
-                            title="Báo vắng"
-                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 cursor-pointer transition-colors"
-                          >
-                            <UserX className="w-3.5 h-3.5" />
-                          </button>
-                        </>
+                        <button
+                          type="button"
+                          onClick={() => setContactModalApt(apt)}
+                          title="Trễ hẹn: Bấm để liên hệ khách hàng xác nhận"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-bold hover:bg-blue-100 cursor-pointer transition-colors"
+                        >
+                          <Phone className="w-3 h-3 text-blue-600" />
+                          <span>Liên hệ</span>
+                        </button>
                       )}
 
                       {/* Nút nhận kho */}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, X, Check, ShieldAlert, Trash2 } from 'lucide-react';
+import { AlertTriangle, X, Check, ShieldAlert, Trash2, Phone } from 'lucide-react';
 import { CheckInAppointment } from '../types';
 
 interface NoShowModalProps {
@@ -31,12 +31,14 @@ export default function NoShowModal({
 
   const [selectedReason, setSelectedReason] = useState<string>(PRESET_REASONS[0]);
   const [customReason, setCustomReason] = useState<string>('');
+  const [hasContactVerified, setHasContactVerified] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    setHasContactVerified(false);
+  }, [isOpen]);
 
   if (!isOpen || !appointment || !mounted) return null;
 
@@ -179,6 +181,33 @@ export default function NoShowModal({
             </div>
           </div>
 
+          {/* 3. Bắt buộc: Xác nhận liên hệ trước khi hủy đơn */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              3. Xác Nhận Đã Liên Hệ Khách Hàng
+            </label>
+            <div className={`p-3.5 rounded-xl border transition-all ${
+              hasContactVerified ? 'bg-emerald-50/60 border-emerald-300' : 'bg-rose-50/50 border-rose-300'
+            }`}>
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={hasContactVerified}
+                  onChange={(e) => setHasContactVerified(e.target.checked)}
+                  className="mt-0.5 rounded text-rose-600 focus:ring-rose-500 w-4 h-4 cursor-pointer"
+                />
+                <div className="text-xs">
+                  <span className={`font-bold ${hasContactVerified ? 'text-emerald-900' : 'text-rose-950'}`}>
+                    Xác nhận đã gọi điện thoại/liên hệ với khách hàng
+                  </span>
+                  <p className={`text-[11px] mt-0.5 leading-relaxed ${hasContactVerified ? 'text-emerald-800' : 'text-rose-800'}`}>
+                    Tôi xác nhận đã gọi điện thoại qua số <strong>{appointment.phone}</strong> (hoặc khách đã chủ động gọi thông báo hủy) trước khi thực hiện thu hồi ô kho và khấu trừ 100% tiền cọc.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           {/* Buttons */}
           <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-100">
             <button
@@ -191,8 +220,9 @@ export default function NoShowModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              disabled={isSubmitting || !hasContactVerified}
+              title={!hasContactVerified ? 'Vui lòng xác nhận đã liên hệ khách hàng trước khi hủy' : undefined}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <span>Đang xử lý...</span>
