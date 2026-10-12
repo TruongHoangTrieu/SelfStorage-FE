@@ -64,7 +64,7 @@ export default function StaffOverviewDashboard({
           className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs hover:border-blue-400 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">Check-in Hôm Nay (Flow 2)</span>
+            <span className="text-xs font-bold text-slate-500">Check-in Hôm Nay</span>
             <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold group-hover:scale-105 transition">
               <Calendar className="w-4 h-4" />
             </div>
@@ -78,7 +78,7 @@ export default function StaffOverviewDashboard({
           className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs hover:border-indigo-400 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">Tỷ Lệ Lấp Đầy (Flow 5)</span>
+            <span className="text-xs font-bold text-slate-500">Tỷ Lệ Lấp Đầy</span>
             <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold group-hover:scale-105 transition">
               <Layers className="w-4 h-4" />
             </div>
@@ -92,7 +92,7 @@ export default function StaffOverviewDashboard({
           className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs hover:border-amber-400 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">Gia Hạn & Quá Hạn (Flow 6)</span>
+            <span className="text-xs font-bold text-slate-500">Gia Hạn & Quá Hạn</span>
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold group-hover:scale-105 transition">
               <Clock className="w-4 h-4" />
             </div>
@@ -106,7 +106,7 @@ export default function StaffOverviewDashboard({
           className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs hover:border-rose-400 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">Yêu Cầu Sự Cố (Flow 7)</span>
+            <span className="text-xs font-bold text-slate-500">Yêu Cầu Sự Cố</span>
             <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold group-hover:scale-105 transition">
               <LifeBuoy className="w-4 h-4" />
             </div>

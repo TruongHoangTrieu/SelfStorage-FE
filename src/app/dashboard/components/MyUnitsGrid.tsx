@@ -248,7 +248,7 @@ export default function MyUnitsGrid({
               <h3 className="text-lg font-bold text-slate-900">Chưa có ô kho nào được kích hoạt hợp đồng</h3>
               <p className="text-slate-500 text-xs sm:text-sm mt-1.5 max-w-md mx-auto leading-relaxed">
                 {pendingReservations.length > 0
-                  ? 'Đơn đặt giữ chỗ của bạn ở trên đã ghi nhận cọc thành công. Khi bạn đến cơ sở nhận bàn giao kho (Flow 2), hợp đồng chính thức sẽ được kích hoạt tại đây.'
+                  ? 'Đơn đặt giữ chỗ của bạn ở trên đã ghi nhận cọc thành công. Khi bạn đến cơ sở nhận bàn giao kho, hợp đồng chính thức sẽ được kích hoạt tại đây.'
                   : 'Bạn hiện chưa thuê ô kho nào trên hệ thống. Hãy tìm kiếm kho lưu trữ gần bạn để đặt chỗ ngay.'}
               </p>
             </div>

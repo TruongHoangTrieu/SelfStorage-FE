@@ -16,6 +16,7 @@ import {
   Boxes,
   User,
   LogIn,
+  Clock,
 } from 'lucide-react';
 import { StaffTab, StaffUser } from '../types';
 
@@ -23,6 +24,7 @@ interface SidebarProps {
   activeTab: StaffTab;
   onSelectTab: (tab: StaffTab) => void;
   pendingCount: number;
+  pendingRenewalsCount?: number;
   currentUser?: StaffUser | null;
   onOpenLoginModal?: () => void;
   onLogout?: () => void;
@@ -35,6 +37,7 @@ export default function Sidebar({
   activeTab,
   onSelectTab,
   pendingCount,
+  pendingRenewalsCount,
   currentUser,
   onOpenLoginModal,
   onLogout,
@@ -77,7 +80,12 @@ export default function Sidebar({
     ...(canManagePricing
       ? [{ id: 'unit_types' as StaffTab, label: 'Loại kho & Bảng giá', icon: Boxes }]
       : []),
-    { id: 'checkout' as StaffTab, label: 'Quản lý trả kho', icon: ArrowUpRight },
+    {
+      id: 'checkout' as StaffTab,
+      label: 'Gia hạn & Quá hạn',
+      icon: Clock,
+      badge: pendingRenewalsCount && pendingRenewalsCount > 0 ? pendingRenewalsCount : undefined,
+    },
     { id: 'facility' as StaffTab, label: 'Sơ đồ & Ô kho 24/7', icon: MapPin },
   ];
 

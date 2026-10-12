@@ -421,7 +421,7 @@ export default function BusinessOpsFlow4() {
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Tỷ lệ tiền cọc giữ chỗ khi Đặt online (Flow 1)
+                  Tỷ lệ tiền cọc giữ chỗ khi Đặt online
                 </label>
                 <div className="relative">
                   <input
@@ -652,7 +652,7 @@ export default function BusinessOpsFlow4() {
                 Chương Trình Khuyến Mãi &amp; Voucher Giảm Giá
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Tạo mã voucher áp dụng khi khách hàng đặt chỗ giữ kho (Flow 1) hoặc thanh toán thuê dài hạn.
+                Tạo mã voucher áp dụng khi khách hàng đặt chỗ giữ kho hoặc thanh toán thuê dài hạn.
               </p>
             </div>
             <button

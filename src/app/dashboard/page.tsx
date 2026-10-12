@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { CustomerUnit, CustomerTab, GuestPass, SupportTicket, CustomerUser } from './types';
 import { INITIAL_CUSTOMER_UNITS } from './mockData';
 import { customerUnitsApi } from '@/lib/api/customerUnits';
+import { renewalsApi } from '@/lib/api/renewals';
 
 // Modular Components
 import CustomerSidebar from './components/CustomerSidebar';
@@ -43,7 +44,6 @@ import CustomerSupportView from './components/CustomerSupportView';
 import CustomerAccessView from './components/CustomerAccessView';
 import CustomerDocumentsView from './components/CustomerDocumentsView';
 import CustomerBillingView from './components/CustomerBillingView';
-import { renewalsApi } from '@/lib/api/renewals';
 
 export default function CustomerDashboardPage() {
   // Navigation & Sub-views State
@@ -121,21 +121,32 @@ export default function CustomerDashboardPage() {
         setReservations(rawReservations);
 
         if (liveUnits && liveUnits.length > 0) {
-          // Also fetch payment history and support tickets
-          const [payments, tickets] = await Promise.allSettled([
+          // Also fetch payment history, support tickets, and pending renewals
+          const [payments, tickets, renewalsRes] = await Promise.allSettled([
             customerUnitsApi.fetchPayments(),
             customerUnitsApi.fetchSupportRequests(),
+            renewalsApi.getRenewals({ status: 'PENDING' }),
           ]);
 
           const realPayments = payments.status === 'fulfilled' ? payments.value : [];
           const realTickets = tickets.status === 'fulfilled' ? tickets.value : [];
+          const pendingRenewalsRaw = renewalsRes.status === 'fulfilled' ? renewalsRes.value : [];
+          const pendingRenewals = Array.isArray(pendingRenewalsRaw)
+            ? pendingRenewalsRaw
+            : (pendingRenewalsRaw as any)?.data || [];
 
-          // Attach payments and tickets to units
-          const enrichedUnits = liveUnits.map((u, idx) => ({
-            ...u,
-            paymentHistory: idx === 0 ? realPayments : [],
-            supportTickets: realTickets.filter(t => t.unitCode.includes(u.unitNumber) || idx === 0),
-          }));
+          // Attach payments, tickets, and check pending renewals
+          const enrichedUnits = liveUnits.map((u, idx) => {
+            const hasPendingRen = pendingRenewals.some(
+              (r: any) => (String(r.contractId) === String(u.rawContractId) || String(r.contract?.id) === String(u.rawContractId)) && r.status === 'PENDING'
+            );
+            return {
+              ...u,
+              statusLabel: hasPendingRen ? 'Chờ duyệt gia hạn' : u.statusLabel,
+              paymentHistory: idx === 0 ? realPayments : [],
+              supportTickets: realTickets.filter(t => t.unitCode.includes(u.unitNumber) || idx === 0),
+            };
+          });
 
           setUnits(enrichedUnits);
           setSelectedUnitId(enrichedUnits[0].id);
@@ -303,69 +314,40 @@ export default function CustomerDashboardPage() {
     triggerToast(`Đã tạo mã khách ${newPass.pin} thành công cho ${newPass.guestName}!`);
   };
 
-  // Callback: Gia hạn hợp đồng & thanh toán
+  // Callback: Gia hạn hợp đồng & gửi yêu cầu đến nhân viên
   const handleConfirmExtend = async (
     months: number,
     newTotal: string,
     paymentMethod: string = 'vnpay',
-    rawAmount?: number
+    _rawAmount?: number
   ) => {
     try {
-      // 1. Gửi yêu cầu gia hạn qua API Renewals (Flow 6)
       if (targetModalUnit?.rawContractId) {
-        try {
-          await renewalsApi.requestRenewal({
-            contractId: String(targetModalUnit.rawContractId),
-            months,
-            notes: `Khách hàng gia hạn ${months} tháng qua cổng trực tuyến (${paymentMethod.toUpperCase()})`,
-          });
-        } catch (renErr) {
-          console.warn('Backend renewal request notice:', renErr);
-        }
+        await renewalsApi.requestRenewal({
+          contractId: String(targetModalUnit.rawContractId),
+          months,
+          notes: `Khách hàng gửi yêu cầu gia hạn ${months} tháng (${newTotal}) qua phương thức ${paymentMethod.toUpperCase()}`,
+        });
       }
 
-      // 2. Gửi lệnh thanh toán gia hạn lên Backend
-      await customerUnitsApi.extendLeasePayment({
-        contractCode: targetModalUnit?.contractId,
-        months,
-        amount: rawAmount || (targetModalUnit?.monthlyRentNum ? targetModalUnit.monthlyRentNum * months : 2500000),
-        paymentMethod: paymentMethod === 'card' ? 'CARD' : paymentMethod === 'bank' ? 'MOMO' : paymentMethod === 'vnpay' ? 'VNPAY' : 'BANK_TRANSFER',
-      });
-
-      // 2. Cập nhật state UI tức thì
+      // Cập nhật trạng thái ô kho sang chờ duyệt gia hạn
       setUnits(prev => prev.map(u => {
         if (u.id === targetModalUnit?.id) {
           return {
             ...u,
-            status: 'active',
-            statusLabel: 'Đang hoạt động',
-            daysRemaining: u.daysRemaining + (months * 30),
-            currentBalance: '0 đ (Đã thanh toán)',
+            statusLabel: `Chờ duyệt gia hạn (+${months}T)`,
           };
         }
         return u;
       }));
 
-      triggerToast(`Thanh toán thành công ${newTotal}! Đã gia hạn ô ${targetModalUnit?.unitNumber} thêm ${months} tháng.`);
+      triggerToast(`Đã gửi yêu cầu gia hạn thêm ${months} tháng (${newTotal})! Vui lòng chờ nhân viên cơ sở phê duyệt.`);
 
-      // 3. Tải lại dữ liệu hợp đồng & lịch sử thanh toán
+      // Tải lại dữ liệu hợp đồng & cập nhật danh sách
       loadContractsData(false);
     } catch (err: any) {
-      console.warn('Extend lease payment warning:', err);
-      // Cập nhật UI lạc quan nếu có gián đoạn mạng
-      setUnits(prev => prev.map(u => {
-        if (u.id === targetModalUnit?.id) {
-          return {
-            ...u,
-            status: 'active',
-            statusLabel: 'Đang hoạt động',
-            daysRemaining: u.daysRemaining + (months * 30),
-            currentBalance: '0 đ (Đã thanh toán)',
-          };
-        }
-        return u;
-      }));
-      triggerToast(`Gia hạn thành công ô ${targetModalUnit?.unitNumber} thêm ${months} tháng (${newTotal})!`);
+      console.error('Lỗi khi gửi yêu cầu gia hạn:', err);
+      triggerToast(err?.message || 'Không thể gửi yêu cầu gia hạn. Vui lòng thử lại sau.');
     }
   };
 

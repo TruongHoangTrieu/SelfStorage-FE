@@ -103,7 +103,13 @@ export const facilitiesApi = {
 
   // Flow 5: Danh sách nhân viên tại cơ sở
   getStaffByFacility: async (facilityId: string, includeEnded = false) => {
-    return api.get<FacilityStaffAssignment[]>(`/facilities/${facilityId}/staff?includeEnded=${includeEnded}`);
+    const res = await api.get<any>(`/facilities/${facilityId}/staff?includeEnded=${includeEnded}`);
+    const staffList = Array.isArray(res) ? res : (res?.staff || []);
+    return {
+      facility: res?.facility || null,
+      totalStaff: res?.totalStaff ?? staffList.length,
+      staff: staffList,
+    };
   },
 
   // Flow 5: Phân công nhân viên vào cơ sở
@@ -111,21 +117,22 @@ export const facilitiesApi = {
     facilityId: string,
     dto: {
       userId: string;
-      roleInFacility?: string;
-      shift?: string;
-      startDate?: string;
-      notes?: string;
+      position: string;
+      [key: string]: any;
     }
   ) => {
-    return api.post<FacilityStaffAssignment>(`/facilities/${facilityId}/staff`, dto);
+    return api.post<any>(`/facilities/${facilityId}/staff`, {
+      userId: dto.userId,
+      position: dto.position,
+    });
   },
 
   // Flow 5: Kết thúc phân công nhân viên
   endStaffAssignment: async (
     assignmentId: string,
-    dto?: { endDate?: string; reason?: string }
+    dto?: { endedAt?: string }
   ) => {
-    return api.patch<FacilityStaffAssignment>(`/facilities/staff-assignments/${assignmentId}/end`, dto || {});
+    return api.patch<any>(`/facilities/staff-assignments/${assignmentId}/end`, dto || {});
   },
 
   // Flow 5: Hỗ trợ tại cơ sở

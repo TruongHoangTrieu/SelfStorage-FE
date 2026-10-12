@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 // Import Types & Mock Data
 import { CheckInAppointment, AvailableUnit, StaffTab, FlowStep, StaffUser } from './types';
 import { handoversApi } from '../../lib/api/handovers';
+import { renewalsApi } from '@/lib/api/renewals';
 
 // Import Sub-Components
 import Sidebar from './components/Sidebar';
@@ -67,6 +68,7 @@ export default function StaffPortalPage() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoadingQueue, setIsLoadingQueue] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pendingRenewalsCount, setPendingRenewalsCount] = useState(0);
 
   // Appointments & Units State
   const [appointments, setAppointments] = useState<CheckInAppointment[]>([]);
@@ -140,6 +142,18 @@ export default function StaffPortalPage() {
         // Lấy danh sách ô kho trống khả dụng của đúng cơ sở này
         const unitsRes = await handoversApi.fetchAvailableUnits(staffFacilityId);
         setAvailableUnits(unitsRes || []);
+
+        // Lấy số lượng yêu cầu gia hạn đang chờ duyệt
+        try {
+          const renRes = await renewalsApi.getRenewals({
+            facilityId: staffFacilityId ? String(staffFacilityId) : undefined,
+            status: 'PENDING',
+          });
+          const renItems = Array.isArray(renRes) ? renRes : (renRes as any)?.data || [];
+          setPendingRenewalsCount(renItems.filter((r: any) => r.status === 'PENDING').length);
+        } catch {
+          // Bỏ qua lỗi phụ nếu chưa có dữ liệu gia hạn
+        }
       } else {
         setUsingLiveApi(false);
         setAppointments([]);
@@ -579,6 +593,7 @@ export default function StaffPortalPage() {
             setIsMobileSidebarOpen(false);
           }}
           pendingCount={pendingCount}
+          pendingRenewalsCount={pendingRenewalsCount}
           currentUser={currentUser}
           onOpenLoginModal={() => setIsLoginModalOpen(true)}
           onLogout={handleLogout}
@@ -738,17 +753,20 @@ export default function StaffPortalPage() {
 
             {/* TAB SƠ ĐỒ MẶT BẰNG & TRẠNG THÁI Ô KHO 24/7 (FLOW 5) */}
             {activeTab === 'facility' && flowStep === 'queue' && (
-              <FacilityLayoutView facilityId={currentUser?.facilityId || '1'} />
+              <FacilityLayoutView 
+                facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''} 
+                userRole={currentUser?.role}
+              />
             )}
 
             {/* TAB GIA HẠN HỢP ĐỒNG & XỬ LÝ QUÁ HẠN (FLOW 6) */}
             {activeTab === 'checkout' && flowStep === 'queue' && (
-              <StaffRenewalsOverdueView facilityId={currentUser?.facilityId || '1'} />
+              <StaffRenewalsOverdueView facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''} />
             )}
 
             {/* TAB TIẾP NHẬN HỖ TRỢ & XỬ LÝ SỰ CỐ (FLOW 7) */}
             {activeTab === 'support' && flowStep === 'queue' && (
-              <StaffSupportTicketsView facilityId={currentUser?.facilityId || '1'} />
+              <StaffSupportTicketsView facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''} />
             )}
           </main>
         </div>

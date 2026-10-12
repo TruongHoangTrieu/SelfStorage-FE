@@ -232,7 +232,7 @@ export default function StaffSupportTicketsView({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                Tiếp Nhận & Xử Lý Sự Cố Khách Hàng (Flow 7)
+                Tiếp Nhận & Xử Lý Sự Cố Khách Hàng
               </h2>
               <p className="text-xs text-slate-500">
                 Hỗ trợ kỹ thuật tại chỗ, xử lý mất thẻ/chìa, lỗi mã PIN khóa thông minh, hư hỏng cơ sở vật chất.

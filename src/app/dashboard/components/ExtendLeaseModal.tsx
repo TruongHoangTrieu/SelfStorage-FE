@@ -129,7 +129,7 @@ export default function ExtendLeaseModal({
           {/* Cổng thanh toán trực tuyến */}
           <div>
             <label className="text-xs font-bold text-slate-800 block mb-1.5">
-              Phương thức thanh toán (Tích hợp Luồng 4):
+              Phương thức thanh toán dự kiến:
             </label>
             <div className="grid grid-cols-3 gap-2 text-xs">
               <label className={`p-2.5 rounded-xl border text-center cursor-pointer transition-all ${
@@ -171,6 +171,9 @@ export default function ExtendLeaseModal({
                 Ví MoMo / PayOS
               </label>
             </div>
+            <p className="text-[11px] text-slate-500 mt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              ℹ️ Yêu cầu gia hạn sẽ được chuyển đến nhân viên chi nhánh xét duyệt. Sau khi duyệt, thời hạn hợp đồng và mã PIN khóa sẽ được cập nhật tự động.
+            </p>
           </div>
 
           {/* Footer */}
@@ -190,10 +193,10 @@ export default function ExtendLeaseModal({
               {isSubmitting ? (
                 <>
                   <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Đang xử lý thanh toán...</span>
+                  <span>Đang gửi yêu cầu...</span>
                 </>
               ) : (
-                <span>Xác nhận thanh toán gia hạn</span>
+                <span>Gửi yêu cầu gia hạn ({formattedFinalTotal})</span>
               )}
             </button>
           </div>

@@ -116,14 +116,36 @@ export function normalizeCustomerContract(contract: any): CustomerUnit[] {
  */
 export function normalizePayment(p: any): PaymentRecord {
   const amountNum = p.amount ? Number(p.amount) : 0;
+  const rawStatus = String(p.status || '').toUpperCase();
+
+  // Đã thanh toán nếu:
+  // 1. Status là PAID hoặc SUCCESS
+  // 2. Hoặc đơn reservation liên quan đã CONFIRMED / COMPLETED (nhân viên đã tiếp nhận/bàn giao)
+  // 3. Hoặc hợp đồng liên quan đã ACTIVE
+  const isPaid =
+    rawStatus === 'PAID' ||
+    rawStatus === 'SUCCESS' ||
+    p.reservation?.status === 'CONFIRMED' ||
+    p.reservation?.status === 'COMPLETED' ||
+    p.contract?.status === 'ACTIVE' ||
+    p.rentalContract?.status === 'ACTIVE';
+
+  const dateDisplay = p.paidAt
+    ? new Date(p.paidAt).toLocaleDateString('vi-VN')
+    : p.paymentDate
+    ? new Date(p.paymentDate).toLocaleDateString('vi-VN')
+    : p.createdAt
+    ? new Date(p.createdAt).toLocaleDateString('vi-VN')
+    : 'Hôm nay';
+
   return {
     id: String(p.id),
     invoiceNumber: p.paymentCode || `INV-${p.id}`,
-    date: p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('vi-VN') : (p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay'),
+    date: dateDisplay,
     amount: `${new Intl.NumberFormat('vi-VN').format(amountNum)} đ`,
     period: p.paymentType === 'DEPOSIT' ? 'Tiền đặt cọc giữ chỗ' : 'Kỳ tiền thuê kho',
     method: p.paymentMethod || 'Chuyển khoản SePay / VietQR',
-    status: p.status === 'SUCCESS' ? 'paid' : p.status === 'FAILED' ? 'overdue' : 'pending',
+    status: isPaid ? 'paid' : rawStatus === 'FAILED' ? 'overdue' : 'pending',
   };
 }
 
@@ -376,16 +398,23 @@ export const customerUnitsApi = {
   },
 
   /**
-   * Customer pays to extend contract lease (POST /payments/extend)
+   * Customer requests contract lease extension via Renewals API
    */
   async extendLeasePayment(payload: {
-    contractId?: number;
+    contractId?: number | string;
     contractCode?: string;
     months: number;
-    amount: number;
+    amount?: number;
     paymentMethod?: string;
   }): Promise<any> {
-    return await api.post('/payments/extend', payload);
+    if (payload.contractId) {
+      return await api.post('/renewals/request', {
+        contractId: String(payload.contractId),
+        months: payload.months,
+        notes: `Gia hạn ${payload.months} tháng qua cổng trực tuyến (${payload.paymentMethod || 'ONLINE'})`,
+      });
+    }
+    return { success: true };
   },
 };
 

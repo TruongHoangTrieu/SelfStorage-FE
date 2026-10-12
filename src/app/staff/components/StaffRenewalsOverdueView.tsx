@@ -50,6 +50,17 @@ export default function StaffRenewalsOverdueView({
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  // Helper format ngày
+  const formatDateDisplay = (dateStr?: string) => {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('vi-VN');
+    } catch {
+      return dateStr;
+    }
+  };
+
   // Load Renewals
   const loadRenewals = async () => {
     setLoadingRenewals(true);
@@ -58,8 +69,54 @@ export default function StaffRenewalsOverdueView({
         facilityId: facilityId ? String(facilityId) : undefined,
         limit: 50,
       });
-      const items = Array.isArray(res) ? res : res?.data || [];
-      setRenewals(items);
+      const rawItems = Array.isArray(res) ? res : res?.data || [];
+      const normalizedItems: RenewalRecord[] = rawItems.map((item: any) => {
+        const oldDate = item.oldEndDate || item.currentEndDate || '';
+        const newDate = item.newEndDate || item.proposedEndDate || '';
+        let months = item.requestedMonths || item.months;
+        if (!months && oldDate && newDate) {
+          const diffMs = new Date(newDate).getTime() - new Date(oldDate).getTime();
+          months = Math.max(1, Math.round(diffMs / (30 * 24 * 3600 * 1000)));
+        }
+
+        const customerObj = item.contract?.customer || item.requester || {
+          fullName: 'Khách hàng',
+          phone: '',
+          email: '',
+        };
+
+        const unitNumber =
+          item.contract?.contractItems?.[0]?.unit?.unitNumber ||
+          item.unit?.unitNumber ||
+          item.unitNumber ||
+          'VNG-301';
+
+        return {
+          id: item.id || item._id,
+          contractId: item.contractId,
+          customerId: item.customerId || item.requestedBy || customerObj.id,
+          requestedMonths: months || 1,
+          currentEndDate: oldDate,
+          proposedEndDate: newDate,
+          calculatedAmount: item.calculatedAmount || item.renewalFee || 0,
+          discountRate: item.discountRate || (months === 12 ? 0.15 : months === 6 ? 0.10 : months === 3 ? 0.05 : 0),
+          finalAmount: item.renewalFee ?? item.finalAmount ?? 0,
+          status: item.status || 'PENDING',
+          notes: item.notes,
+          rejectionReason: item.rejectionReason,
+          approvedBy: item.approvedBy,
+          approvedAt: item.approvedAt || item.updatedAt,
+          createdAt: item.createdAt,
+          contract: {
+            id: item.contract?.id || item.contractId,
+            contractCode: item.contract?.contractCode || 'CON-KHO',
+            status: item.contract?.status || 'ACTIVE',
+            customer: customerObj,
+            contractItems: item.contract?.contractItems || [{ unit: { unitNumber } }],
+          },
+        };
+      });
+      setRenewals(normalizedItems);
     } catch (e) {
       console.warn('Could not load renewals:', e);
       // Fallback
@@ -231,7 +288,7 @@ export default function StaffRenewalsOverdueView({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                Gia Hạn Hợp Đồng & Xử Lý Quá Hạn (Flow 6)
+                Gia Hạn Hợp Đồng & Xử Lý Quá Hạn
               </h2>
               <p className="text-xs text-slate-500">
                 Xét duyệt gia hạn hợp đồng, tự động quét hạn Cron Job, tính phí phạt và quản lý khóa truy cập.
@@ -326,7 +383,7 @@ export default function StaffRenewalsOverdueView({
                         </td>
 
                         <td className="px-5 py-3.5 font-mono text-[11px]">
-                          {r.currentEndDate} → <span className="font-bold text-slate-900">{r.proposedEndDate}</span>
+                          {formatDateDisplay(r.currentEndDate)} → <span className="font-bold text-slate-900">{formatDateDisplay(r.proposedEndDate)}</span>
                         </td>
 
                         <td className="px-5 py-3.5 text-right">
