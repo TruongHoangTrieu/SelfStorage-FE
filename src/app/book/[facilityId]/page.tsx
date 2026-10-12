@@ -223,12 +223,17 @@ function BookingFlowContent() {
           setDurationOptions(durationsData);
         }
 
-        // Tự động nhận diện loại kho từ URL và nhảy thẳng sang Bước 2 (Lịch Dọn Đồ)
+        // Tự động nhận diện loại kho từ URL và nhảy thẳng sang Bước 2 (Lịch Dọn Đồ) nếu còn chỗ
         if (unitTypeIdParam && Array.isArray(typesList) && typesList.length > 0) {
           const matched = typesList.find((t: any) => String(t.id) === String(unitTypeIdParam));
           if (matched) {
-            setSelectedUnitType(matched);
-            setStep("schedule");
+            const isAvail = (matched.availableUnits ?? 1) > 0;
+            if (isAvail) {
+              setSelectedUnitType(matched);
+              setStep("schedule");
+            } else {
+              toast.warning(`Loại kho "${matched.name}" tại cơ sở này hiện đã kín chỗ. Vui lòng chọn loại kho khác còn trống.`);
+            }
           }
         }
       } catch (e) {
@@ -780,19 +785,34 @@ function BookingFlowContent() {
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-10">
                       {unitTypes.map((ut) => {
                         const isSelected = selectedUnitType?.id === ut.id;
+                        const isAvailable = (ut.availableUnits ?? 1) > 0;
                         return (
                           <div
                             key={ut.id}
-                            onClick={() => setSelectedUnitType(ut)}
-                            className={`text-left rounded-3xl border-2 p-5 sm:p-6 transition-all duration-300 flex flex-col justify-between cursor-pointer relative ${
-                              isSelected
-                                ? "border-blue-600 bg-blue-50/20 shadow-lg shadow-blue-500/10 scale-[1.02]"
-                                : "border-slate-200 hover:border-blue-400 hover:shadow-md bg-white"
+                            onClick={() => {
+                              if (!isAvailable) {
+                                toast.warning(`Loại kho "${ut.name}" hiện đã kín chỗ. Vui lòng chọn loại kho khác.`);
+                                return;
+                              }
+                              setSelectedUnitType(ut);
+                            }}
+                            className={`text-left rounded-3xl border-2 p-5 sm:p-6 transition-all duration-300 flex flex-col justify-between relative ${
+                              !isAvailable
+                                ? "border-slate-200/80 bg-slate-50/70 opacity-60 cursor-not-allowed select-none"
+                                : isSelected
+                                ? "border-blue-600 bg-blue-50/20 shadow-lg shadow-blue-500/10 scale-[1.02] cursor-pointer"
+                                : "border-slate-200 hover:border-blue-400 hover:shadow-md bg-white cursor-pointer"
                             }`}
                           >
                             {isSelected && (
                               <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
                                 <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              </div>
+                            )}
+
+                            {!isAvailable && (
+                              <div className="absolute top-4 right-4 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200">
+                                Đã kín chỗ
                               </div>
                             )}
 
@@ -826,6 +846,12 @@ function BookingFlowContent() {
                                   Cọc: {Number(ut.depositAmount).toLocaleString("vi-VN")} đ
                                 </span>
                               </div>
+
+                              {!isAvailable && (
+                                <div className="mt-3 py-1.5 px-3 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold text-center border border-amber-200/60">
+                                  Tạm hết phòng trống
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -834,11 +860,9 @@ function BookingFlowContent() {
                   )}
 
                   <div className="flex items-center justify-between pt-6 border-t border-slate-100">
-                    
-
                     <button
                       onClick={() => setStep("schedule")}
-                      disabled={!selectedUnitType}
+                      disabled={!selectedUnitType || (selectedUnitType.availableUnits ?? 1) <= 0}
                       className="inline-flex justify-center items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm uppercase tracking-wider rounded-full shadow-md shadow-orange-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer ml-auto"
                     >
                       <span>Tiếp tục bước 2</span>

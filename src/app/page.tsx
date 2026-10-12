@@ -543,12 +543,20 @@ export default function LandingPage() {
                       <ChevronRight className="w-4 h-4" />
                     </Link>
                     {canRentStorage && (
-                      <Link
-                        href={`/book/${fac.id}`}
-                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-sm transition hover:-translate-y-0.5"
-                      >
-                        Đặt Phòng Ngay
-                      </Link>
+                      (fac.availableUnits ?? 0) > 0 ? (
+                        <Link
+                          href={`/book/${fac.id}`}
+                          className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-sm transition hover:-translate-y-0.5"
+                        >
+                          Đặt Phòng Ngay
+                        </Link>
+                      ) : (
+                        <span
+                          className="px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 font-bold text-xs cursor-not-allowed select-none"
+                        >
+                          Đã kín chỗ
+                        </span>
+                      )
                     )}
                   </div>
                 </div>

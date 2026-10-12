@@ -589,7 +589,11 @@ export default function FacilityDetailPage({
                     return (
                       <div
                         key={unit.id}
-                        className="bg-white rounded-2xl border border-slate-200 hover:border-orange-500 hover:shadow-xl transition-all duration-300 flex flex-col justify-between p-4 sm:p-5 relative group overflow-hidden"
+                        className={`bg-white rounded-2xl border transition-all duration-300 flex flex-col justify-between p-4 sm:p-5 relative group overflow-hidden ${
+                          isAvailable
+                            ? "border-slate-200 hover:border-orange-500 hover:shadow-xl"
+                            : "border-slate-200/90 bg-slate-50/50"
+                        }`}
                       >
                         {/* Top decorative accent line */}
                         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-blue-600 opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -694,13 +698,23 @@ export default function FacilityDetailPage({
 
                           {/* Dynamic Action Button */}
                           {canRentStorage ? (
-                            <Link
-                              href={`/book/${facility.id}?unitTypeId=${unit.id}`}
-                              className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:from-orange-600 hover:via-amber-600 hover:to-orange-600 shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-98 transition-all uppercase tracking-wider text-center cursor-pointer"
-                            >
-                              <span>ĐẶT THUÊ NGĂN KHO NÀY</span>
-                              <ArrowRight className="w-3.5 h-3.5" />
-                            </Link>
+                            isAvailable ? (
+                              <Link
+                                href={`/book/${facility.id}?unitTypeId=${unit.id}`}
+                                className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 hover:from-orange-600 hover:via-amber-600 hover:to-orange-600 shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:-translate-y-0.5 active:scale-98 transition-all uppercase tracking-wider text-center cursor-pointer"
+                              >
+                                <span>ĐẶT THUÊ NGĂN KHO NÀY</span>
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </Link>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-bold text-xs text-slate-400 bg-slate-100 border border-slate-200 cursor-not-allowed select-none uppercase tracking-wider text-center shadow-none"
+                              >
+                                <span>ĐÃ KÍN CHỖ (TẠM HẾT Ô)</span>
+                              </button>
+                            )
                           ) : (
                             <Link
                               href="/staff"
@@ -843,12 +857,22 @@ export default function FacilityDetailPage({
 
                   <div className="mt-6 flex flex-wrap items-center gap-3">
                     {canRentStorage && (
-                      <Link
-                        href={`/book/${facility.id}`}
-                        className="px-6 py-3.5 rounded-full font-extrabold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 transition uppercase tracking-wider"
-                      >
-                        Bắt đầu đặt kho ngay
-                      </Link>
+                      totalAvailable > 0 ? (
+                        <Link
+                          href={`/book/${facility.id}`}
+                          className="px-6 py-3.5 rounded-full font-extrabold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/25 transition uppercase tracking-wider"
+                        >
+                          Bắt đầu đặt kho ngay
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-6 py-3.5 rounded-full font-extrabold text-xs text-slate-400 bg-slate-200 border border-slate-300 cursor-not-allowed shadow-none uppercase tracking-wider select-none"
+                        >
+                          Cơ sở tạm kín chỗ
+                        </button>
+                      )
                     )}
 
                     <a
