@@ -157,7 +157,7 @@ export default function FacilityDetailPage({
     try {
       const raw = localStorage.getItem("user");
       if (raw) setCurrentUser(JSON.parse(raw));
-    } catch {}
+    } catch { }
   }, []);
 
   const roleName = (
@@ -182,8 +182,8 @@ export default function FacilityDetailPage({
         const typesList = Array.isArray(unitsData)
           ? unitsData
           : unitsData?.data && Array.isArray(unitsData.data)
-          ? unitsData.data
-          : [];
+            ? unitsData.data
+            : [];
         setUnitTypes(typesList);
       } catch (err: any) {
         console.error("Failed to load facility detail:", err);
@@ -293,7 +293,7 @@ export default function FacilityDetailPage({
           {/* 1. FACILITY INTRODUCTION & KEY HIGHLIGHTS (Bố cục giới thiệu & video/ảnh showcase) */}
           <section className="pt-28 sm:pt-32 pb-14 sm:pb-20 bg-white border-b border-slate-100">
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
-              
+
               {/* Back navigation */}
               <div className="mb-8">
                 <Link
@@ -306,11 +306,11 @@ export default function FacilityDetailPage({
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-                
+
                 {/* Left: Text & Features List */}
                 <div className="lg:col-span-7 space-y-6">
                   <div>
-      
+
                     <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
                       Cơ Sở <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500">{facility.name}</span>
                     </h2>
@@ -479,7 +479,7 @@ export default function FacilityDetailPage({
           {/* 3. VISUAL GALLERY OF STORAGE TYPES & AMENITIES (Lưới ảnh thực tế chuẩn phong cách V-Box) */}
           <section className="py-8 sm:py-14 bg-white border-b border-slate-200">
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
-              
+
               {/* Ảnh toàn cảnh cơ sở phía trên */}
               <div className="w-full mb-6 sm:mb-8 overflow-hidden rounded-2xl">
                 <img
@@ -523,7 +523,7 @@ export default function FacilityDetailPage({
           {/* 4. AVAILABLE STORAGE UNITS & PRICING CATALOG (Bảng giá các loại kho tại cơ sở này) */}
           <section id="unit-types-section" className="py-12 sm:py-16 bg-gradient-to-b from-white via-slate-50/60 to-white border-b border-slate-200">
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
-              
+
               {/* Header with Title (Dàn thẳng ra toàn màn hình, không bị dồn góc) */}
               <div className="mb-8 w-full">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200/80 text-orange-700 text-xs font-black uppercase tracking-wider mb-2.5 shadow-2xs">
@@ -557,13 +557,12 @@ export default function FacilityDetailPage({
                   </a>
                 </div>
               ) : (
-                <div className={`grid gap-5 ${
-                  unitTypes.length === 1
-                    ? "grid-cols-1 max-w-md mx-auto"
-                    : unitTypes.length === 2
+                <div className={`grid gap-5 ${unitTypes.length === 1
+                  ? "grid-cols-1 max-w-md mx-auto"
+                  : unitTypes.length === 2
                     ? "grid-cols-1 md:grid-cols-2 max-w-2xl mx-auto"
                     : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-                }`}>
+                  }`}>
                   {unitTypes.map((unit) => {
                     const price = unit.price ?? unit.monthlyRent ?? unit.pricePerMonth ?? unit.basePricePerMonth;
                     const deposit = unit.depositAmount ?? price;
@@ -583,17 +582,16 @@ export default function FacilityDetailPage({
                     const capacityHint = sizeNum <= 5 || unit.name.includes("3 - 5")
                       ? "Chứa ~20–30 thùng đồ, vali, xe đạp, túi gậy golf & nội thất nhỏ"
                       : sizeNum <= 12
-                      ? "Chứa trọn gói đồ đạc căn hộ 1-2 phòng ngủ, sofa, nệm, tủ lạnh"
-                      : "Chứa kho hàng thương mại điện tử, pallet hàng hóa hoặc thiết bị lớn";
+                        ? "Chứa trọn gói đồ đạc căn hộ 1-2 phòng ngủ, sofa, nệm, tủ lạnh"
+                        : "Chứa kho hàng thương mại điện tử, pallet hàng hóa hoặc thiết bị lớn";
 
                     return (
                       <div
                         key={unit.id}
-                        className={`bg-white rounded-2xl border transition-all duration-300 flex flex-col justify-between p-4 sm:p-5 relative group overflow-hidden ${
-                          isAvailable
-                            ? "border-slate-200 hover:border-orange-500 hover:shadow-xl"
-                            : "border-slate-200/90 bg-slate-50/50"
-                        }`}
+                        className={`bg-white rounded-2xl border transition-all duration-300 flex flex-col justify-between p-4 sm:p-5 relative group overflow-hidden ${isAvailable
+                          ? "border-slate-200 hover:border-orange-500 hover:shadow-xl"
+                          : "border-slate-200/90 bg-slate-50/50"
+                          }`}
                       >
                         {/* Top decorative accent line */}
                         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-blue-600 opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -691,7 +689,7 @@ export default function FacilityDetailPage({
                                 <span className="font-bold text-slate-800 tabular-nums">
                                   {formatDeposit(deposit)}
                                 </span>
-                                
+
                               </div>
                             </div>
                           </div>
@@ -712,7 +710,7 @@ export default function FacilityDetailPage({
                                 disabled
                                 className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl font-bold text-xs text-slate-400 bg-slate-100 border border-slate-200 cursor-not-allowed select-none uppercase tracking-wider text-center shadow-none"
                               >
-                                <span>ĐÃ KÍN CHỖ (TẠM HẾT Ô)</span>
+                                <span>ĐÃ KÍN CHỖ</span>
                               </button>
                             )
                           ) : (
@@ -780,7 +778,7 @@ export default function FacilityDetailPage({
           {/* 5. STRATEGIC STANDARDS & AMENITIES (Tiêu chuẩn an toàn & Tiện ích vượt trội) */}
           <section className="py-16 sm:py-24 bg-slate-900 text-white relative overflow-hidden">
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16 relative z-10">
-              
+
               <div className="text-center max-w-3xl mx-auto mb-16">
                 <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-400 mb-2">
                   <span className="w-2 h-2 rounded-full bg-orange-400"></span>
@@ -843,7 +841,7 @@ export default function FacilityDetailPage({
           <section className="py-16 sm:py-24 bg-white">
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
               <div className="p-8 sm:p-12 rounded-3xl bg-slate-50 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-                
+
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-blue-700 block mb-2">
                     HƯỚNG DẪN TRƯỚC KHI THUÊ KHO

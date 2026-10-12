@@ -113,8 +113,16 @@ export function normalizeReservation(item: any): CheckInAppointment {
       const getTomPart = (type: string) => tomVnParts.find((p) => p.type === type)?.value || '';
       const tomDateKey = `${getTomPart('year')}-${getTomPart('month')}-${getTomPart('day')}`;
 
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesVnParts = fmt.formatToParts(yesterday);
+      const getYesPart = (type: string) => yesVnParts.find((p) => p.type === type)?.value || '';
+      const yesDateKey = `${getYesPart('year')}-${getYesPart('month')}-${getYesPart('day')}`;
+
       if (apptDateKey === nowDateKey) {
         dateDisplay = 'Hôm nay';
+      } else if (apptDateKey === yesDateKey) {
+        dateDisplay = 'Hôm qua';
       } else if (apptDateKey === tomDateKey) {
         dateDisplay = `Ngày mai (${day}/${month})`;
       } else {

@@ -131,7 +131,10 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
   // Trễ hẹn: Quá giờ hẹn bắt đầu hơn 15 phút
   if (diffMinutes > 15) {
     let lateText = `Trễ ${diffMinutes} phút`;
-    if (diffMinutes >= 120) {
+    if (diffMinutes >= 1440) {
+      const days = Math.floor(diffMinutes / 1440);
+      lateText = `Trễ ${days} ngày`;
+    } else if (diffMinutes >= 120) {
       const hours = Math.floor(diffMinutes / 60);
       lateText = `Trễ ${hours} tiếng`;
     }
@@ -652,6 +655,8 @@ export default function CheckInQueue({
               className={`text-[10px] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md mb-1 ${
                 isToday
                   ? 'bg-blue-600 text-white'
+                  : apt.dateDisplay === 'Hôm qua'
+                  ? 'bg-rose-600 text-white shadow-2xs'
                   : isTomorrow
                   ? 'bg-amber-100 text-amber-900 border border-amber-200'
                   : 'bg-slate-200 text-slate-700'
