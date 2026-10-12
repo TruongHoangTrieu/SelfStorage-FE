@@ -586,7 +586,7 @@ export default function HandoverProcess({
                     <span className="text-sm font-bold text-slate-900">
                       {isContractSigned
                         ? '✓ Khách hàng & Nhân viên ĐÃ KÝ HỢP ĐỒNG'
-                        : '⚠️ Khách hàng chưa ký kết hợp đồng số'}
+                        : ' Khách hàng chưa ký kết hợp đồng số'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-600">
