@@ -145,6 +145,8 @@ export default function LandingPage() {
   ).toUpperCase();
   const isStorageCustomer = Boolean(currentUser && roleName === "STORAGE_CUSTOMER");
   const canRentStorage = !currentUser || isStorageCustomer;
+  const isManager = roleName.includes("MANAGER");
+  const isAdmin = roleName.includes("ADMIN");
 
   // Fetch facilities from API
   const loadFacilities = async () => {
@@ -231,10 +233,10 @@ export default function LandingPage() {
                   </Link>
                 ) : (
                   <Link
-                    href="/staff"
+                    href={isAdmin ? "/admin" : isManager ? "/manager" : "/staff"}
                     className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full text-sm sm:text-base font-extrabold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl shadow-blue-500/25 hover:-translate-y-0.5 transition-all text-center uppercase tracking-wider whitespace-nowrap"
                   >
-                    <span>VÀO CỔNG VẬN HÀNH</span>
+                    <span>{isAdmin ? "VÀO CỔNG QUẢN TRỊ" : isManager ? "VÀO CỔNG QUẢN LÝ" : "VÀO CỔNG NHÂN VIÊN"}</span>
                     <ArrowRight className="w-5 h-5" />
                   </Link>
                 )}

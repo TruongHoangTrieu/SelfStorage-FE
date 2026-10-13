@@ -70,13 +70,17 @@ function AuthCallbackContent() {
           ) {
             targetRoute = "/admin";
           } else if (
+            role === "FACILITY_MANAGER" ||
+            role === "BUSINESS_OPERATIONS_MANAGER" ||
+            role === "MANAGER" ||
+            role.includes("MANAGER")
+          ) {
+            targetRoute = "/manager";
+          } else if (
             role === "STAFF" ||
             role === "FACILITY_STAFF" ||
             role === "OPERATIONS_STAFF" ||
-            role === "FACILITY_MANAGER" ||
-            role === "BUSINESS_OPERATIONS_MANAGER" ||
-            role.includes("STAFF") ||
-            role.includes("MANAGER")
+            role.includes("STAFF")
           ) {
             targetRoute = "/staff";
           }

@@ -613,6 +613,27 @@ export default function StaffPortalPage() {
         {/* 3. KHU VỰC NỘI DUNG CHÍNH (MAIN VIEW) */}
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
           <main className="flex-1 p-4 sm:p-6 lg:p-8">
+
+            {/* Manager Switcher Notice (nếu tài khoản là Quản lý đang vào quầy Staff) */}
+            {currentUser && ['FACILITY_MANAGER', 'BUSINESS_OPERATIONS_MANAGER', 'SYSTEM_ADMINISTRATOR', 'ADMIN'].includes((currentUser.role || '').toUpperCase()) && (
+              <div className="mb-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-2xl border border-indigo-200/80 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+                <div className="flex items-center gap-2.5 text-indigo-950 font-medium">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-indigo-900">Tài khoản Quản lý:</span> Bạn đang xem <strong>Giao diện Quầy Tiếp Đón Nhân Viên</strong>. Để phân công ca trực, thiết lập loại kho và duyệt bảng giá, vui lòng chuyển sang Cổng Quản Lý.
+                  </div>
+                </div>
+                <Link
+                  href="/manager"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition shrink-0 self-start sm:self-auto shadow-2xs"
+                >
+                  <span>Mở Cổng Quản Lý Cơ Sở</span>
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
             
             {/* Banner Tiêu Đề Thanh Lịch Cho Hàng Đợi (Clean Header Card Matching Dashboard) */}
             {flowStep === 'queue' && activeTab === 'queue' && (

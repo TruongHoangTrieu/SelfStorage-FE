@@ -60,15 +60,22 @@ export default function LoginPage() {
       return "/admin";
     }
 
-    // Staff & Facility Manager Roles
+    // Manager Roles
+    if (
+      role === "FACILITY_MANAGER" ||
+      role === "BUSINESS_OPERATIONS_MANAGER" ||
+      role === "MANAGER" ||
+      role.includes("MANAGER")
+    ) {
+      return "/manager";
+    }
+
+    // Staff Roles
     if (
       role === "STAFF" ||
       role === "FACILITY_STAFF" ||
       role === "OPERATIONS_STAFF" ||
-      role === "FACILITY_MANAGER" ||
-      role === "BUSINESS_OPERATIONS_MANAGER" ||
-      role.includes("STAFF") ||
-      role.includes("MANAGER")
+      role.includes("STAFF")
     ) {
       return "/staff";
     }

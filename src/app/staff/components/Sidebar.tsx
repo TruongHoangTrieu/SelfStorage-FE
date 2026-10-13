@@ -66,20 +66,18 @@ export default function Sidebar({
   const facilityName = rawFacilityName.replace(/^Kho\s+Tự\s+Quản\s+/i, '').trim();
 
   const roleName = (currentUser?.role || '').toUpperCase();
-  const canManagePricing = Boolean(
+  const isManager = Boolean(
     currentUser && (
       roleName === 'FACILITY_MANAGER' ||
       roleName === 'BUSINESS_OPERATIONS_MANAGER' ||
       roleName === 'SYSTEM_ADMINISTRATOR' ||
-      roleName === 'ADMIN'
+      roleName === 'ADMIN' ||
+      roleName.includes('MANAGER')
     )
   );
 
   const operationalNavItems = [
     { id: 'queue' as StaffTab, label: 'Hàng đợi nhận kho', icon: Inbox, badge: pendingCount },
-    ...(canManagePricing
-      ? [{ id: 'unit_types' as StaffTab, label: 'Loại kho & Bảng giá', icon: Boxes }]
-      : []),
     {
       id: 'checkout' as StaffTab,
       label: 'Gia hạn & Quá hạn',
@@ -87,13 +85,12 @@ export default function Sidebar({
       badge: pendingRenewalsCount && pendingRenewalsCount > 0 ? pendingRenewalsCount : undefined,
     },
     { id: 'facility' as StaffTab, label: 'Sơ đồ & Ô kho 24/7', icon: MapPin },
+    { id: 'support' as StaffTab, label: 'Tiếp nhận sự cố', icon: LifeBuoy, dot: true },
   ];
 
-  const managementNavItems = [
-    { id: 'dashboard' as StaffTab, label: 'Bảng điều khiển cơ sở', icon: LayoutDashboard },
+  const personalNavItems = [
+    { id: 'dashboard' as StaffTab, label: 'Tổng quan ca trực', icon: LayoutDashboard },
     { id: 'profile' as StaffTab, label: 'Hồ sơ & Đổi mật khẩu', icon: User },
-    { id: 'support' as StaffTab, label: 'Hỗ trợ & Xử lý sự cố', icon: LifeBuoy, dot: true },
-    { id: 'settings' as StaffTab, label: 'Cài đặt cổng cơ sở', icon: Settings },
   ];
 
   return (
@@ -208,17 +205,17 @@ export default function Sidebar({
         {/* ================= DIVIDER ================= */}
         <hr className="my-2 border-slate-200 mx-1" />
 
-        {/* ================= SECTION 2: QUẢN LÝ CƠ SỞ ================= */}
+        {/* ================= SECTION 2: CÁ NHÂN & CA TRỰC ================= */}
         <div
           className={`px-3 pt-2 pb-1 text-[13px] font-bold text-slate-900 flex items-center justify-between whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${
             isCollapsed ? 'max-h-0 opacity-0 py-0' : 'max-h-8 opacity-100'
           }`}
         >
-          <span>Quản Lý Cơ Sở</span>
+          <span>Cá Nhân &amp; Ca Trực</span>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
         </div>
 
-        {managementNavItems.map((item) => {
+        {personalNavItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;
 
@@ -234,7 +231,6 @@ export default function Sidebar({
               }`}
               title={isCollapsed ? item.label : undefined}
             >
-              {/* Căn giữa tuyệt đối trong khung 56px (tâm đúng x=36px) */}
               <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
                 <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-600'}`} />
               </div>
@@ -246,17 +242,29 @@ export default function Sidebar({
               >
                 {item.label}
               </span>
-
-              {item.dot && (
-                <span
-                  className={`mr-3 w-2 h-2 rounded-full bg-emerald-500 shrink-0 transition-opacity duration-300 ${
-                    isCollapsed ? 'opacity-0' : 'opacity-100'
-                  }`}
-                />
-              )}
             </button>
           );
         })}
+
+        {/* Link back to Manager Portal if user has manager role */}
+        {isManager && (
+          <Link
+            href="/manager"
+            className="w-full flex items-center h-12 rounded-xl text-indigo-700 hover:bg-indigo-50 font-bold transition-colors cursor-pointer overflow-hidden group mt-1"
+            title={isCollapsed ? 'Chuyển sang Cổng Quản Lý (/manager)' : undefined}
+          >
+            <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
+              <Building2 className="w-5 h-5 shrink-0 text-indigo-600 group-hover:scale-105 transition-transform" />
+            </div>
+            <span
+              className={`text-[13px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 text-indigo-700 ${
+                isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
+              }`}
+            >
+              Cổng Quản Lý →
+            </span>
+          </Link>
+        )}
       </nav>
 
       {/* Staff User Footer in Sidebar */}
