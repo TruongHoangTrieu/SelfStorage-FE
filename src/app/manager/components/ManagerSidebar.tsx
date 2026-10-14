@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   Inbox,
@@ -93,13 +93,32 @@ export default function ManagerSidebar({
     { id: 'profile' as ManagerTab, label: 'Hồ sơ & Đổi mật khẩu', icon: User },
   ];
 
+  const [hoveredTooltip, setHoveredTooltip] = useState<{
+    text: string;
+    top: number;
+    left: number;
+  } | null>(null);
+
+  const handleItemHover = (e: React.MouseEvent<HTMLElement>, label: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredTooltip({
+      text: label,
+      top: rect.top + rect.height / 2,
+      left: isCollapsed ? rect.right + 12 : rect.left + 52,
+    });
+  };
+
+  const handleItemLeave = () => {
+    setHoveredTooltip(null);
+  };
+
   return (
     <aside
-      className={`bg-white text-slate-800 border-r border-slate-200 flex flex-col shrink-0 select-none transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] fixed lg:sticky top-0 lg:top-18 h-screen lg:h-[calc(100vh-4.5rem)] z-40 ${
+      className={`bg-white text-slate-800 border-r border-slate-200 flex flex-col shrink-0 select-none transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      } ${
-        isCollapsed ? 'lg:w-[72px]' : 'lg:w-64'
-      } w-64`}
+      } fixed lg:static inset-y-0 left-0 z-50 lg:z-30 h-screen lg:h-full ${
+        isCollapsed ? 'lg:w-[72px]' : 'lg:w-72'
+      } w-72`}
     >
       {/* Mobile Drawer Header */}
       <div className="lg:hidden h-18 border-b border-slate-200 flex items-center bg-white shrink-0">
@@ -164,24 +183,28 @@ export default function ManagerSidebar({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer overflow-hidden ${
+              onMouseEnter={(e) => handleItemHover(e, item.label)}
+              onMouseLeave={handleItemLeave}
+              className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
                   ? 'bg-indigo-50 text-indigo-700 font-bold shadow-2xs'
                   : 'text-slate-700 hover:bg-slate-100 font-medium'
               }`}
-              title={isCollapsed ? item.label : undefined}
+              title={item.label}
             >
-              <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
+              <div className="w-[50px] h-12 shrink-0 flex items-center justify-center">
                 <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-600'}`} />
               </div>
 
-              <span
-                className={`text-[14px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 ${
-                  isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
-                }`}
-              >
-                {item.label}
-              </span>
+              <div className="flex-1 min-w-0 pr-1 text-left relative">
+                <span
+                  className={`text-[13.5px] whitespace-nowrap overflow-hidden text-ellipsis block transition-all duration-300 ${
+                    isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </div>
 
               {item.badge !== undefined && item.badge > 0 && (
                 <span
@@ -220,24 +243,28 @@ export default function ManagerSidebar({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer overflow-hidden ${
+              onMouseEnter={(e) => handleItemHover(e, item.label)}
+              onMouseLeave={handleItemLeave}
+              className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
                   ? 'bg-indigo-50 text-indigo-700 font-bold shadow-2xs'
                   : 'text-slate-700 hover:bg-slate-100 font-medium'
               }`}
-              title={isCollapsed ? item.label : undefined}
+              title={item.label}
             >
-              <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
+              <div className="w-[50px] h-12 shrink-0 flex items-center justify-center">
                 <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-600'}`} />
               </div>
 
-              <span
-                className={`text-[14px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 ${
-                  isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
-                }`}
-              >
-                {item.label}
-              </span>
+              <div className="flex-1 min-w-0 pr-1 text-left relative">
+                <span
+                  className={`text-[13.5px] whitespace-nowrap overflow-hidden text-ellipsis block transition-all duration-300 ${
+                    isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </div>
 
               {item.badge !== undefined && item.badge > 0 && (
                 <span
@@ -284,24 +311,28 @@ export default function ManagerSidebar({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer overflow-hidden ${
+              onMouseEnter={(e) => handleItemHover(e, item.label)}
+              onMouseLeave={handleItemLeave}
+              className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
                   ? 'bg-indigo-50 text-indigo-700 font-bold shadow-2xs'
                   : 'text-slate-700 hover:bg-slate-100 font-medium'
               }`}
-              title={isCollapsed ? item.label : undefined}
+              title={item.label}
             >
-              <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
+              <div className="w-[50px] h-12 shrink-0 flex items-center justify-center">
                 <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-600'}`} />
               </div>
 
-              <span
-                className={`text-[14px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 ${
-                  isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
-                }`}
-              >
-                {item.label}
-              </span>
+              <div className="flex-1 min-w-0 pr-1 text-left relative">
+                <span
+                  className={`text-[13.5px] whitespace-nowrap overflow-hidden text-ellipsis block transition-all duration-300 ${
+                    isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </div>
             </button>
           );
         })}
@@ -309,19 +340,23 @@ export default function ManagerSidebar({
         {/* Quick link to Staff Counter */}
         <Link
           href="/staff"
-          className="w-full flex items-center h-12 rounded-xl text-slate-600 hover:bg-slate-100 font-medium transition-colors cursor-pointer overflow-hidden group"
-          title={isCollapsed ? 'Đến Quầy Nhân Viên (/staff)' : undefined}
+          onMouseEnter={(e) => handleItemHover(e, 'Quầy Nhân Viên Tiếp Đón (/staff)')}
+          onMouseLeave={handleItemLeave}
+          className="w-full flex items-center h-12 rounded-xl text-slate-600 hover:bg-slate-100 font-medium transition-colors cursor-pointer overflow-hidden group relative"
+          title="Đến Quầy Nhân Viên (/staff)"
         >
-          <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
+          <div className="w-[50px] h-12 shrink-0 flex items-center justify-center">
             <ArrowUpRight className="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-600 transition-colors" />
           </div>
-          <span
-            className={`text-[13px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 text-slate-600 group-hover:text-indigo-600 ${
-              isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
-            }`}
-          >
-            Quầy Nhân Viên
-          </span>
+          <div className="flex-1 min-w-0 pr-1 text-left relative">
+            <span
+              className={`text-[13.5px] whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-300 block text-slate-600 group-hover:text-indigo-600 ${
+                isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
+              }`}
+            >
+              Quầy Nhân Viên
+            </span>
+          </div>
         </Link>
       </nav>
 
@@ -331,8 +366,15 @@ export default function ManagerSidebar({
           <div className="flex items-center">
             <div
               onClick={() => onSelectTab('profile')}
+              onMouseEnter={(e) =>
+                handleItemHover(
+                  e,
+                  `${currentUser.fullName} (${managerRole}) • ${currentUser.email}`
+                )
+              }
+              onMouseLeave={handleItemLeave}
               className="flex items-center flex-1 min-w-0 cursor-pointer group"
-              title={isCollapsed ? 'Hồ sơ Quản lý' : undefined}
+              title={currentUser.fullName}
             >
               <div className="w-[56px] shrink-0 flex items-center justify-center">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs shrink-0 tracking-wider transition-transform">
@@ -341,13 +383,13 @@ export default function ManagerSidebar({
               </div>
 
               <div
-                className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap flex-1 min-w-0 ${
-                  isCollapsed ? 'max-w-0 opacity-0' : 'max-w-[125px] opacity-100'
+                className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap flex-1 min-w-0 pr-1 ${
+                  isCollapsed ? 'max-w-0 opacity-0' : 'opacity-100'
                 }`}
               >
                 <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5 group-hover:text-indigo-600 transition-colors">
-                  <span>{currentUser.fullName}</span>
-                  <span className="text-[9px] px-1 py-0.2 rounded bg-indigo-100 text-indigo-800 font-extrabold uppercase">
+                  <span className="truncate">{currentUser.fullName}</span>
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-indigo-100 text-indigo-800 font-extrabold uppercase shrink-0">
                     {managerRole}
                   </span>
                 </div>
@@ -382,6 +424,24 @@ export default function ManagerSidebar({
           </div>
         )}
       </div>
+
+      {/* Interactive Full-Text Floating Popover / Tooltip when Hovered */}
+      {hoveredTooltip && (
+        <div
+          style={{
+            top: `${hoveredTooltip.top}px`,
+            left: `${hoveredTooltip.left}px`,
+          }}
+          className={`fixed -translate-y-1/2 z-[100] pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95 whitespace-nowrap flex items-center gap-2 ${
+            isCollapsed
+              ? 'bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-2xl border border-slate-700'
+              : 'bg-white text-indigo-950 font-bold text-[13.5px] px-3.5 py-2 rounded-xl shadow-2xl border border-indigo-200 ring-4 ring-indigo-500/10'
+          }`}
+        >
+          {!isCollapsed && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
+          <span>{hoveredTooltip.text}</span>
+        </div>
+      )}
     </aside>
   );
 }

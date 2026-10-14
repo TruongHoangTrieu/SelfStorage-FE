@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   Inbox,
@@ -45,6 +45,25 @@ export default function Sidebar({
   isOpen = true,
   onToggle,
 }: SidebarProps) {
+  const [hoveredTooltip, setHoveredTooltip] = useState<{
+    text: string;
+    top: number;
+    left: number;
+  } | null>(null);
+
+  const handleItemHover = (e: React.MouseEvent<HTMLElement>, label: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredTooltip({
+      text: label,
+      top: rect.top + rect.height / 2,
+      left: isCollapsed ? rect.right + 12 : rect.left + 54,
+    });
+  };
+
+  const handleItemLeave = () => {
+    setHoveredTooltip(null);
+  };
+
   const getInitials = (name?: string, email?: string) => {
     if (name && name.trim()) {
       const parts = name.trim().split(/\s+/);
@@ -95,13 +114,11 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`bg-white text-slate-800 border-r border-slate-200 flex flex-col shrink-0 select-none transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] fixed lg:sticky top-0 lg:top-18 h-screen lg:h-[calc(100vh-4.5rem)] z-40 ${
-        // Mobile: slide in/out drawer
+      className={`bg-white text-slate-800 border-r border-slate-200 flex flex-col shrink-0 select-none transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      } ${
-        // Desktop: YouTube full 240px or mini 72px
-        isCollapsed ? 'lg:w-[72px]' : 'lg:w-60'
-      } w-64`}
+      } fixed lg:static inset-y-0 left-0 z-50 lg:z-30 h-screen lg:h-full ${
+        isCollapsed ? 'lg:w-[72px]' : 'lg:w-72'
+      } w-72`}
     >
       {/* Mobile Drawer Header */}
       <div className="lg:hidden h-18 border-b border-slate-200 flex items-center bg-white shrink-0">
@@ -167,12 +184,14 @@ export default function Sidebar({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer overflow-hidden ${
+              onMouseEnter={(e) => handleItemHover(e, item.label)}
+              onMouseLeave={handleItemLeave}
+              className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer ${
                 isActive
                   ? 'bg-emerald-50 text-emerald-700 font-bold shadow-2xs'
                   : 'text-slate-700 hover:bg-slate-100 font-medium'
               }`}
-              title={isCollapsed ? item.label : undefined}
+              title={item.label}
             >
               {/* Căn giữa tuyệt đối trong khung 56px (tâm đúng x=36px) */}
               <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
@@ -180,8 +199,8 @@ export default function Sidebar({
               </div>
 
               <span
-                className={`text-[14px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 ${
-                  isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
+                className={`text-[14px] whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-300 ease-in-out text-left flex-1 ${
+                  isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
                 }`}
               >
                 {item.label}
@@ -224,20 +243,22 @@ export default function Sidebar({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer overflow-hidden ${
+              onMouseEnter={(e) => handleItemHover(e, item.label)}
+              onMouseLeave={handleItemLeave}
+              className={`w-full flex items-center h-12 rounded-xl transition-colors duration-200 cursor-pointer ${
                 isActive
                   ? 'bg-emerald-50 text-emerald-700 font-bold shadow-2xs'
                   : 'text-slate-700 hover:bg-slate-100 font-medium'
               }`}
-              title={isCollapsed ? item.label : undefined}
+              title={item.label}
             >
               <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
                 <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-600'}`} />
               </div>
 
               <span
-                className={`text-[14px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 ${
-                  isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
+                className={`text-[14px] whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-300 ease-in-out text-left flex-1 ${
+                  isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
                 }`}
               >
                 {item.label}
@@ -250,15 +271,17 @@ export default function Sidebar({
         {isManager && (
           <Link
             href="/manager"
+            onMouseEnter={(e) => handleItemHover(e, 'Chuyển sang Cổng Quản Lý (/manager)')}
+            onMouseLeave={handleItemLeave}
             className="w-full flex items-center h-12 rounded-xl text-indigo-700 hover:bg-indigo-50 font-bold transition-colors cursor-pointer overflow-hidden group mt-1"
-            title={isCollapsed ? 'Chuyển sang Cổng Quản Lý (/manager)' : undefined}
+            title="Chuyển sang Cổng Quản Lý (/manager)"
           >
             <div className="w-[56px] h-12 shrink-0 flex items-center justify-center">
               <Building2 className="w-5 h-5 shrink-0 text-indigo-600 group-hover:scale-105 transition-transform" />
             </div>
             <span
-              className={`text-[13px] whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out text-left flex-1 text-indigo-700 ${
-                isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'max-w-[140px] opacity-100 translate-x-0'
+              className={`text-[13px] whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-300 ease-in-out text-left flex-1 text-indigo-700 ${
+                isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
               }`}
             >
               Cổng Quản Lý →
@@ -274,8 +297,15 @@ export default function Sidebar({
             {/* Căn giữa tuyệt đối Avatar trong khung 56px (tâm đúng x=36px) */}
             <div
               onClick={() => onSelectTab('profile')}
+              onMouseEnter={(e) =>
+                handleItemHover(
+                  e,
+                  `${currentUser.fullName} (${staffRole}) • ${currentUser.email}`
+                )
+              }
+              onMouseLeave={handleItemLeave}
               className="flex items-center flex-1 min-w-0 cursor-pointer group"
-              title={isCollapsed ? 'Hồ sơ & Đổi mật khẩu' : undefined}
+              title={currentUser.fullName}
             >
               <div className="w-[56px] shrink-0 flex items-center justify-center">
                 <div
@@ -286,13 +316,13 @@ export default function Sidebar({
               </div>
 
               <div
-                className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap flex-1 min-w-0 ${
-                  isCollapsed ? 'max-w-0 opacity-0' : 'max-w-[125px] opacity-100'
+                className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap flex-1 min-w-0 pr-1 ${
+                  isCollapsed ? 'max-w-0 opacity-0' : 'opacity-100'
                 }`}
               >
                 <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5 group-hover:text-emerald-600 transition-colors">
-                  <span>{currentUser.fullName}</span>
-                  <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-extrabold uppercase">
+                  <span className="truncate">{currentUser.fullName}</span>
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-extrabold uppercase shrink-0">
                     {staffRole}
                   </span>
                 </div>
@@ -327,6 +357,24 @@ export default function Sidebar({
           </div>
         )}
       </div>
+
+      {/* Interactive Full-Text Floating Popover / Tooltip when Hovered */}
+      {hoveredTooltip && (
+        <div
+          style={{
+            top: `${hoveredTooltip.top}px`,
+            left: `${hoveredTooltip.left}px`,
+          }}
+          className={`fixed -translate-y-1/2 z-[100] pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95 whitespace-nowrap flex items-center gap-2 ${
+            isCollapsed
+              ? 'bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-2xl border border-slate-700'
+              : 'bg-white text-emerald-950 font-bold text-[13.5px] px-3.5 py-2 rounded-xl shadow-2xl border border-emerald-200 ring-4 ring-emerald-500/10'
+          }`}
+        >
+          {!isCollapsed && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />}
+          <span>{hoveredTooltip.text}</span>
+        </div>
+      )}
     </aside>
   );
 }

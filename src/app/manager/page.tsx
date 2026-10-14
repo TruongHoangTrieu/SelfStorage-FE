@@ -446,9 +446,9 @@ export default function ManagerPortalPage() {
   }[activeTab];
 
   return (
-    <div className="min-h-screen bg-slate-50/60 font-sans text-slate-800 antialiased flex flex-col">
+    <div className="h-screen bg-slate-50/60 font-sans text-slate-800 antialiased flex flex-col overflow-hidden">
       {/* 1. TOP EXECUTIVE HEADER */}
-      <header className="h-18 bg-white border-b border-slate-200 sticky top-0 z-30 flex items-center justify-between px-3 sm:px-6 shadow-2xs">
+      <header className="h-18 bg-white border-b border-slate-200 shrink-0 z-40 flex items-center justify-between px-3 sm:px-6 shadow-2xs">
         {/* Left: Sidebar Toggle & Brand */}
         <div className="flex items-center gap-3">
           <button
@@ -529,7 +529,7 @@ export default function ManagerPortalPage() {
       </header>
 
       {/* 2. BODY LAYOUT: SIDEBAR + MAIN CONTENT */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* Manager Dedicated Sidebar */}
         <ManagerSidebar
           activeTab={activeTab}

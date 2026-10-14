@@ -576,10 +576,10 @@ export default function StaffPortalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans antialiased selection:bg-emerald-600/20 selection:text-emerald-600">
+    <div className="h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans antialiased overflow-hidden selection:bg-emerald-600/20 selection:text-emerald-600">
       
       {/* 1. TOP HEADER (Fixed Full-Width Header Matching /dashboard) */}
-      <header className="fixed top-0 inset-x-0 z-40 h-18 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between transition-all">
+      <header className="h-18 bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 z-40 shadow-2xs">
         {/* Left: Brand + Hamburger button */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button
@@ -673,7 +673,7 @@ export default function StaffPortalPage() {
       </header>
 
       {/* 2. BODY LAYOUT: SIDEBAR + MAIN CONTENT (Starts below top header) */}
-      <div className="flex pt-18 min-h-screen">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* Staff Sidebar (Light YouTube Style matching /dashboard) */}
         <Sidebar
           activeTab={activeTab}
