@@ -93,25 +93,6 @@ export default function ManagerSidebar({
     { id: 'profile' as ManagerTab, label: 'Hồ sơ & Đổi mật khẩu', icon: User },
   ];
 
-  const [hoveredTooltip, setHoveredTooltip] = useState<{
-    text: string;
-    top: number;
-    left: number;
-  } | null>(null);
-
-  const handleItemHover = (e: React.MouseEvent<HTMLElement>, label: string) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setHoveredTooltip({
-      text: label,
-      top: rect.top + rect.height / 2,
-      left: isCollapsed ? rect.right + 12 : rect.left + 52,
-    });
-  };
-
-  const handleItemLeave = () => {
-    setHoveredTooltip(null);
-  };
-
   return (
     <aside
       className={`bg-white text-slate-800 border-r border-slate-200 flex flex-col shrink-0 select-none transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
@@ -183,8 +164,6 @@ export default function ManagerSidebar({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              onMouseEnter={(e) => handleItemHover(e, item.label)}
-              onMouseLeave={handleItemLeave}
               className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
                   ? 'bg-indigo-50 text-indigo-700 font-bold shadow-2xs'
@@ -243,8 +222,6 @@ export default function ManagerSidebar({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              onMouseEnter={(e) => handleItemHover(e, item.label)}
-              onMouseLeave={handleItemLeave}
               className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
                   ? 'bg-indigo-50 text-indigo-700 font-bold shadow-2xs'
@@ -292,13 +269,13 @@ export default function ManagerSidebar({
         {/* ================= DIVIDER ================= */}
         <hr className="my-2 border-slate-200 mx-1" />
 
-        {/* ================= SECTION 3: TÀI KHOẢN & LIÊN KẾT ================= */}
+        {/* ================= SECTION 3: TÀI KHOẢN & CÁ NHÂN ================= */}
         <div
           className={`px-3 pt-2 pb-1 text-[12px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-between whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${
             isCollapsed ? 'max-h-0 opacity-0 py-0' : 'max-h-8 opacity-100'
           }`}
         >
-          <span>Tài Khoản &amp; Quầy</span>
+          <span>Tài Khoản &amp; Cá Nhân</span>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
         </div>
 
@@ -311,8 +288,6 @@ export default function ManagerSidebar({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              onMouseEnter={(e) => handleItemHover(e, item.label)}
-              onMouseLeave={handleItemLeave}
               className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
                   ? 'bg-indigo-50 text-indigo-700 font-bold shadow-2xs'
@@ -336,28 +311,6 @@ export default function ManagerSidebar({
             </button>
           );
         })}
-
-        {/* Quick link to Staff Counter */}
-        <Link
-          href="/staff"
-          onMouseEnter={(e) => handleItemHover(e, 'Quầy Nhân Viên Tiếp Đón (/staff)')}
-          onMouseLeave={handleItemLeave}
-          className="w-full flex items-center h-12 rounded-xl text-slate-600 hover:bg-slate-100 font-medium transition-colors cursor-pointer overflow-hidden group relative"
-          title="Đến Quầy Nhân Viên (/staff)"
-        >
-          <div className="w-[50px] h-12 shrink-0 flex items-center justify-center">
-            <ArrowUpRight className="w-5 h-5 shrink-0 text-slate-500 group-hover:text-indigo-600 transition-colors" />
-          </div>
-          <div className="flex-1 min-w-0 pr-1 text-left relative">
-            <span
-              className={`text-[13.5px] whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-300 block text-slate-600 group-hover:text-indigo-600 ${
-                isCollapsed ? 'max-w-0 opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
-              }`}
-            >
-              Quầy Nhân Viên
-            </span>
-          </div>
-        </Link>
       </nav>
 
       {/* Manager User Footer */}
@@ -366,13 +319,6 @@ export default function ManagerSidebar({
           <div className="flex items-center">
             <div
               onClick={() => onSelectTab('profile')}
-              onMouseEnter={(e) =>
-                handleItemHover(
-                  e,
-                  `${currentUser.fullName} (${managerRole}) • ${currentUser.email}`
-                )
-              }
-              onMouseLeave={handleItemLeave}
               className="flex items-center flex-1 min-w-0 cursor-pointer group"
               title={currentUser.fullName}
             >
@@ -424,24 +370,6 @@ export default function ManagerSidebar({
           </div>
         )}
       </div>
-
-      {/* Interactive Full-Text Floating Popover / Tooltip when Hovered */}
-      {hoveredTooltip && (
-        <div
-          style={{
-            top: `${hoveredTooltip.top}px`,
-            left: `${hoveredTooltip.left}px`,
-          }}
-          className={`fixed -translate-y-1/2 z-[100] pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95 whitespace-nowrap flex items-center gap-2 ${
-            isCollapsed
-              ? 'bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-2xl border border-slate-700'
-              : 'bg-white text-indigo-950 font-bold text-[13.5px] px-3.5 py-2 rounded-xl shadow-2xl border border-indigo-200 ring-4 ring-indigo-500/10'
-          }`}
-        >
-          {!isCollapsed && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
-          <span>{hoveredTooltip.text}</span>
-        </div>
-      )}
     </aside>
   );
 }
