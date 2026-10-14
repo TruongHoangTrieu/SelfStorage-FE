@@ -32,6 +32,12 @@ export interface CheckInAppointment {
   completedAt?: string;
   cancelReason?: string;
   rescheduledAt?: string;
+  managerApprovedAt?: string;
+  managerApprovedExpiry?: string;
+  managerApproverName?: string;
+  managerApprovalReason?: string;
+  isApprovalExpired?: boolean;
+  unitAutoReleased?: boolean;
 }
 
 export interface AvailableUnit {

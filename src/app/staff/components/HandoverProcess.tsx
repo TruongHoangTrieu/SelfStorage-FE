@@ -288,7 +288,7 @@ export default function HandoverProcess({
             3
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-bold text-slate-700 truncate">3. Thu tiền & Cấp mã PIN</div>
+            <div className="text-xs font-bold text-slate-700 truncate">3. Xác nhận & Cấp mã PIN</div>
             <div className="text-[11px] text-slate-500">
               {isContractSigned ? 'Sẵn sàng chuyển bước →' : 'Bước tiếp theo'}
             </div>
@@ -537,9 +537,7 @@ export default function HandoverProcess({
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                    Luật Việt Nam 2026
-                  </span>
+                  
                   {isContractSigned ? (
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
                       <Check className="w-3 h-3" /> Đã ký số thành công
@@ -779,7 +777,7 @@ export default function HandoverProcess({
                   </>
                 ) : (
                   <>
-                    <span>Tiếp Tục Thu Tiền</span>
+                    <span>Xác nhận</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

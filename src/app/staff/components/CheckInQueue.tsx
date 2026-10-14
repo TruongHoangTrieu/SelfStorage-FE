@@ -9,25 +9,30 @@ import {
   Phone,
   Calendar,
   AlertTriangle,
+  AlertCircle,
   Clock,
   UserX,
   XCircle,
   HelpCircle,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
-import { CheckInAppointment } from '../types';
+import { CheckInAppointment, StaffUser } from '../types';
 import RescheduleModal from './RescheduleModal';
 import NoShowModal from './NoShowModal';
 import ContactModal from './ContactModal';
+import ManagerApprovalModal from './ManagerApprovalModal';
 
 /**
  * Phân tích trạng thái thời gian lịch hẹn:
  * - Đúng hẹn (On Time): Trong khung giờ hoặc trước giờ hẹn <= 60p
  * - Trễ hẹn (Late): Quá giờ hẹn bắt đầu > 15 phút mà chưa check-in
+ * - Quá hạn (Overdue): Trễ quá 24 giờ (> 1440 phút) hoặc status === 'expired'
  * - Chưa tới giờ (Upcoming): Còn hơn 60 phút nữa
  */
 export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
   isLate: boolean;
+  isOverdue: boolean;
   lateMinutes: number;
   isOnTime: boolean;
   isUpcoming: boolean;
@@ -37,6 +42,7 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
   if (apt.status === 'completed') {
     return {
       isLate: false,
+      isOverdue: false,
       lateMinutes: 0,
       isOnTime: false,
       isUpcoming: false,
@@ -45,9 +51,10 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
     };
   }
 
-  if (apt.status === 'cancelled' || apt.status === 'expired') {
+  if (apt.status === 'cancelled') {
     return {
       isLate: false,
+      isOverdue: false,
       lateMinutes: 0,
       isOnTime: false,
       isUpcoming: false,
@@ -56,9 +63,49 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
     };
   }
 
+  // Nếu đơn đã được Quản lý phê duyệt mở lại
+  if (apt.managerApprovedExpiry) {
+    const now = new Date();
+    const expiry = new Date(apt.managerApprovedExpiry);
+    if (now > expiry || apt.isApprovalExpired) {
+      return {
+        isLate: true,
+        isOverdue: true,
+        lateMinutes: 1441,
+        isOnTime: false,
+        isUpcoming: false,
+        label: 'Hết hạn duyệt (Đã giải phóng)',
+        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-300 font-bold',
+      };
+    }
+    // Còn trong ngày hôm nay:
+    return {
+      isLate: false,
+      isOverdue: false,
+      lateMinutes: 0,
+      isOnTime: true,
+      isUpcoming: false,
+      label: 'Đã duyệt (Hạn 23:59 hôm nay)',
+      badgeClass: 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold',
+    };
+  }
+
+  if (apt.status === 'expired') {
+    return {
+      isLate: true,
+      isOverdue: true,
+      lateMinutes: 1441,
+      isOnTime: false,
+      isUpcoming: false,
+      label: 'Đơn quá hạn',
+      badgeClass: 'bg-red-50 text-red-700 border border-red-300 font-bold',
+    };
+  }
+
   if (apt.status === 'in_progress') {
     return {
       isLate: false,
+      isOverdue: false,
       lateMinutes: 0,
       isOnTime: true,
       isUpcoming: false,
@@ -116,6 +163,7 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
   if (!apptDate) {
     return {
       isLate: false,
+      isOverdue: false,
       lateMinutes: 0,
       isOnTime: true,
       isUpcoming: false,
@@ -128,7 +176,20 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
   const diffMs = now.getTime() - apptDate.getTime();
   const diffMinutes = Math.floor(diffMs / (60 * 1000));
 
-  // Trễ hẹn: Quá giờ hẹn bắt đầu hơn 15 phút
+  // Quá hạn: Trễ quá 24 giờ (> 1440 phút)
+  if (diffMinutes > 24 * 60) {
+    return {
+      isLate: true,
+      isOverdue: true,
+      lateMinutes: diffMinutes,
+      isOnTime: false,
+      isUpcoming: false,
+      label: 'Đơn quá hạn',
+      badgeClass: 'bg-red-50 text-red-700 border border-red-300 font-bold',
+    };
+  }
+
+  // Trễ hẹn thông thường: Quá giờ hẹn bắt đầu hơn 15 phút (nhưng <= 24 giờ)
   if (diffMinutes > 15) {
     let lateText = `Trễ ${diffMinutes} phút`;
     if (diffMinutes >= 1440) {
@@ -140,6 +201,7 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
     }
     return {
       isLate: true,
+      isOverdue: false,
       lateMinutes: diffMinutes,
       isOnTime: false,
       isUpcoming: false,
@@ -152,10 +214,11 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
   if (diffMinutes >= -60 && diffMinutes <= 15) {
     return {
       isLate: false,
+      isOverdue: false,
       lateMinutes: 0,
       isOnTime: true,
       isUpcoming: false,
-      label: '✓ Đúng hẹn',
+      label: 'Đúng hẹn',
       badgeClass: 'bg-blue-50 text-blue-700 border border-blue-200 font-semibold',
     };
   }
@@ -163,29 +226,57 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
   // Chưa tới giờ hẹn: Trước giờ hẹn hơn 60p
   return {
     isLate: false,
+    isOverdue: false,
     lateMinutes: 0,
     isOnTime: false,
     isUpcoming: true,
-    label: '🕒 Chưa tới giờ',
+    label: 'Chưa tới giờ',
     badgeClass: 'bg-slate-100 text-slate-600 border border-slate-200',
   };
 }
 
 /**
  * Kiểm tra xem đơn hẹn có được phép bắt đầu nhận kho không.
- * Quy định: Nút chỉ mở trước giờ hẹn tối đa 1 tiếng (60 phút).
- * Nếu khách trễ hẹn, nút VẪN MỞ để nhân viên đón tiếp ngay khi khách có mặt!
+ * Quy định:
+ * - Nút chỉ mở trước giờ hẹn tối đa 1 tiếng (60 phút).
+ * - Nếu khách trễ hẹn <= 24 tiếng, nút VẪN MỞ để nhân viên đón tiếp ngay khi khách có mặt!
+ * - Nếu trễ quá 24 giờ: Nút BỊ KHÓA / ẨN ĐI, trạng thái thành "Đơn quá hạn".
+ *   Muốn nhận lại thì phải Dời lịch hẹn hoặc Quản lý phê duyệt mở lại.
  */
 export function checkAppointmentEligibility(apt: CheckInAppointment): {
   allowed: boolean;
   reason?: string;
+  isOverdue?: boolean;
 } {
   if (apt.status === 'completed') {
     return { allowed: false, reason: 'Đã hoàn tất bàn giao' };
   }
 
-  if (apt.status === 'cancelled' || apt.status === 'expired') {
-    return { allowed: false, reason: 'Đơn đã bị hủy / quá hạn' };
+  if (apt.status === 'cancelled') {
+    return { allowed: false, reason: 'Đơn đã bị hủy' };
+  }
+
+  // Đơn được Quản lý duyệt mở lại
+  if (apt.managerApprovedExpiry) {
+    const now = new Date();
+    const expiry = new Date(apt.managerApprovedExpiry);
+    if (now > expiry || apt.isApprovalExpired) {
+      return {
+        allowed: false,
+        reason: 'Phê duyệt mở lại đã hết hạn cuối ngày hôm qua (23:59). Hệ thống đã tự động giải phóng ô kho cho khách khác thuê.',
+        isOverdue: true,
+      };
+    }
+    // Còn trong ngày hôm nay: Nút nhận kho mở ngay
+    return { allowed: true };
+  }
+
+  if (apt.status === 'expired') {
+    return {
+      allowed: false,
+      reason: 'Đơn trễ quá 24 giờ (Đơn quá hạn). Nút nhận kho đã bị khóa. Vui lòng dời lịch hẹn hoặc yêu cầu Quản lý phê duyệt mở lại.',
+      isOverdue: true,
+    };
   }
 
   if (apt.status === 'in_progress') {
@@ -238,11 +329,22 @@ export function checkAppointmentEligibility(apt: CheckInAppointment): {
   }
 
   const now = new Date();
-  const diffMs = apptDate.getTime() - now.getTime();
-  const oneHourMs = 60 * 60 * 1000;
+  const diffMs = now.getTime() - apptDate.getTime();
+  const diffMinutes = Math.floor(diffMs / (60 * 1000));
+
+  // Trễ quá 24 giờ (1440 phút): Khóa nhận kho
+  if (diffMinutes > 24 * 60) {
+    return {
+      allowed: false,
+      reason: 'Đơn trễ quá 24 giờ (Đơn quá hạn). Nút nhận kho đã bị khóa. Vui lòng dời lịch hẹn hoặc yêu cầu Quản lý phê duyệt mở lại.',
+      isOverdue: true,
+    };
+  }
 
   // Nếu còn hơn 1 tiếng nữa mới tới giờ hẹn: Khóa nút
-  if (diffMs > oneHourMs) {
+  const futureDiffMs = apptDate.getTime() - now.getTime();
+  const oneHourMs = 60 * 60 * 1000;
+  if (futureDiffMs > oneHourMs) {
     return {
       allowed: false,
       reason: 'Chỉ mở trước giờ hẹn 1 tiếng',
@@ -267,6 +369,12 @@ interface CheckInQueueProps {
     reason: string,
     depositHandling?: 'forfeit'
   ) => Promise<void>;
+  onManagerReopen?: (
+    apt: CheckInAppointment,
+    reason: string,
+    managerName: string
+  ) => Promise<void> | void;
+  currentUser?: StaffUser | null;
 }
 
 export default function CheckInQueue({
@@ -275,10 +383,12 @@ export default function CheckInQueue({
   selectedAppointmentId,
   onReschedule,
   onCancelOrNoShow,
+  onManagerReopen,
+  currentUser,
 }: CheckInQueueProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<
-    'all' | 'confirmed' | 'late' | 'in_progress' | 'completed' | 'cancelled'
+    'all' | 'confirmed' | 'late' | 'overdue' | 'in_progress' | 'completed' | 'cancelled'
   >('all');
   const [viewMode, setViewMode] = useState<'timeline' | 'kanban'>('timeline');
 
@@ -286,20 +396,31 @@ export default function CheckInQueue({
   const [contactModalApt, setContactModalApt] = useState<CheckInAppointment | null>(null);
   const [rescheduleModalApt, setRescheduleModalApt] = useState<CheckInAppointment | null>(null);
   const [noShowModalApt, setNoShowModalApt] = useState<CheckInAppointment | null>(null);
+  const [managerApprovalModalApt, setManagerApprovalModalApt] = useState<CheckInAppointment | null>(null);
 
-  // Thống kê nhanh kèm số lượng đơn trễ hẹn
+  // Thống kê nhanh kèm số lượng đơn trễ hẹn & quá hạn (>24h)
   const stats = useMemo(() => {
-    const todayCount = appointments.filter((a) => a.dateDisplay === 'Hôm nay').length;
-
+    let todayCount = 0;
     let lateCount = 0;
+    let overdueCount = 0;
     let confirmedCount = 0;
 
     appointments.forEach((a) => {
-      if (a.status === 'confirmed' || a.status === 'arrived' || a.status === 'pending') {
+      if (a.dateDisplay === 'Hôm nay') todayCount++;
+
+      if (a.status !== 'completed' && a.status !== 'cancelled') {
         const sched = getAppointmentScheduleStatus(a);
-        if (sched.isLate) {
+        if (sched.isOverdue || a.status === 'expired') {
+          overdueCount++;
+        } else if (sched.isLate) {
           lateCount++;
-        } else {
+        }
+
+        if (
+          (a.status === 'confirmed' || a.status === 'arrived' || a.status === 'pending') &&
+          !sched.isLate &&
+          !sched.isOverdue
+        ) {
           confirmedCount++;
         }
       }
@@ -310,9 +431,10 @@ export default function CheckInQueue({
       todayCount,
       confirmed: confirmedCount,
       lateCount,
+      overdueCount,
       inProgress: appointments.filter((a) => a.status === 'in_progress').length,
       completed: appointments.filter((a) => a.status === 'completed').length,
-      cancelled: appointments.filter((a) => a.status === 'cancelled' || a.status === 'expired').length,
+      cancelled: appointments.filter((a) => a.status === 'cancelled').length,
     };
   }, [appointments]);
 
@@ -331,18 +453,32 @@ export default function CheckInQueue({
       const sched = getAppointmentScheduleStatus(apt);
 
       if (statusFilter === 'all') return true;
+      if (statusFilter === 'overdue') {
+        return (
+          (sched.isOverdue || apt.status === 'expired') &&
+          apt.status !== 'completed' &&
+          apt.status !== 'cancelled'
+        );
+      }
       if (statusFilter === 'late') {
-        return sched.isLate && apt.status !== 'completed' && apt.status !== 'cancelled';
+        return (
+          sched.isLate &&
+          !sched.isOverdue &&
+          apt.status !== 'completed' &&
+          apt.status !== 'cancelled' &&
+          apt.status !== 'expired'
+        );
       }
       if (statusFilter === 'confirmed') {
         return (
           (apt.status === 'confirmed' || apt.status === 'arrived' || apt.status === 'pending') &&
-          !sched.isLate
+          !sched.isLate &&
+          !sched.isOverdue
         );
       }
       if (statusFilter === 'in_progress') return apt.status === 'in_progress';
       if (statusFilter === 'completed') return apt.status === 'completed';
-      if (statusFilter === 'cancelled') return apt.status === 'cancelled' || apt.status === 'expired';
+      if (statusFilter === 'cancelled') return apt.status === 'cancelled';
 
       return true;
     });
@@ -401,9 +537,9 @@ export default function CheckInQueue({
         <div
           onClick={() => setStatusFilter(statusFilter === 'late' ? 'all' : 'late')}
           className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
-            statusFilter === 'late'
+            statusFilter === 'late' || statusFilter === 'overdue'
               ? 'bg-rose-50/90 border-rose-500 ring-2 ring-rose-500/25 shadow-xs'
-              : stats.lateCount > 0
+              : stats.lateCount > 0 || stats.overdueCount > 0
               ? 'bg-rose-50/40 border-rose-200 hover:border-rose-400'
               : 'bg-white border-slate-200 hover:border-rose-200 hover:bg-rose-50/10'
           }`}
@@ -411,15 +547,26 @@ export default function CheckInQueue({
           <div className="text-xs font-semibold text-rose-700 uppercase tracking-wider flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-              <span>Trễ hẹn / Cần gọi</span>
+              <span>Trễ hẹn / Quá hạn</span>
             </span>
-            {stats.lateCount > 0 && (
-              <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'late' ? 'bg-rose-600' : 'bg-rose-500 animate-ping'}`} />
+            {(stats.lateCount > 0 || stats.overdueCount > 0) && (
+              <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'late' || statusFilter === 'overdue' ? 'bg-rose-600' : 'bg-rose-500 animate-ping'}`} />
             )}
           </div>
-          <div className="text-2xl font-black text-rose-900 mt-1">{stats.lateCount}</div>
+          <div className="text-2xl font-black text-rose-900 mt-1 flex items-baseline gap-2">
+            <span>{stats.lateCount}</span>
+            {stats.overdueCount > 0 && (
+              <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
+                +{stats.overdueCount} quá hạn
+              </span>
+            )}
+          </div>
           <div className="text-[11px] text-rose-700/90 mt-0.5">
-            {stats.lateCount > 0 ? 'Cần nhân viên hỗ trợ ngay' : 'Không có đơn trễ giờ'}
+            {stats.overdueCount > 0
+              ? `${stats.overdueCount} đơn trễ >24h bị khóa`
+              : stats.lateCount > 0
+              ? 'Cần nhân viên hỗ trợ ngay'
+              : 'Không có đơn trễ giờ'}
           </div>
         </div>
 
@@ -490,10 +637,11 @@ export default function CheckInQueue({
             [
               { key: 'all', label: 'Tất cả' },
               { key: 'confirmed', label: 'Chờ đón tiếp' },
-              { key: 'late', label: `Trễ hẹn` },
+              { key: 'late', label: 'Trễ hẹn' },
+              { key: 'overdue', label: 'Đơn quá hạn' },
               { key: 'in_progress', label: 'Đang xử lý' },
               { key: 'completed', label: 'Hoàn tất' },
-              { key: 'cancelled', label: `Đã hủy` },
+              { key: 'cancelled', label: 'Đã hủy' },
             ] as const
           ).map((item) => {
             const isActive = statusFilter === item.key;
@@ -503,15 +651,21 @@ export default function CheckInQueue({
                 onClick={() => setStatusFilter(item.key)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   isActive
-                    ? item.key === 'late'
+                    ? item.key === 'overdue'
+                      ? 'bg-red-700 text-white shadow-xs font-bold'
+                      : item.key === 'late'
                       ? 'bg-rose-600 text-white shadow-xs font-bold'
                       : 'bg-[#4f39f6] text-white shadow-xs'
+                    : item.key === 'overdue' && stats.overdueCount > 0
+                    ? 'bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 font-bold'
                     : item.key === 'late' && stats.lateCount > 0
                     ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 font-bold'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
                 {item.label}
+                {item.key === 'overdue' && stats.overdueCount > 0 ? ` (${stats.overdueCount})` : ''}
+                {item.key === 'late' && stats.lateCount > 0 ? ` (${stats.lateCount})` : ''}
               </button>
             );
           })}
@@ -658,6 +812,18 @@ export default function CheckInQueue({
           }
         }}
       />
+
+      <ManagerApprovalModal
+        isOpen={!!managerApprovalModalApt}
+        onClose={() => setManagerApprovalModalApt(null)}
+        appointment={managerApprovalModalApt}
+        currentUser={currentUser}
+        onConfirm={async (apt, reason, managerName) => {
+          if (onManagerReopen) {
+            await onManagerReopen(apt, reason, managerName);
+          }
+        }}
+      />
     </div>
   );
 
@@ -667,8 +833,40 @@ export default function CheckInQueue({
     const isToday = apt.dateDisplay === 'Hôm nay';
     const isTomorrow = apt.dateDisplay?.startsWith('Ngày mai');
     const sched = getAppointmentScheduleStatus(apt);
-    const isLate = sched.isLate && apt.status !== 'completed' && apt.status !== 'cancelled';
-    const isInactive = apt.status === 'completed' || apt.status === 'cancelled' || apt.status === 'expired';
+
+    // Kiểm tra phê duyệt Quản lý mở lại và thời hạn cuối ngày
+    const isApprovalExpired =
+      Boolean(
+        apt.isApprovalExpired ||
+        (apt.managerApprovedExpiry && new Date() > new Date(apt.managerApprovedExpiry))
+      ) &&
+      apt.status !== 'completed' &&
+      apt.status !== 'cancelled';
+
+    const isApprovedValidToday =
+      Boolean(
+        apt.managerApprovedExpiry &&
+        new Date() <= new Date(apt.managerApprovedExpiry)
+      ) &&
+      apt.status !== 'completed' &&
+      apt.status !== 'cancelled' &&
+      !isApprovalExpired;
+
+    const isOverdue =
+      (sched.isOverdue || apt.status === 'expired') &&
+      !isApprovedValidToday &&
+      !isApprovalExpired &&
+      apt.status !== 'completed' &&
+      apt.status !== 'cancelled';
+
+    const isLate =
+      sched.isLate &&
+      !isOverdue &&
+      !isApprovedValidToday &&
+      !isApprovalExpired &&
+      apt.status !== 'completed' &&
+      apt.status !== 'cancelled' &&
+      apt.status !== 'expired';
 
     return (
       <div
@@ -676,6 +874,12 @@ export default function CheckInQueue({
         className={`p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:bg-slate-50/80 ${
           isCurrent
             ? 'bg-blue-50/40 border-l-4 border-blue-600'
+            : isApprovedValidToday
+            ? 'bg-indigo-50/25 border-l-4 border-indigo-600'
+            : isApprovalExpired
+            ? 'bg-slate-50 border-l-4 border-slate-400 opacity-90'
+            : isOverdue
+            ? 'bg-red-50/30 border-l-4 border-red-600'
             : isLate
             ? 'bg-rose-50/20 border-l-4 border-rose-500'
             : ''
@@ -685,7 +889,13 @@ export default function CheckInQueue({
         <div className="flex items-start sm:items-center gap-4">
           <div
             className={`flex flex-col items-center justify-center min-w-[108px] px-2.5 py-2 rounded-xl font-bold border shrink-0 text-center ${
-              isLate
+              isApprovedValidToday
+                ? 'bg-indigo-50 text-indigo-900 border-indigo-200'
+                : isApprovalExpired
+                ? 'bg-slate-100 text-slate-700 border-slate-300'
+                : isOverdue
+                ? 'bg-red-50 text-red-900 border-red-300 ring-1 ring-red-200'
+                : isLate
                 ? 'bg-rose-50 text-rose-900 border-rose-200'
                 : 'bg-slate-100 text-slate-800 border-slate-200'
             }`}
@@ -693,7 +903,13 @@ export default function CheckInQueue({
             {/* Tag Ngày Hẹn */}
             <span
               className={`text-[10px] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md mb-1 ${
-                isToday
+                isApprovedValidToday
+                  ? 'bg-indigo-600 text-white'
+                  : isApprovalExpired
+                  ? 'bg-slate-500 text-white'
+                  : isOverdue
+                  ? 'bg-red-600 text-white'
+                  : isToday
                   ? 'bg-blue-600 text-white'
                   : apt.dateDisplay === 'Hôm qua'
                   ? 'bg-rose-600 text-white shadow-2xs'
@@ -702,7 +918,7 @@ export default function CheckInQueue({
                   : 'bg-slate-200 text-slate-700'
               }`}
             >
-              {apt.dateDisplay || apt.startDate}
+              {isApprovedValidToday ? 'Hôm nay' : apt.dateDisplay || apt.startDate}
             </span>
             <span className="text-xs font-black text-slate-900 tabular-nums">{apt.slotTime}</span>
           </div>
@@ -715,8 +931,23 @@ export default function CheckInQueue({
               {/* Status Badge */}
               {renderStatusBadge(apt)}
 
-              {/* Tag Trễ Hẹn / Đúng Hẹn */}
-              {isLate ? (
+              {/* Tag Trễ Hẹn / Quá Hạn / Đã Duyệt */}
+              {isApprovedValidToday ? (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-300 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-indigo-600" />
+                  Hiệu lực đến 23:59
+                </span>
+              ) : isApprovalExpired ? (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 border border-slate-300 flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-slate-500" />
+                  Đã giải phóng ô kho
+                </span>
+              ) : isOverdue ? (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-red-100 text-red-800 border border-red-300 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 text-red-600" />
+                  Trễ &gt; 24h
+                </span>
+              ) : isLate ? (
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1 animate-pulse">
                   <AlertTriangle className="w-3 h-3 text-rose-600" />
                   {sched.label}
@@ -744,6 +975,15 @@ export default function CheckInQueue({
                 Ngày nhận: <strong className="text-slate-800 font-semibold">{apt.startDate}</strong>
               </span>
 
+              {apt.specialNotes && (
+                <>
+                  <span>•</span>
+                  <span className="text-slate-600 font-medium italic">
+                    {apt.specialNotes}
+                  </span>
+                </>
+              )}
+
               {apt.cancelReason && (
                 <>
                   <span>•</span>
@@ -753,10 +993,25 @@ export default function CheckInQueue({
                 </>
               )}
             </div>
+
+            {/* Thông báo chính sách giữ kho đối với đơn được phê duyệt */}
+            {isApprovedValidToday && (
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-900 bg-indigo-50/80 px-2.5 py-1 rounded-lg border border-indigo-200 w-fit mt-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span>Quản lý ({apt.managerApproverName || 'Cơ sở'}) đã duyệt • Giữ ô kho #{apt.assignedUnit} đến hết hôm nay 23:59. Sau 23:59 sẽ tự động giải phóng kho nếu chưa nhận.</span>
+              </div>
+            )}
+
+            {isApprovalExpired && (
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-800 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 w-fit mt-1">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>Hết hạn phê duyệt cuối ngày (23:59 hôm qua): Hệ thống đã tự động giải phóng ô kho #{apt.assignedUnit} về trạng thái Khả dụng.</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Actions: Liên Hệ, Dời Lịch, Báo Vắng, Nhận Kho */}
+        {/* Right Actions: Liên Hệ, Dời Lịch, Phê duyệt mở lại, Nhận Kho */}
         <div className="flex items-center gap-2 self-end md:self-center shrink-0 flex-wrap">
           {apt.status === 'completed' ? (
             <div className="text-right">
@@ -765,14 +1020,92 @@ export default function CheckInQueue({
                 Đã bàn giao lúc {apt.completedAt || '08:48'}
               </span>
             </div>
-          ) : apt.status === 'cancelled' || apt.status === 'expired' ? (
+          ) : apt.status === 'cancelled' ? (
             <div className="text-right">
               <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 flex items-center gap-1.5">
                 <XCircle className="w-3.5 h-3.5" />
-                Đã hủy 
+                Đã hủy
               </span>
             </div>
+          ) : isApprovalExpired ? (
+            /* TRƯỜNG HỢP HẾT HẠN PHÊ DUYỆT CUỐI NGÀY: Khóa nhận kho & Báo đã giải phóng kho */
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                disabled
+                title="Đơn mở lại đã hết hạn cuối ngày hôm qua. Ô kho đã được tự động giải phóng về trạng thái Khả dụng."
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed select-none opacity-60 shadow-none"
+              >
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Đã giải phóng ô kho</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRescheduleModalApt(apt)}
+                title="Bấm để dời lịch hẹn sang ngày mới cho khách"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 active:scale-95 rounded-xl border border-amber-300 transition-all cursor-pointer shadow-2xs"
+              >
+                <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                <span>Dời lịch hẹn mới</span>
+              </button>
+            </div>
+          ) : isApprovedValidToday ? (
+            /* TRƯỜNG HỢP ĐÃ ĐƯỢC DUYỆT VÀ CÒN HẠN HÔM NAY (ĐẾN 23:59): Mở nút Nhận kho */
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => onStartCheckIn(apt)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-xl transition-all shadow-xs hover:shadow-sm cursor-pointer"
+              >
+                <span>Bắt đầu nhận kho</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setNoShowModalApt(apt)}
+                title="Khách báo không đến: Bấm để hủy đơn và giải phóng ngay ô kho"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all cursor-pointer shadow-2xs"
+              >
+                <span>Báo vắng &amp; Giải phóng kho</span>
+              </button>
+            </div>
+          ) : isOverdue ? (
+            /* TRƯỜNG HỢP TRỄ QUÁ 24 GIỜ: Nút "Bắt đầu nhận kho" bị khóa / ẩn đi */
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Nút Nhận kho bị khóa hoàn toàn */}
+              <button
+                type="button"
+                disabled
+                title="Đơn đã quá hạn (trễ hơn 24 giờ). Nút nhận kho đã bị khóa. Vui lòng dời lịch hẹn hoặc yêu cầu Quản lý phê duyệt mở lại."
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed select-none opacity-60 shadow-none"
+              >
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Khóa nhận kho (Quá hạn)</span>
+              </button>
+
+              {/* Bấm Dời lịch hẹn để kích hoạt lại đơn */}
+              <button
+                type="button"
+                onClick={() => setRescheduleModalApt(apt)}
+                title="Dời lịch hẹn sang ngày/giờ mới để kích hoạt lại đơn nhận kho"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 active:scale-95 rounded-xl border border-amber-300 transition-all cursor-pointer shadow-2xs"
+              >
+                <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                <span>Dời lịch hẹn</span>
+              </button>
+
+              {/* Bấm Quản lý phê duyệt mở lại */}
+              <button
+                type="button"
+                onClick={() => setManagerApprovalModalApt(apt)}
+                title="Cấp Quản lý phê duyệt mở lại đơn (hiệu lực đến hết ngày hôm nay)"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-xl border border-indigo-200 transition-all cursor-pointer shadow-2xs"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Quản lý duyệt mở lại</span>
+              </button>
+            </div>
           ) : (
+            /* TRƯỜNG HỢP BÌNH THƯỜNG / TRỄ DƯỚI 24 GIỜ */
             <>
               {/* Khi TRỄ HẸN (isLate): Bắt buộc gọi điện / liên hệ xác nhận trước */}
               {isLate && (
@@ -829,13 +1162,29 @@ export default function CheckInQueue({
   ) {
     const items = appointments.filter((a) => {
       const sched = getAppointmentScheduleStatus(a);
+      const isApprovedValid =
+        Boolean(a.managerApprovedExpiry && new Date() <= new Date(a.managerApprovedExpiry)) &&
+        a.status !== 'completed' &&
+        a.status !== 'cancelled';
+      const isAppExpired =
+        Boolean(a.isApprovalExpired || (a.managerApprovedExpiry && new Date() > new Date(a.managerApprovedExpiry))) &&
+        a.status !== 'completed' &&
+        a.status !== 'cancelled';
+
       if (columnType === 'late') {
-        return sched.isLate && a.status !== 'completed' && a.status !== 'cancelled';
+        return (
+          (sched.isLate || sched.isOverdue || a.status === 'expired' || isAppExpired) &&
+          !isApprovedValid &&
+          a.status !== 'completed' &&
+          a.status !== 'cancelled'
+        );
       }
       if (columnType === 'confirmed') {
         return (
-          (a.status === 'confirmed' || a.status === 'arrived' || a.status === 'pending') &&
-          !sched.isLate
+          ((a.status === 'confirmed' || a.status === 'arrived' || a.status === 'pending') || isApprovedValid) &&
+          (!sched.isLate || isApprovedValid) &&
+          !sched.isOverdue &&
+          !isAppExpired
         );
       }
       if (columnType === 'in_progress') return a.status === 'in_progress';
@@ -862,18 +1211,56 @@ export default function CheckInQueue({
           ) : (
             items.map((apt) => {
               const sched = getAppointmentScheduleStatus(apt);
-              const isLate = sched.isLate && apt.status !== 'completed' && apt.status !== 'cancelled';
+              const isApprovedValid =
+                Boolean(apt.managerApprovedExpiry && new Date() <= new Date(apt.managerApprovedExpiry)) &&
+                apt.status !== 'completed' &&
+                apt.status !== 'cancelled';
+              const isAppExpired =
+                Boolean(apt.isApprovalExpired || (apt.managerApprovedExpiry && new Date() > new Date(apt.managerApprovedExpiry))) &&
+                apt.status !== 'completed' &&
+                apt.status !== 'cancelled';
+              const isOverdue =
+                (sched.isOverdue || apt.status === 'expired') &&
+                !isApprovedValid &&
+                !isAppExpired &&
+                apt.status !== 'completed' &&
+                apt.status !== 'cancelled';
+              const isLate =
+                sched.isLate &&
+                !isOverdue &&
+                !isApprovedValid &&
+                !isAppExpired &&
+                apt.status !== 'completed' &&
+                apt.status !== 'cancelled' &&
+                apt.status !== 'expired';
+
               return (
                 <div
                   key={apt.id}
                   className={`p-3.5 rounded-xl border bg-slate-50 hover:bg-white hover:shadow-xs transition-all space-y-2.5 ${
-                    columnType === 'late'
+                    isApprovedValid
+                      ? 'border-indigo-300 hover:border-indigo-500 bg-indigo-50/20'
+                      : isAppExpired
+                      ? 'border-slate-300 hover:border-slate-400 bg-slate-100/60'
+                      : isOverdue
+                      ? 'border-red-300 hover:border-red-500 bg-red-50/20'
+                      : columnType === 'late'
                       ? 'border-rose-200 hover:border-rose-400'
                       : 'border-slate-200 hover:border-blue-400'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    <span
+                      className={`text-[11px] font-bold px-2 py-0.5 rounded border ${
+                        isApprovedValid
+                          ? 'text-indigo-700 bg-indigo-50 border-indigo-200'
+                          : isAppExpired
+                          ? 'text-slate-700 bg-slate-200 border-slate-300'
+                          : isOverdue
+                          ? 'text-red-700 bg-red-50 border-red-300'
+                          : 'text-blue-700 bg-blue-50 border-blue-200'
+                      }`}
+                    >
                       {apt.dateDisplay ? `${apt.dateDisplay} • ` : ''}
                       {apt.slotTime}
                     </span>
@@ -894,45 +1281,102 @@ export default function CheckInQueue({
                     </span>
                   </div>
 
-                  {/* Kanban Quick Action Buttons: Chỉ hiện khi trễ hẹn */}
+                  {/* Kanban Quick Action Buttons */}
                   {apt.status !== 'completed' && apt.status !== 'cancelled' && (
-                    <div className="pt-1 flex items-center gap-1.5 flex-wrap">
-                      {isLate && (
-                        <button
-                          type="button"
-                          onClick={() => setContactModalApt(apt)}
-                          title="Trễ hẹn: Bấm để liên hệ khách hàng xác nhận"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-bold hover:bg-blue-100 cursor-pointer transition-colors"
-                        >
-                          <Phone className="w-3 h-3 text-blue-600" />
-                          <span>Liên hệ</span>
-                        </button>
-                      )}
-
-                      {/* Nút nhận kho */}
-                      {(() => {
-                        const eligibility = checkAppointmentEligibility(apt);
-                        if (!eligibility.allowed) {
-                          return (
-                            <button
-                              type="button"
-                              disabled
-                              className="flex-1 py-1 text-center text-xs font-semibold text-slate-400 bg-slate-100 rounded-lg cursor-not-allowed opacity-50 flex items-center justify-center gap-1"
-                            >
-                              <Lock className="w-3 h-3" />
-                              <span>Khóa</span>
-                            </button>
-                          );
-                        }
-                        return (
+                    <div className="pt-1">
+                      {isAppExpired ? (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                            <span className="flex items-center gap-1">
+                              <Lock className="w-3 h-3 text-slate-500" />
+                              Đã giải phóng ô kho
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRescheduleModalApt(apt)}
+                            title="Dời lịch hẹn"
+                            className="w-full py-1 text-center text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-300 transition-all cursor-pointer"
+                          >
+                            Dời lịch mới
+                          </button>
+                        </div>
+                      ) : isApprovedValid ? (
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => onStartCheckIn(apt)}
-                            className="flex-1 py-1 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all cursor-pointer"
+                            className="flex-1 py-1 text-center text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all cursor-pointer"
                           >
-                            Nhận kho →
+                            Nhận kho (Hôm nay) →
                           </button>
-                        );
-                      })()}
+                        </div>
+                      ) : isOverdue ? (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between text-[10px] text-red-700 font-bold bg-red-50 px-2 py-1 rounded border border-red-200">
+                            <span className="flex items-center gap-1">
+                              <Lock className="w-3 h-3 text-red-600" />
+                              Khóa nhận kho (&gt;24h)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setRescheduleModalApt(apt)}
+                              title="Dời lịch hẹn"
+                              className="flex-1 py-1 text-center text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-300 transition-all cursor-pointer"
+                            >
+                              Dời lịch
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setManagerApprovalModalApt(apt)}
+                              title="Quản lý duyệt mở lại"
+                              className="flex-1 py-1 text-center text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-all cursor-pointer"
+                            >
+                              Duyệt mở
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {isLate && (
+                            <button
+                              type="button"
+                              onClick={() => setContactModalApt(apt)}
+                              title="Trễ hẹn: Bấm để liên hệ khách hàng xác nhận"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-bold hover:bg-blue-100 cursor-pointer transition-colors"
+                            >
+                              <Phone className="w-3 h-3 text-blue-600" />
+                              <span>Liên hệ</span>
+                            </button>
+                          )}
+
+                          {/* Nút nhận kho */}
+                          {(() => {
+                            const eligibility = checkAppointmentEligibility(apt);
+                            if (!eligibility.allowed) {
+                              return (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="flex-1 py-1 text-center text-xs font-semibold text-slate-400 bg-slate-100 rounded-lg cursor-not-allowed opacity-50 flex items-center justify-center gap-1"
+                                >
+                                  <Lock className="w-3 h-3" />
+                                  <span>Khóa</span>
+                                </button>
+                              );
+                            }
+                            return (
+                              <button
+                                onClick={() => onStartCheckIn(apt)}
+                                className="flex-1 py-1 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all cursor-pointer"
+                              >
+                                Nhận kho →
+                              </button>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -946,6 +1390,46 @@ export default function CheckInQueue({
 
   // Helper render Nhãn trạng thái (Status Badges)
   function renderStatusBadge(apt: CheckInAppointment) {
+    const sched = getAppointmentScheduleStatus(apt);
+
+    // Kiểm tra hết hạn phê duyệt cuối ngày
+    if (
+      apt.isApprovalExpired ||
+      (apt.managerApprovedExpiry && new Date() > new Date(apt.managerApprovedExpiry) && apt.status !== 'completed' && apt.status !== 'cancelled')
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+          Hết hạn duyệt • Đã giải phóng kho
+        </span>
+      );
+    }
+
+    // Đơn được Quản lý duyệt mở lại (còn hiệu lực trong ngày)
+    if (
+      apt.managerApprovedExpiry &&
+      new Date() <= new Date(apt.managerApprovedExpiry) &&
+      apt.status !== 'completed' &&
+      apt.status !== 'cancelled'
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-300">
+          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+          Đã duyệt • Hiệu lực đến 23:59
+        </span>
+      );
+    }
+
+    // Nếu đơn trễ hơn 24 giờ hoặc trạng thái expired -> "Đơn quá hạn"
+    if (apt.status === 'expired' || (sched.isOverdue && apt.status !== 'completed' && apt.status !== 'cancelled')) {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+          Đơn quá hạn
+        </span>
+      );
+    }
+
     const status = apt.status;
     switch (status) {
       case 'pending':
@@ -978,7 +1462,6 @@ export default function CheckInQueue({
           </span>
         );
       case 'cancelled':
-      case 'expired':
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
@@ -990,3 +1473,4 @@ export default function CheckInQueue({
     }
   }
 }
+

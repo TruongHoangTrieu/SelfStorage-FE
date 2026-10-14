@@ -385,4 +385,19 @@ export const handoversApi = {
     };
     return await api.post<BackendCheckInResponse>('/handovers/check-in', body);
   },
+
+  /**
+   * Ghi nhận nhật ký bảo mật (Audit Log) khi nhân viên xem hoặc in CCCD của khách
+   */
+  async logCccdAccess(payload: {
+    reservationId: string;
+    action: 'VIEW_UNMASKED_CCCD' | 'PRINT_CONTRACT_WITH_CCCD';
+    customerName?: string;
+  }): Promise<void> {
+    try {
+      await api.post('/handovers/log-cccd-access', payload);
+    } catch (err) {
+      console.warn('Could not record CCCD audit log:', err);
+    }
+  },
 };

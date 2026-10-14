@@ -73,9 +73,25 @@ export default function UnitTypesPricingManager({
     )
   );
 
+  // Chỉ các vai trò quản trị cấp cao toàn hệ thống mới được đổi cơ sở
+  // Vai trò FACILITY_MANAGER bị cố định vào cơ sở được phân công quản lý
+  const canSwitchFacility = Boolean(
+    currentUser && (
+      roleName === 'BUSINESS_OPERATIONS_MANAGER' ||
+      roleName === 'SYSTEM_ADMINISTRATOR' ||
+      roleName === 'ADMIN'
+    )
+  );
+
+  const assignedFacilityId =
+    currentUser?.facilityId ||
+    currentUser?.assignedFacility?.id ||
+    currentFacilityId ||
+    null;
+
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState<string | number | null>(
-    currentFacilityId || null,
+    assignedFacilityId,
   );
   const [unitTypes, setUnitTypes] = useState<UnitTypeItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,10 +124,20 @@ export default function UnitTypesPricingManager({
         const data = await api.get('/facilities');
         const list = Array.isArray(data) ? data : data?.data || [];
         setFacilities(list);
-        if (list.length > 0 && !selectedFacilityId) {
-          const defaultFac =
-            list.find((f: any) => f.id === currentFacilityId) || list[0];
-          setSelectedFacilityId(defaultFac.id);
+
+        if (!canSwitchFacility) {
+          // Với Quản lý cơ sở: Luôn cố định cơ sở được giao, không cho chọn cơ sở khác
+          const targetId = assignedFacilityId || (list.length > 0 ? list[0].id : null);
+          if (targetId) {
+            setSelectedFacilityId(targetId);
+          }
+        } else {
+          // Với Quản trị viên cấp cao: Nếu chưa chọn thì mặc định cơ sở hiện tại hoặc cơ sở đầu tiên
+          if (list.length > 0 && !selectedFacilityId) {
+            const defaultFac =
+              list.find((f: any) => String(f.id) === String(currentFacilityId)) || list[0];
+            setSelectedFacilityId(defaultFac.id);
+          }
         }
       } catch (err) {
         console.error('Failed to load facilities', err);
@@ -119,7 +145,7 @@ export default function UnitTypesPricingManager({
       }
     }
     fetchFacilities();
-  }, [currentFacilityId]);
+  }, [assignedFacilityId, canSwitchFacility, currentFacilityId]);
 
   // Load Unit Types for selected facility
   const loadUnitTypes = useCallback(async () => {
@@ -152,9 +178,17 @@ export default function UnitTypesPricingManager({
   const openCreateModal = () => {
     if (!canEditPricing) {
       toast.error(
-        'Chỉ có 3 vai trò: Facility Manager, Business Operations Manager và System Administrator mới được quyền tạo loại kho & chỉnh giá.',
+        'Chỉ có vai trò Quản lý cơ sở, Business Operations Manager hoặc Admin mới có quyền tạo loại kho & bảng giá.',
       );
       return;
+    }
+    const targetFacilityId = !canSwitchFacility ? assignedFacilityId : selectedFacilityId;
+    if (!targetFacilityId) {
+      toast.error('Không tìm thấy cơ sở phân công để thiết lập loại kho.');
+      return;
+    }
+    if (!canSwitchFacility && selectedFacilityId !== targetFacilityId) {
+      setSelectedFacilityId(targetFacilityId);
     }
     setEditingItem(null);
     setFormData({
@@ -173,8 +207,18 @@ export default function UnitTypesPricingManager({
   const openEditModal = (item: UnitTypeItem) => {
     if (!canEditPricing) {
       toast.error(
-        'Chỉ có 3 vai trò: Facility Manager, Business Operations Manager và System Administrator mới được quyền chỉnh sửa giá thuê & tiền cọc.',
+        'Chỉ có vai trò Quản lý cơ sở, Business Operations Manager hoặc Admin mới có quyền chỉnh sửa giá thuê & tiền cọc.',
       );
+      return;
+    }
+    // Nếu là Facility Manager, chỉ được phép sửa loại kho thuộc đúng cơ sở mình quản lý
+    if (
+      !canSwitchFacility &&
+      assignedFacilityId &&
+      item.facilityId &&
+      String(item.facilityId) !== String(assignedFacilityId)
+    ) {
+      toast.error('Bạn chỉ có quyền chỉnh sửa loại kho thuộc cơ sở được giao quản lý.');
       return;
     }
     setEditingItem(item);
@@ -197,7 +241,8 @@ export default function UnitTypesPricingManager({
       toast.error('Bạn không có quyền điều chỉnh giá thuê hoặc tiền cọc.');
       return;
     }
-    if (!selectedFacilityId) {
+    const targetFacilityId = !canSwitchFacility ? assignedFacilityId : selectedFacilityId;
+    if (!targetFacilityId) {
       toast.error('Vui lòng chọn cơ sở kho');
       return;
     }
@@ -230,7 +275,7 @@ export default function UnitTypesPricingManager({
       } else {
         // CREATE POST
         await api.post('/storage-unit-types', {
-          facilityId: selectedFacilityId,
+          facilityId: targetFacilityId,
           name: formData.name.trim(),
           code: formData.code.trim().toUpperCase(),
           description: formData.description.trim() || null,
@@ -258,6 +303,15 @@ export default function UnitTypesPricingManager({
       return;
     }
     if (!deletingItem) return;
+    if (
+      !canSwitchFacility &&
+      assignedFacilityId &&
+      deletingItem.facilityId &&
+      String(deletingItem.facilityId) !== String(assignedFacilityId)
+    ) {
+      toast.error('Bạn chỉ có quyền xóa loại kho thuộc cơ sở được giao quản lý.');
+      return;
+    }
     setIsDeleting(true);
     try {
       await api.delete(`/storage-unit-types/${deletingItem.id}`);
@@ -280,7 +334,20 @@ export default function UnitTypesPricingManager({
     );
   });
 
-  const selectedFacility = facilities.find((f) => f.id === selectedFacilityId);
+  const selectedFacility = facilities.find(
+    (f) => String(f.id) === String(selectedFacilityId),
+  );
+
+  const currentFacilityDisplayName =
+    selectedFacility?.name ||
+    currentUser?.assignedFacility?.name ||
+    currentUser?.facilityName ||
+    'Cơ sở quản lý';
+
+  const currentFacilityCode =
+    selectedFacility?.code ||
+    currentUser?.assignedFacility?.code ||
+    '';
 
   return (
     <div className="space-y-6">
@@ -307,27 +374,29 @@ export default function UnitTypesPricingManager({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Facility Selector */}
-            <div className="relative min-w-[220px]">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Chọn Cơ Sở Quản Lý
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedFacilityId || ''}
-                  onChange={(e) => setSelectedFacilityId(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 transition appearance-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                >
-                  {facilities.map((fac) => (
-                    <option key={fac.id} value={fac.id}>
-                      {fac.name} ({fac.code})
-                    </option>
-                  ))}
-                </select>
-                <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            {/* Facility Selector: Chỉ hiển thị dropdown cho Quản trị viên cấp cao */}
+            {canSwitchFacility && (
+              <div className="relative min-w-[220px]">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  Chọn Cơ Sở Quản Lý
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedFacilityId || ''}
+                    onChange={(e) => setSelectedFacilityId(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 transition appearance-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  >
+                    {facilities.map((fac) => (
+                      <option key={fac.id} value={fac.id}>
+                        {fac.name} ({fac.code})
+                      </option>
+                    ))}
+                  </select>
+                  <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Reload button */}
             <div className="self-end">
@@ -381,8 +450,8 @@ export default function UnitTypesPricingManager({
           </div>
         )}
 
-        {/* Search bar & quick filter */}
-        <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Search bar */}
+        <div className="mt-6 pt-5 border-t border-slate-100">
           <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -392,13 +461,6 @@ export default function UnitTypesPricingManager({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
-          </div>
-
-          <div className="text-xs text-slate-500 font-medium">
-            Đang hiển thị tại cơ sở:{' '}
-            <strong className="text-slate-800 font-bold">
-              {selectedFacility?.name || 'Chưa chọn'}
-            </strong>
           </div>
         </div>
       </div>
@@ -617,14 +679,22 @@ export default function UnitTypesPricingManager({
 
             {/* Modal Form */}
             <form onSubmit={handleSubmitForm} className="p-6 space-y-4">
-              <div className="p-3 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
-                <Building2 className="w-5 h-5 text-blue-600 shrink-0" />
-                <div className="text-xs">
-                  <span className="text-slate-500 font-medium">Cơ sở áp dụng: </span>
-                  <strong className="text-slate-900 font-bold">
-                    {selectedFacility?.name} ({selectedFacility?.code})
-                  </strong>
+              <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-2xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Building2 className="w-5 h-5 text-blue-600 shrink-0" />
+                  <div className="text-xs min-w-0">
+                    <span className="text-slate-500 font-medium">Cơ sở áp dụng: </span>
+                    <strong className="text-slate-900 font-bold">
+                      {currentFacilityDisplayName} {currentFacilityCode ? `(${currentFacilityCode})` : ''}
+                    </strong>
+                  </div>
                 </div>
+                {!canSwitchFacility && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-white text-slate-700 border border-slate-200 rounded-lg shrink-0">
+                    <Lock className="w-3 h-3 text-slate-500" />
+                    Cơ sở phân công
+                  </span>
+                )}
               </div>
 
               {/* Tên & Mã Code */}

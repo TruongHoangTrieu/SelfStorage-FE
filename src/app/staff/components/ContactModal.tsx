@@ -24,6 +24,7 @@ export default function ContactModal({
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [contactAttempted, setContactAttempted] = useState(false);
+  const [showFullIdCard, setShowFullIdCard] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -105,7 +106,24 @@ export default function ContactModal({
             )}
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-500">CCCD / Định danh</span>
-              <span className="text-xs font-mono text-slate-700">{appointment.idCard || 'Đã xác thực'}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-medium text-slate-700">
+                  {showFullIdCard
+                    ? (appointment.idCard || 'Đã xác thực')
+                    : (appointment.idCard && appointment.idCard.length >= 6
+                        ? `${appointment.idCard.slice(0, 3)}******${appointment.idCard.slice(-3)}`
+                        : (appointment.idCard || 'Đã xác thực'))}
+                </span>
+                {appointment.idCard && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFullIdCard(!showFullIdCard)}
+                    className="text-[11px] text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                  >
+                    {showFullIdCard ? 'Ẩn' : 'Hiện'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

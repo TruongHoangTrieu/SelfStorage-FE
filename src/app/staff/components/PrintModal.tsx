@@ -44,11 +44,11 @@ export default function PrintModal({
       <html lang="vi">
         <head>
           <meta charset="utf-8" />
-          <title>${docTitle}</title>
+          <title></title>
           <style>
             @page {
               size: A4 portrait;
-              margin: 18mm 20mm;
+              margin: 0;
             }
             body {
               font-family: 'Times New Roman', Times, serif;
@@ -56,7 +56,7 @@ export default function PrintModal({
               line-height: 1.5;
               font-size: 13pt;
               margin: 0;
-              padding: 20px;
+              padding: 15mm 20mm;
               background: #fff;
             }
             .header-national {

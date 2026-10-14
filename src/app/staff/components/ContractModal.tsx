@@ -1,18 +1,18 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Printer,
-  Download,
 } from 'lucide-react';
 import { CheckInAppointment } from '../types';
+import { handoversApi } from '../../../lib/api/handovers';
 
 interface ContractModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: CheckInAppointment;
   assignedUnit: string;
-  onPrint: () => void;
+  onPrint?: () => void;
 }
 
 export default function ContractModal({
@@ -20,14 +20,35 @@ export default function ContractModal({
   onClose,
   appointment,
   assignedUnit,
-  onPrint,
 }: ContractModalProps) {
   const printContentRef = useRef<HTMLDivElement>(null);
+  const [isEditable, setIsEditable] = useState(false);
+  const [isRevealedCccd, setIsRevealedCccd] = useState(false);
 
-  if (!isOpen) return null;
+  if (!isOpen || !appointment) return null;
+
+  const rawCccd = appointment.idCard || '079095012345';
+  const maskCccd = (val: string) => {
+    const clean = (val || '').replace(/\s+/g, '');
+    if (clean.length < 6) return clean;
+    return `${clean.slice(0, 3)}******${clean.slice(-3)}`;
+  };
+
+  const handleToggleRevealCccd = () => {
+    const nextState = !isRevealedCccd;
+    setIsRevealedCccd(nextState);
+    if (nextState) {
+      // Layer 3: Ghi Audit Log khi nhân viên bấm mở xem đầy đủ số CCCD
+      handoversApi.logCccdAccess({
+        reservationId: String(appointment.rawId || appointment.id),
+        action: 'VIEW_UNMASKED_CCCD',
+        customerName: appointment.customerName,
+      });
+    }
+  };
 
   const finalUnit = assignedUnit || appointment.assignedUnit;
-  const contractNumber = appointment.contractCode || `SS-HĐ-${appointment.id.replace(/[^a-zA-Z0-9]/g, '')}/2026`;
+  const contractNumber = appointment.contractCode || `SS-HĐ-${(appointment.id || '').replace(/[^a-zA-Z0-9]/g, '')}/2026`;
 
   // Calculate contract dates
   const today = new Date();
@@ -37,6 +58,13 @@ export default function ContractModal({
 
   // Hàm in / xuất file PDF chuẩn A4 văn bản pháp lý (dùng hidden iframe chống chặn pop-up)
   const handlePrintPdf = (asDownload: boolean = false) => {
+    // Layer 3: Ghi Audit Log khi nhân viên xuất in Hợp đồng chứa đầy đủ số CCCD
+    handoversApi.logCccdAccess({
+      reservationId: String(appointment.rawId || appointment.id),
+      action: 'PRINT_CONTRACT_WITH_CCCD',
+      customerName: appointment.customerName,
+    });
+
     const contentHtml = printContentRef.current?.innerHTML || '';
     if (!contentHtml) return;
 
@@ -62,23 +90,32 @@ export default function ContractModal({
       <html lang="vi">
         <head>
           <meta charset="utf-8" />
-          <title>Hop-Dong-Thue-Kho-${finalUnit}.pdf</title>
+          <title></title>
           <style>
             @page {
               size: A4 portrait;
-              margin: 15mm 15mm 15mm 15mm;
+              margin: 20mm;
             }
             * {
               box-sizing: border-box;
             }
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: #fff;
+            }
             body {
               font-family: "Times New Roman", Times, Georgia, serif;
-              font-size: 12.5pt;
-              line-height: 1.45;
+              font-size: 12pt;
+              line-height: 1.5;
               color: #111;
               background: #fff;
               margin: 0;
-              padding: 5px;
+              padding: 0;
+            }
+            p {
+              text-align: justify;
+              margin: 6px 0;
             }
             h1, h2, h3 { text-align: center; margin: 5px 0 10px 0; }
             .text-center { text-align: center; }
@@ -87,17 +124,23 @@ export default function ContractModal({
             .italic { font-style: italic; }
             .border-t { border-top: 1px solid #ccc; padding-top: 8px; margin-top: 8px; }
             .border-b { border-bottom: 1px solid #eee; padding-bottom: 6px; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-            .grid-cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+            .grid-cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
             .signature-block { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; text-align: center; }
             .signature-col { padding: 10px; }
+            .border-t, .signature-block, .grid-cols-2 {
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .print-only-full-cccd { display: inline !important; }
+            .screen-masked-cccd { display: none !important; }
+            .cccd-toggle-btn { display: none !important; }
             @media print {
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
           </style>
         </head>
         <body>
-          <div style="max-width: 780px; margin: 0 auto; padding: 10px;">
+          <div style="width: 100%; margin: 0; padding: 0;">
             ${contentHtml}
           </div>
         </body>
@@ -125,30 +168,56 @@ export default function ContractModal({
               <h3 className="font-extrabold text-base text-slate-900 tracking-tight">
                 Hợp Đồng Cho Thuê Kho Bãi & Nhà Xưởng
               </h3>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-[#4f39f6] border border-indigo-200">
-                Mẫu Luật Việt Nam 2026
-              </span>
             </div>
             <p className="text-xs text-slate-500">
               Mẫu số 01/HĐ-TK • Tuân thủ Luật Kinh doanh Bất động sản và Bộ luật Dân sự
             </p>
           </div>
 
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-2 rounded-xl text-lg leading-none hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Đóng"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsEditable(!isEditable)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
+                isEditable
+                  ? 'bg-amber-100 text-amber-900 border-amber-300'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+              }`}
+              title="Bật/tắt chế độ sửa trực tiếp nội dung hợp đồng"
+            >
+              <span>{isEditable ? 'Đang sửa (Bấm để xong)' : 'Sửa trực tiếp'}</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-700 p-2 rounded-xl text-lg leading-none hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Đóng"
+            >
+              ✕
+            </button>
+          </div>
         </div>
+
+        {isEditable && (
+          <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-xs text-amber-800 flex items-center justify-between">
+            <span><strong>Chế độ sửa trực tiếp đang bật:</strong> Bạn có thể nhấp chuột trực tiếp vào bất kỳ dòng chữ nào bên dưới để sửa hoặc bổ sung thông tin trước khi in.</span>
+            <button
+              onClick={() => setIsEditable(false)}
+              className="text-[11px] font-bold text-amber-900 underline ml-2 cursor-pointer"
+            >
+              Hoàn tất sửa
+            </button>
+          </div>
+        )}
 
         {/* Modal Body: Legal Contract Form (Mẫu Chuẩn Luật Việt Nam) */}
         <div className="p-6 sm:p-10 overflow-y-auto space-y-6 text-slate-800 font-sans leading-relaxed bg-slate-100/50">
           {/* Paper Sheet Container (Mô phỏng tài liệu pháp lý A4 trang trọng) */}
           <div
             ref={printContentRef}
-            className="bg-white max-w-3xl mx-auto p-8 sm:p-14 rounded-2xl shadow-md border border-slate-200 space-y-7 text-xs sm:text-sm text-slate-800"
+            contentEditable={isEditable}
+            suppressContentEditableWarning={true}
+            className={`bg-white max-w-3xl mx-auto p-8 sm:p-14 rounded-2xl shadow-md border space-y-7 text-xs sm:text-sm text-slate-800 transition-all ${
+              isEditable ? 'border-amber-400 ring-2 ring-amber-200/60 focus:outline-none' : 'border-slate-200'
+            }`}
           >
             {/* 1. Quốc hiệu & Tiêu ngữ */}
             <div className="text-center space-y-1">
@@ -188,12 +257,12 @@ export default function ContractModal({
               <div className="font-extrabold text-slate-900 uppercase">
                 BÊN CHO THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên A):
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-slate-700 pt-1">
-                <div className="sm:col-span-2">
+              <div className="space-y-1.5 text-slate-700 pt-1">
+                <div>
                   <span className="text-slate-500">Tên tổ chức: </span>
                   <strong className="text-slate-900">CÔNG TY CỔ PHẦN DỊCH VỤ LƯU TRỮ VÀ KHO TỰ QUẢN SELFSTORAGE VIỆT NAM</strong>
                 </div>
-                <div className="sm:col-span-2">
+                <div>
                   <span className="text-slate-500">Địa chỉ trụ sở chính: </span>
                   <span>Tòa nhà Landmark 81, 720A Điện Biên Phủ, P. 22, Q. Bình Thạnh</span>
                 </div>
@@ -207,7 +276,7 @@ export default function ContractModal({
                 </div>
                 <div>
                   <span className="text-slate-500">Người đại diện: </span>
-                  <strong>Ban Quản Lý Cơ Sở Kho Bãi</strong>
+                  <strong className="text-slate-900">Ban Quản Lý Cơ Sở Kho Bãi</strong>
                 </div>
                 <div>
                   <span className="text-slate-500">Chức vụ: </span>
@@ -221,7 +290,7 @@ export default function ContractModal({
                   <span className="text-slate-500">Email: </span>
                   <span className="text-[#4f39f6]">contact@selfstorage.vn</span>
                 </div>
-                <div className="sm:col-span-2 pt-1 border-t border-slate-200/60">
+                <div className="pt-1 border-t border-slate-200/60">
                   <span className="text-slate-500">Tài khoản thanh toán: </span>
                   <span className="tabular-nums font-bold text-slate-900">0900000000</span> tại Ngân hàng TMCP Quân Đội (MBBank)
                 </div>
@@ -233,20 +302,36 @@ export default function ContractModal({
               <div className="font-extrabold text-slate-900 uppercase">
                 BÊN THUÊ NHÀ XƯỞNG VÀ KHO BÃI (Gọi tắt là Bên B):
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-slate-700 pt-1">
+              <div className="space-y-1.5 text-slate-700 pt-1">
                 <div>
                   <span className="text-slate-500">Họ và tên khách hàng: </span>
                   <strong className="text-slate-950 text-sm">{appointment.customerName}</strong>
                 </div>
                 <div>
+                  <span className="text-slate-500">Số CCCD / Định danh cá nhân: </span>
+                  <span className="screen-masked-cccd font-bold text-slate-900 font-mono tracking-wide">
+                    {isRevealedCccd ? rawCccd : maskCccd(rawCccd)}
+                  </span>
+                  <span className="print-only-full-cccd hidden font-bold text-slate-900 font-mono">
+                    {rawCccd}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleToggleRevealCccd}
+                    className="cccd-toggle-btn ml-2.5 px-2 py-0.5 rounded text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
+                  >
+                    {isRevealedCccd ? 'Ẩn số CCCD' : 'Hiện đầy đủ'}
+                  </button>
+                </div>
+                <div>
                   <span className="text-slate-500">Số điện thoại liên hệ: </span>
                   <span className="font-semibold text-slate-900">{appointment.phone}</span>
                 </div>
-                <div className="sm:col-span-2">
+                <div>
                   <span className="text-slate-500">Thư điện tử (Email): </span>
                   <span className="text-blue-600">{appointment.email}</span>
                 </div>
-                <div className="sm:col-span-2">
+                <div>
                   <span className="text-slate-500">Địa chỉ liên hệ: </span>
                   <span>{appointment.facilityAddress || 'Việt Nam'}</span>
                 </div>
@@ -373,11 +458,7 @@ export default function ContractModal({
                   <div className="text-[11px] text-slate-500 italic">
                     (Ký, đóng dấu hoặc Chữ ký số)
                   </div>
-                  <div className="pt-6 pb-2">
-                    <div className="inline-block px-3 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold">
-                      [ĐÃ KÝ SỐ ĐIỆN TỬ]
-                    </div>
-                  </div>
+                  <div className="h-20" />
                   <div className="text-xs font-bold text-slate-800">
                     CÔNG TY CP SELFSTORAGE VN
                   </div>
@@ -393,11 +474,7 @@ export default function ContractModal({
                   <div className="text-[11px] text-slate-500 italic">
                     (Ký và ghi rõ họ tên)
                   </div>
-                  <div className="pt-6 pb-2">
-                    <div className="inline-block px-3 py-1 rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-300 text-xs font-bold">
-                      [XÁC THỰC OTP THÀNH CÔNG]
-                    </div>
-                  </div>
+                  <div className="h-20" />
                   <div className="text-xs font-bold text-slate-900">
                     {appointment.customerName}
                   </div>
@@ -423,14 +500,6 @@ export default function ContractModal({
               className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
             >
               Đóng xem trước
-            </button>
-            <button
-              onClick={() => handlePrintPdf(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-800 bg-white hover:bg-slate-100 rounded-xl border border-slate-300 transition-colors shadow-2xs cursor-pointer"
-              title="Xuất hợp đồng sang định dạng PDF chuẩn A4"
-            >
-              <Download className="w-4 h-4 text-emerald-600" />
-              <span>Tải PDF Hợp Đồng</span>
             </button>
             <button
               onClick={() => handlePrintPdf(false)}

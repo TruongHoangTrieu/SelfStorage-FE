@@ -298,6 +298,7 @@ export default function StaffPortalPage() {
           item.id === apt.id
             ? {
                 ...item,
+                status: 'confirmed',
                 appointmentDateRaw: newDateIso,
                 slotTime: newSlotTime,
                 startDate: startDateStr,
@@ -318,6 +319,95 @@ export default function StaffPortalPage() {
       throw err;
     }
   };
+
+  // Action: Quản lý phê duyệt mở lại đơn quá hạn (> 24 giờ) - Hiệu lực cố định đến hết ngày hôm nay (23:59)
+  const handleManagerReopen = async (
+    apt: CheckInAppointment,
+    reason: string,
+    managerName: string
+  ) => {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const nowTime = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    // Hạn hiệu lực cố định: hết ngày hôm nay (23:59:59)
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+    const expiryIso = endOfDay.toISOString();
+
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === apt.id
+          ? {
+              ...item,
+              status: 'confirmed',
+              appointmentDateRaw: nowIso,
+              slotTime: `${nowTime} (Đã duyệt)`,
+              dateDisplay: 'Hôm nay',
+              timeCategory: now.getHours() < 12 ? 'morning' : 'afternoon',
+              managerApprovedAt: nowIso,
+              managerApprovedExpiry: expiryIso,
+              managerApproverName: managerName,
+              managerApprovalReason: reason,
+              isApprovalExpired: false,
+              unitAutoReleased: false,
+              specialNotes: item.specialNotes
+                ? `${item.specialNotes} | [Quản lý duyệt mở lại - Hạn hết ngày]: ${reason} (Duyệt: ${managerName})`
+                : `[Quản lý duyệt mở lại - Hạn hết ngày]: ${reason} (Duyệt: ${managerName})`,
+            }
+          : item
+      )
+    );
+
+    toast.success(
+      `Đã phê duyệt mở lại đơn ${apt.id} (hiệu lực đến hết hôm nay 23:59)! Ô kho ${apt.assignedUnit} sẽ tự động giải phóng nếu không nhận trong ngày.`
+    );
+  };
+
+  // Tự động kiểm tra các đơn đã được duyệt mở lại nhưng hết hạn cuối ngày (sau 23:59) -> Tự động giải phóng ô kho
+  useEffect(() => {
+    const now = new Date();
+    const releasedUnitCodes: string[] = [];
+
+    setAppointments((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        if (
+          item.managerApprovedExpiry &&
+          item.status !== 'completed' &&
+          item.status !== 'cancelled' &&
+          !item.isApprovalExpired
+        ) {
+          const expiryDate = new Date(item.managerApprovedExpiry);
+          if (now > expiryDate) {
+            changed = true;
+            releasedUnitCodes.push(item.assignedUnit);
+            return {
+              ...item,
+              status: 'expired' as const,
+              isApprovalExpired: true,
+              unitAutoReleased: true,
+              cancelReason: 'Hết hạn phê duyệt cuối ngày (Quá hạn 23:59) - Hệ thống đã tự động giải phóng ô kho',
+            };
+          }
+        }
+        return item;
+      });
+      return changed ? next : prev;
+    });
+
+    if (releasedUnitCodes.length > 0) {
+      // Đưa các ô kho đã quá hạn duyệt về lại trạng thái Khả dụng (Vacant)
+      setAvailableUnits((prevUnits) =>
+        prevUnits.map((u) =>
+          releasedUnitCodes.includes(u.code) ? { ...u, status: 'vacant' } : u
+        )
+      );
+      toast.warning(
+        `Đã tự động giải phóng ${releasedUnitCodes.length} ô kho (${releasedUnitCodes.join(', ')}) do đơn mở lại hết hạn cuối ngày!`
+      );
+    }
+  }, [appointments.length]);
 
   // Action: Báo vắng mặt / Hủy giữ chỗ và giải phóng ô kho (No-show / Cancel)
   const handleCancelOrNoShow = async (
@@ -677,6 +767,8 @@ export default function StaffPortalPage() {
                 selectedAppointmentId={selectedAppointmentId}
                 onReschedule={handleReschedule}
                 onCancelOrNoShow={handleCancelOrNoShow}
+                onManagerReopen={handleManagerReopen}
+                currentUser={currentUser}
               />
             )}
 
@@ -731,7 +823,7 @@ export default function StaffPortalPage() {
             {/* TRANG E: QUẢN LÝ LOẠI KHO & BẢNG GIÁ THEO CƠ SỞ (Chỉ mở cho Manager & Admin) */}
             {activeTab === 'unit_types' && canManagePricing && (
               <UnitTypesPricingManager
-                currentFacilityId={currentUser?.facilityId}
+                currentFacilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id}
                 currentUser={currentUser}
               />
             )}
@@ -800,7 +892,6 @@ export default function StaffPortalPage() {
         onClose={() => setIsContractModalOpen(false)}
         appointment={currentAppointment}
         assignedUnit={selectedUnitCode}
-        onPrint={() => setIsPrintModalOpen(true)}
       />
 
       {/* MODAL 2: HỘP THOẠI GỬI LỆNH IN TÀI LIỆU QUẦY */}
