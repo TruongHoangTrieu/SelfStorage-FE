@@ -7,7 +7,6 @@ import {
   Clock,
   ArrowLeft,
   LayoutDashboard,
-  ArrowUpRight,
   MapPin,
   LifeBuoy,
   Settings,
@@ -482,18 +481,8 @@ export default function ManagerPortalPage() {
           </div>
         </div>
 
-        {/* Right: Actions, Counter Switcher & Manager Profile */}
+        {/* Right: Actions & Manager Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick link to Counter view */}
-          <Link
-            href="/staff"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition"
-            title="Mở giao diện quầy nhân viên để kiểm tra trực tiếp"
-          >
-            <span>Quầy Nhân Viên</span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
-          </Link>
-
           {/* Refresh button */}
           <button
             type="button"
@@ -600,20 +589,11 @@ export default function ManagerPortalPage() {
             {/* TAB 5: GIÁM SÁT TIẾP NHẬN BÀN GIAO TẠI QUẦY */}
             {activeTab === 'queue' && flowStep === 'queue' && (
               <div className="space-y-4">
-                <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-2.5 text-indigo-900 font-semibold">
-                    <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0" />
-                    <span>
-                      Đang xem <strong>Hàng đợi nhận kho tại quầy</strong> dưới quyền Quản Lý. Bạn có thể giám sát hoặc trực tiếp hỗ trợ nhân viên thực hiện thủ tục bàn giao.
-                    </span>
-                  </div>
-                  <Link
-                    href="/staff"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition shrink-0 self-start sm:self-auto shadow-2xs"
-                  >
-                    <span>Mở Quầy Tiếp Đón</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </Link>
+                <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 flex items-center gap-2.5 text-xs text-indigo-900 font-semibold">
+                  <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0" />
+                  <span>
+                    Đang xem <strong>Hàng đợi nhận kho tại cơ sở</strong> dưới quyền Quản Lý. Bạn có thể giám sát tiến độ hoặc trực tiếp hỗ trợ thực hiện thủ tục bàn giao.
+                  </span>
                 </div>
 
                 <CheckInQueue

@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import {
   Calendar,
   Clock,
@@ -9,7 +8,6 @@ import {
   AlertTriangle,
   LifeBuoy,
   MapPin,
-  ArrowUpRight,
   Shield,
   Layers,
   Users,
@@ -19,7 +17,6 @@ import {
   Boxes,
   Key,
   ShieldAlert,
-  ArrowRight,
   UserCheck,
 } from 'lucide-react';
 import { ManagerTab } from '../types';
@@ -77,13 +74,14 @@ export default function ManagerOverviewDashboard({
               <Users className="w-4 h-4" />
               <span>Phân Công Nhân Sự</span>
             </button>
-            <Link
-              href="/staff"
+            <button
+              type="button"
+              onClick={() => onNavigateTab('unit_types')}
               className="px-4 py-2.5 text-xs font-bold text-slate-200 hover:text-white bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition flex items-center gap-2 cursor-pointer"
             >
-              <span>Xem Quầy Tiếp Đón</span>
-              <ArrowUpRight className="w-4 h-4 text-slate-400" />
-            </Link>
+              <Boxes className="w-4 h-4 text-slate-300" />
+              <span>Cấu Hình Bảng Giá</span>
+            </button>
           </div>
         </div>
       </div>
@@ -254,27 +252,28 @@ export default function ManagerOverviewDashboard({
           </div>
         </div>
 
-        {/* Counter Support Banner */}
+        {/* Facility Standards & Security Summary */}
         <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 p-5 flex flex-col justify-between">
           <div>
             <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 tracking-wider">
-              Tích Hợp Quầy Vận Hành
+              An Toàn &amp; Tiêu Chuẩn Cơ Sở
             </span>
             <h4 className="font-bold text-slate-900 text-sm mt-2">
-              Truy Cập Trực Tiếp Cổng Quầy Nhân Viên
+              Giám Sát Vận Hành &amp; Quản Trị Độc Lập
             </h4>
             <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-              Bạn có thể chuyển sang giao diện Quầy Nhân Viên (Staff Portal) bất cứ lúc nào để trực tiếp kiểm tra quy trình cấp PIN, phát thẻ từ và in hợp đồng bàn giao.
+              Toàn bộ dữ liệu đặt kho, phân công ca trực, bảng giá và gia hạn hợp đồng được quản lý tập trung và phân quyền nghiêm ngặt dành riêng cho cấp Quản lý cơ sở.
             </p>
           </div>
           <div className="pt-4 flex items-center gap-3">
-            <Link
-              href="/staff"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+            <button
+              type="button"
+              onClick={() => onNavigateTab('facility')}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
             >
-              <span>Vào Cổng Nhân Viên (/staff)</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+              <span>Xem Sơ Đồ Cơ Sở</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>
