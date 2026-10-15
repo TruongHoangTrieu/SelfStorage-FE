@@ -38,6 +38,8 @@ export interface CheckInAppointment {
   managerApprovalReason?: string;
   isApprovalExpired?: boolean;
   unitAutoReleased?: boolean;
+  contactConfirmed?: boolean;
+  contactConfirmedAt?: string;
 }
 
 export interface AvailableUnit {

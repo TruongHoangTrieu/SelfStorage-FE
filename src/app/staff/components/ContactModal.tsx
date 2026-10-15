@@ -12,6 +12,7 @@ interface ContactModalProps {
   appointment: CheckInAppointment | null;
   onOpenReschedule?: (appointment: CheckInAppointment) => void;
   onOpenNoShow?: (appointment: CheckInAppointment) => void;
+  onConfirmArrival?: (appointment: CheckInAppointment) => void;
 }
 
 export default function ContactModal({
@@ -20,6 +21,7 @@ export default function ContactModal({
   appointment,
   onOpenReschedule,
   onOpenNoShow,
+  onConfirmArrival,
 }: ContactModalProps) {
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -248,14 +250,27 @@ export default function ContactModal({
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Lựa chọn 1: Khách đã đến / Xác nhận tiếp tục bàn giao kho (Mở lại nút Bắt đầu nhận kho) */}
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onConfirmArrival?.(appointment);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs font-bold transition-all shadow-xs cursor-pointer text-center"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>Khách đã có mặt / Xác nhận mở thủ tục nhận kho</span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => {
                     onClose();
                     onOpenReschedule?.(appointment);
                   }}
-                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold transition-all active:scale-95 cursor-pointer text-center shadow-xs"
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold transition-all active:scale-95 cursor-pointer text-center shadow-xs"
                 >
                   <Clock className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>Khách xin dời lịch</span>
@@ -267,10 +282,10 @@ export default function ContactModal({
                     onClose();
                     onOpenNoShow?.(appointment);
                   }}
-                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-900 text-xs font-bold transition-all active:scale-95 cursor-pointer text-center shadow-xs"
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-900 text-xs font-bold transition-all active:scale-95 cursor-pointer text-center shadow-xs"
                 >
                   <UserX className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>Khách báo hủy / Vắng mặt</span>
+                  <span>Khách báo hủy / Vắng</span>
                 </button>
               </div>
             </div>

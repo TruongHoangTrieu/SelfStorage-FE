@@ -18,6 +18,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { CheckInAppointment, StaffUser } from '../types';
+import { toast } from 'sonner';
 import RescheduleModal from './RescheduleModal';
 import NoShowModal from './NoShowModal';
 import ContactModal from './ContactModal';
@@ -397,6 +398,14 @@ export default function CheckInQueue({
   const [rescheduleModalApt, setRescheduleModalApt] = useState<CheckInAppointment | null>(null);
   const [noShowModalApt, setNoShowModalApt] = useState<CheckInAppointment | null>(null);
   const [managerApprovalModalApt, setManagerApprovalModalApt] = useState<CheckInAppointment | null>(null);
+
+  // Danh sách các cuộc hẹn trễ đã được liên hệ xác nhận (để mở khóa nút Nhận kho khi trễ >= 3 tiếng)
+  const [confirmedContactAptIds, setConfirmedContactAptIds] = useState<string[]>([]);
+
+  const handleConfirmArrivalFromContact = (apt: CheckInAppointment) => {
+    setConfirmedContactAptIds((prev) => Array.from(new Set([...prev, apt.id])));
+    toast.success(`Đã xác nhận liên hệ với khách ${apt.customerName}. Nút "Bắt đầu nhận kho" đã được mở khóa!`);
+  };
 
   // Thống kê nhanh kèm số lượng đơn trễ hẹn & quá hạn (>24h)
   const stats = useMemo(() => {
@@ -788,6 +797,7 @@ export default function CheckInQueue({
         appointment={contactModalApt}
         onOpenReschedule={(apt) => setRescheduleModalApt(apt)}
         onOpenNoShow={(apt) => setNoShowModalApt(apt)}
+        onConfirmArrival={handleConfirmArrivalFromContact}
       />
 
       <RescheduleModal
@@ -868,6 +878,10 @@ export default function CheckInQueue({
       apt.status !== 'cancelled' &&
       apt.status !== 'expired';
 
+    // Kiểm tra quy tắc: Trễ từ 3 tiếng trở lên (>= 180 phút)
+    const isLateOver3Hours = isLate && sched.lateMinutes >= 180;
+    const isContactConfirmed = !!apt.contactConfirmed || confirmedContactAptIds.includes(apt.id);
+
     return (
       <div
         key={apt.id}
@@ -930,6 +944,14 @@ export default function CheckInQueue({
 
               {/* Status Badge */}
               {renderStatusBadge(apt)}
+
+              {/* Tag Đã liên hệ xác nhận (khi trễ >= 3 tiếng đã được xác nhận) */}
+              {isLateOver3Hours && isContactConfirmed && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                  Đã xác nhận liên hệ
+                </span>
+              )}
 
               {/* Tag Trễ Hẹn / Quá Hạn / Đã Duyệt */}
               {isApprovedValidToday ? (
@@ -1112,16 +1134,24 @@ export default function CheckInQueue({
                 <button
                   type="button"
                   onClick={() => setContactModalApt(apt)}
-                  title="Khách trễ hẹn: Bấm để gọi điện/liên hệ xác nhận tình trạng trước khi dời lịch hoặc báo vắng"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl border border-blue-200 transition-all cursor-pointer shadow-2xs"
+                  title={
+                    isLateOver3Hours && !isContactConfirmed
+                      ? 'Đơn trễ quá 3 tiếng: Bắt buộc bấm gọi/nhắn xác nhận với khách trước khi mở lại thủ tục nhận kho'
+                      : 'Bấm để liên hệ khách hàng'
+                  }
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                    isLateOver3Hours && !isContactConfirmed
+                      ? 'text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-300 ring-2 ring-rose-200'
+                      : 'text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200'
+                  }`}
                 >
-                  <Phone className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
-                  <span>Liên hệ xác nhận</span>
+                  <Phone className={`w-3.5 h-3.5 ${isLateOver3Hours && !isContactConfirmed ? 'text-rose-600 animate-bounce' : 'text-blue-600 animate-pulse'}`} />
+                  <span>{isContactConfirmed ? 'Đã liên hệ (Xem lại)' : 'Liên hệ xác nhận'}</span>
                 </button>
               )}
 
-              {/* Nút Bắt đầu nhận kho */}
-              {(() => {
+              {/* Nút Bắt đầu nhận kho: Nếu trễ quá 3 tiếng (>= 180 phút) và CHƯA liên hệ xác nhận -> ẨN NÚT */}
+              {!(isLateOver3Hours && !isContactConfirmed) && (() => {
                 const eligibility = checkAppointmentEligibility(apt);
                 if (!eligibility.allowed) {
                   return (
@@ -1234,6 +1264,9 @@ export default function CheckInQueue({
                 apt.status !== 'cancelled' &&
                 apt.status !== 'expired';
 
+              const isLateOver3Hours = isLate && sched.lateMinutes >= 180;
+              const isContactConfirmed = !!apt.contactConfirmed || confirmedContactAptIds.includes(apt.id);
+
               return (
                 <div
                   key={apt.id}
@@ -1343,16 +1376,24 @@ export default function CheckInQueue({
                             <button
                               type="button"
                               onClick={() => setContactModalApt(apt)}
-                              title="Trễ hẹn: Bấm để liên hệ khách hàng xác nhận"
-                              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-bold hover:bg-blue-100 cursor-pointer transition-colors"
+                              title={
+                                isLateOver3Hours && !isContactConfirmed
+                                  ? 'Trễ quá 3 tiếng: Bắt buộc liên hệ xác nhận trước'
+                                  : 'Liên hệ khách'
+                              }
+                              className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-colors ${
+                                isLateOver3Hours && !isContactConfirmed
+                                  ? 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100'
+                                  : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                              }`}
                             >
-                              <Phone className="w-3 h-3 text-blue-600" />
-                              <span>Liên hệ</span>
+                              <Phone className="w-3 h-3" />
+                              <span>{isContactConfirmed ? 'Đã gọi' : 'Liên hệ'}</span>
                             </button>
                           )}
 
-                          {/* Nút nhận kho */}
-                          {(() => {
+                          {/* Nút nhận kho: Ẩn khi trễ quá 3 tiếng và chưa liên hệ xác nhận */}
+                          {!(isLateOver3Hours && !isContactConfirmed) && (() => {
                             const eligibility = checkAppointmentEligibility(apt);
                             if (!eligibility.allowed) {
                               return (

@@ -989,10 +989,13 @@ function BookingFlowContent() {
                                 "-" +
                                 String(day).padStart(2, "0");
 
-                              // Quy tắc: Đặt trước tối thiểu 1 ngày (Next-day booking)
+                              // Quy tắc: Đặt trước tối thiểu 1 ngày (từ ngày mai) và tối đa 7 ngày (1 tuần)
                               const startOfTomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+                              const endOfMaxDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7, 23, 59, 59, 999);
                               const cellDate = new Date(calYear, calMonth, day);
                               const isPastOrToday = cellDate < startOfTomorrow;
+                              const isTooFar = cellDate > endOfMaxDate;
+                              const isDisabled = isPastOrToday || isTooFar;
                               const isToday =
                                 cellDate.getFullYear() === today.getFullYear() &&
                                 cellDate.getMonth() === today.getMonth() &&
@@ -1003,10 +1006,10 @@ function BookingFlowContent() {
                                 <button
                                   key={day}
                                   type="button"
-                                  onClick={() => !isPastOrToday && setMoveInDate(dateStr)}
-                                  disabled={isPastOrToday}
+                                  onClick={() => !isDisabled && setMoveInDate(dateStr)}
+                                  disabled={isDisabled}
                                   className={`w-9 h-9 sm:w-10 sm:h-10 mx-auto rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all tabular-nums cursor-pointer ${
-                                    isPastOrToday
+                                    isDisabled
                                       ? isToday
                                         ? "text-slate-400 bg-slate-100/90 cursor-not-allowed border border-slate-200"
                                         : "text-slate-300 cursor-not-allowed"
@@ -1019,6 +1022,8 @@ function BookingFlowContent() {
                                       ? "Hôm nay (Cần đặt lịch hẹn trước tối thiểu 1 ngày để cơ sở chuẩn bị kho)"
                                       : isPastOrToday
                                       ? "Đã qua ngày này"
+                                      : isTooFar
+                                      ? "Chỉ được đặt lịch hẹn trong vòng 7 ngày tới (1 tuần)"
                                       : `Chọn ngày ${day}/${calMonth + 1}`
                                   }
                                 >
@@ -1028,11 +1033,11 @@ function BookingFlowContent() {
                             })}
                           </div>
 
-                          {/* Ghi chú quy tắc đặt lịch hẹn trước tối thiểu 1 ngày */}
+                          {/* Ghi chú quy tắc đặt lịch hẹn trước */}
                           <div className="mt-3.5 p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-[11px] text-amber-800 flex items-start gap-2">
                             <Info className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                             <span>
-                              <strong>Quy tắc đặt lịch:</strong> Cơ sở áp dụng quy tắc đặt trước tối thiểu 1 ngày (chọn từ ngày mai trở đi) để nhân viên kỹ thuật kịp kiểm tra khóa thông minh, vệ sinh và chuẩn bị ô kho chu đáo nhất trước khi đón tiếp bạn.
+                              <strong>Quy tắc đặt lịch:</strong> Cơ sở áp dụng quy tắc đặt trước <strong>tối thiểu 1 ngày</strong> (từ ngày mai) và <strong>tối đa trong vòng 7 ngày tới</strong> (1 tuần) để nhân viên kịp kiểm tra khóa thông minh, vệ sinh kho và tối ưu lịch đón tiếp chu đáo nhất.
                             </span>
                           </div>
                         </div>
