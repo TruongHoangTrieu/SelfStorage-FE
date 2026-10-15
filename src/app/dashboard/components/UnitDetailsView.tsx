@@ -340,7 +340,7 @@ export default function UnitDetailsView({
                 Nhu cầu thay đổi thời hạn hoặc diện tích lưu kho?
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Gia hạn hợp đồng để nhận ưu đãi lên đến 15%, hoặc yêu cầu chuyển sang ô kho diện tích khác.
+                Gia hạn hợp đồng nhanh chóng trực tuyến, hoặc yêu cầu chuyển sang ô kho diện tích khác.
               </p>
             </div>
 

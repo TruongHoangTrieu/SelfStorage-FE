@@ -30,11 +30,11 @@ export default function ExtendLeaseModal({
 
   if (!isOpen) return null;
 
-  // Tính chiết khấu theo số tháng
-  const discountRate = selectedMonths === 12 ? 0.15 : selectedMonths === 6 ? 0.10 : selectedMonths === 3 ? 0.05 : 0;
+  // Không áp dụng chiết khấu - tính đủ theo đơn giá niêm yết
+  const discountRate = 0;
   const baseTotal = unit.monthlyRentNum * selectedMonths;
-  const discountAmount = baseTotal * discountRate;
-  const finalTotal = baseTotal - discountAmount;
+  const discountAmount = 0;
+  const finalTotal = baseTotal;
 
   const formattedFinalTotal = `${new Intl.NumberFormat('vi-VN').format(finalTotal)} đ`;
 
@@ -82,10 +82,10 @@ export default function ExtendLeaseModal({
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               {[
-                { months: 1, label: '1 Tháng', discount: 'Chuẩn' },
-                { months: 3, label: '3 Tháng', discount: '-5%' },
-                { months: 6, label: '6 Tháng', discount: '-10%' },
-                { months: 12, label: '12 Tháng', discount: '-15%' },
+                { months: 1, label: '1 Tháng' },
+                { months: 3, label: '3 Tháng' },
+                { months: 6, label: '6 Tháng' },
+                { months: 12, label: '12 Tháng' },
               ].map((opt) => (
                 <button
                   type="button"
@@ -98,7 +98,7 @@ export default function ExtendLeaseModal({
                   }`}
                 >
                   <div className="text-sm">{opt.label}</div>
-                  <div className="text-[10px] text-emerald-600 font-bold mt-0.5">{opt.discount}</div>
+                  <div className="text-[10px] text-slate-400 font-medium mt-0.5">Tiêu chuẩn</div>
                 </button>
               ))}
             </div>
@@ -114,12 +114,6 @@ export default function ExtendLeaseModal({
               <span>Thời gian gia hạn thêm:</span>
               <span className="font-semibold text-slate-900">+{selectedMonths} tháng</span>
             </div>
-            {discountRate > 0 && (
-              <div className="flex justify-between text-emerald-600 font-medium">
-                <span>Ưu đãi cam kết lâu dài:</span>
-                <span>-{new Intl.NumberFormat('vi-VN').format(discountAmount)} đ ({discountRate * 100}%)</span>
-              </div>
-            )}
             <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm font-bold text-slate-900">
               <span>Tổng thanh toán gia hạn:</span>
               <span className="text-base font-black text-orange-600">{formattedFinalTotal}</span>

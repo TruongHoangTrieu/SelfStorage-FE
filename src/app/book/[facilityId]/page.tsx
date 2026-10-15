@@ -56,9 +56,9 @@ interface TimeSlotOption {
 const DEFAULT_DURATIONS: DurationOption[] = [
   { key: "1_month", months: 1, label: "1 Tháng", discount: 0, badge: null },
   { key: "2_months", months: 2, label: "2 Tháng", discount: 0, badge: null },
-  { key: "3_months", months: 3, label: "3 Tháng", discount: 5, badge: "Tiết kiệm 5%" },
-  { key: "6_months", months: 6, label: "6 Tháng", discount: 10, badge: "Phổ biến - Giảm 10%" },
-  { key: "1_year", months: 12, label: "1 Năm trở lên", discount: 15, badge: "Tốt nhất - Giảm 15%" },
+  { key: "3_months", months: 3, label: "3 Tháng", discount: 0, badge: null },
+  { key: "6_months", months: 6, label: "6 Tháng", discount: 0, badge: null },
+  { key: "1_year", months: 12, label: "1 Năm trở lên", discount: 0, badge: null },
 ];
 
 const VIETNAMESE_DAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
