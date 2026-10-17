@@ -222,16 +222,16 @@ export default function StaffSupportTicketsView({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-[1800px] mx-auto">
       {/* Top Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-              <LifeBuoy className="w-4 h-4" />
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center font-bold shrink-0">
+              <LifeBuoy className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                 Tiếp Nhận & Xử Lý Sự Cố Khách Hàng
               </h2>
               <p className="text-xs text-slate-500">

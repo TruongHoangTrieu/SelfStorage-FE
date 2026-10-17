@@ -45,7 +45,7 @@ export default function ManagerOverviewDashboard({
     : 'Quản Lý Chi Nhánh';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-[1800px] mx-auto">
       {/* 1. Header & Welcome Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden border border-indigo-900/40">
         <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />

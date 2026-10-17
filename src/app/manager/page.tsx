@@ -512,6 +512,12 @@ export default function ManagerPortalPage() {
 
   if (!isMounted) return null;
 
+  const rawFacilityName =
+    currentUser?.assignedFacility?.name ||
+    currentUser?.facilityName ||
+    'Trụ Sở Chính Võ Nguyên Giáp';
+  const facilityName = rawFacilityName.replace(/^Kho\s+Tự\s+Quản\s+/i, '').trim();
+
   const currentTabLabel = {
     dashboard: 'Bảng Điều Khiển Tổng Quan',
     facility: 'Sơ Đồ Cơ Sở & Phân Công Nhân Sự',
@@ -524,74 +530,84 @@ export default function ManagerPortalPage() {
   }[activeTab];
 
   return (
-    <div className="h-screen bg-slate-50/60 font-sans text-slate-800 antialiased flex flex-col overflow-hidden">
-      {/* 1. TOP EXECUTIVE HEADER */}
-      <header className="h-18 bg-white border-b border-slate-200 shrink-0 z-40 flex items-center justify-between px-3 sm:px-6 shadow-2xs">
-        {/* Left: Sidebar Toggle & Brand */}
-        <div className="flex items-center gap-3">
+    <div className="h-screen bg-[#F8FAFC] font-sans text-slate-900 antialiased flex flex-col overflow-hidden selection:bg-indigo-600/20 selection:text-indigo-600">
+      {/* 1. TOP EXECUTIVE HEADER (Matching /staff proportions & spacing) */}
+      <header className="h-18 bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 shrink-0 z-40 flex items-center justify-between shadow-2xs">
+        {/* Left: Sidebar Toggle, Brand Logo & Breadcrumb */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={handleToggleSidebar}
-            className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700 transition cursor-pointer active:scale-95"
-            title="Đóng / mở thanh điều hướng"
+            className="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+            aria-label="Thu gọn thanh điều hướng"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <Link href="/manager" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-xs">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div className="hidden sm:block">
-              <span className="font-black text-lg tracking-tight text-slate-900 block leading-tight">
-                SmartStorage
-              </span>
-              <span className="text-[10px] text-indigo-600 font-extrabold uppercase tracking-widest block">
-                Cổng Quản Lý Cơ Sở
-              </span>
-            </div>
+          {/* Logo hệ thống chuẩn nhận diện thương hiệu giống /staff */}
+          <Link href="/manager" className="inline-flex items-center group py-1 pl-1" title="Cổng Quản Lý Cơ Sở">
+            <img
+              src="/logo.png"
+              alt="SelfStorage Logo"
+              className="h-10 sm:h-11 md:h-12 w-auto object-contain transition-transform group-hover:scale-102"
+            />
           </Link>
 
           {/* Breadcrumb separator */}
-          <div className="hidden md:flex items-center gap-2 pl-4 ml-3 border-l border-slate-200 text-xs font-semibold text-slate-500">
+          <div className="hidden md:flex items-center gap-2 pl-3 ml-1 border-l border-slate-200 text-xs font-semibold text-slate-500">
             <span className="text-slate-400">Quản Lý</span>
             <span>/</span>
             <span className="text-indigo-900 font-bold">{currentTabLabel}</span>
           </div>
         </div>
 
-        {/* Right: Actions & Manager Profile */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Refresh button */}
-          <button
-            type="button"
-            onClick={() => loadBackendData(true, currentUser?.facilityId)}
-            disabled={isRefreshing}
-            className="p-2 sm:px-3 sm:py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            title="Tải lại dữ liệu hệ thống"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-indigo-600' : ''}`} />
-            <span className="hidden sm:inline">Làm mới</span>
-          </button>
+        {/* Right: Actions, Facility Badge & Manager Profile */}
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          {/* Facility Location Pill (vị trí và kích thước đồng bộ với /staff) */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50/80 border border-indigo-200 text-indigo-900">
+            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="max-w-[180px] truncate">{facilityName}</span>
+          </div>
 
-          {/* Manager Avatar Pill */}
-          {currentUser && (
-            <div
-              onClick={() => setActiveTab('profile')}
-              className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full border border-slate-200 bg-slate-50 hover:bg-indigo-50/50 hover:border-indigo-300 transition cursor-pointer"
-            >
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-                {getInitials(currentUser.fullName, currentUser.email)}
-              </div>
-              <div className="hidden lg:block text-left">
-                <div className="text-xs font-bold text-slate-900 max-w-[120px] truncate leading-tight">
-                  {currentUser.fullName}
+          {/* Manager Avatar Pill + Logout Button (Đồng bộ cấu trúc /staff) */}
+          {currentUser ? (
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="flex items-center gap-2 text-left cursor-pointer group hover:opacity-85 transition-opacity"
+                title="Hồ sơ & Đổi mật khẩu Quản lý"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs transition-transform">
+                  {getInitials(currentUser.fullName, currentUser.email)}
                 </div>
-                <div className="text-[10px] text-indigo-700 font-extrabold uppercase">
-                  {currentUser.role === 'BUSINESS_OPERATIONS_MANAGER' ? 'Quản lý chuỗi' : 'Quản lý chi nhánh'}
+                <div className="hidden md:block">
+                  <div className="text-xs font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">
+                    {currentUser.fullName}
+                  </div>
+                  <div className="text-[10px] text-indigo-600 font-extrabold uppercase tracking-wider">
+                    {currentUser.role === 'BUSINESS_OPERATIONS_MANAGER' ? 'QUẢN LÝ CHUỖI' : 'QUẢN LÝ CHI NHÁNH'}
+                  </div>
                 </div>
-              </div>
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer ml-1"
+                title="Đăng xuất tài khoản Quản lý"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsLoginModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Đăng nhập Manager</span>
+            </button>
           )}
         </div>
       </header>
@@ -623,9 +639,9 @@ export default function ManagerPortalPage() {
           />
         )}
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+        {/* Main Content Area (Mở rộng full-width không bị giới hạn max-w-7xl, tương đương /staff) */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
             {/* TAB 1: BẢNG ĐIỀU KHIỂN TỔNG QUAN QUẢN LÝ (DEFAULT) */}
             {activeTab === 'dashboard' && (
               <ManagerOverviewDashboard

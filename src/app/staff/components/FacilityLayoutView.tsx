@@ -364,50 +364,32 @@ export default function FacilityLayoutView({ facilityId, userRole }: FacilityLay
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & KPI Metrics */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+    <div className="space-y-6 w-full max-w-[1800px] mx-auto">
+      {/* Top Banner & KPI Metrics (Matching /staff proportions & padding) */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
-                <MapPin className="w-5 h-5" />
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0 border border-indigo-100">
+                <MapPin className="w-6 h-6" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-slate-900">
-                    Sơ Đồ Mặt Bằng & Ô Kho 24/7
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    Sơ Đồ Mặt Bằng &amp; Ô Kho 24/7
                   </h2>
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800">
+                  <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                     Live Status
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
                   {layout?.facility?.name || 'Cơ sở Kho Tự Quản'} • {layout?.facility?.address || 'Địa chỉ đang tải'}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Facility Selector Dropdown */}
-            {facilitiesList.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-                <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                <select
-                  value={activeFacilityId}
-                  onChange={(e) => handleFacilityChange(e.target.value)}
-                  className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer max-w-[200px] truncate"
-                >
-                  {facilitiesList.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
+          <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
             <button
               type="button"
               onClick={() => {
@@ -415,45 +397,45 @@ export default function FacilityLayoutView({ facilityId, userRole }: FacilityLay
                 if (isManager) loadStaff(activeFacilityId);
               }}
               disabled={loading || (isManager && loadingStaff)}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition cursor-pointer disabled:opacity-60"
+              className="px-4 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition cursor-pointer disabled:opacity-60"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
               <span>Cập nhật</span>
             </button>
           </div>
         </div>
 
-        {/* Live Metrics Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70">
-            <span className="text-[11px] font-semibold text-slate-500">Tổng Số Ô Kho</span>
-            <div className="text-xl font-black text-slate-900 mt-0.5">{layout?.totalUnits ?? 0} ô</div>
+        {/* Live Metrics Row (Generous spacing & metrics typography matching /staff) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-6">
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 shadow-2xs">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Tổng Số Ô Kho</span>
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1.5">{layout?.totalUnits ?? 0} ô</div>
           </div>
 
-          <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-200/70">
-            <span className="text-[11px] font-semibold text-indigo-600">Tỷ Lệ Lấp Đầy</span>
-            <div className="text-xl font-black text-indigo-900 mt-0.5">
+          <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 shadow-2xs">
+            <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider block">Tỷ Lệ Lấp Đầy</span>
+            <div className="text-2xl sm:text-3xl font-black text-indigo-900 mt-1.5">
               {typeof layout?.occupancyRate === 'number' ? layout.occupancyRate.toFixed(1) : layout?.occupancyRate ?? 0}%
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/70">
-            <span className="text-[11px] font-semibold text-emerald-700">Phòng Trống Khả Dụng</span>
-            <div className="text-xl font-black text-emerald-900 mt-0.5">
+          <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 shadow-2xs">
+            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block">Phòng Trống Khả Dụng</span>
+            <div className="text-2xl sm:text-3xl font-black text-emerald-900 mt-1.5">
               {layout?.statusCount?.AVAILABLE ?? 0} ô
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/70">
-            <span className="text-[11px] font-semibold text-amber-700">Đã Giữ Chỗ (Reserved)</span>
-            <div className="text-xl font-black text-amber-900 mt-0.5">
+          <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 shadow-2xs">
+            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider block">Đã Giữ Chỗ (Reserved)</span>
+            <div className="text-2xl sm:text-3xl font-black text-amber-900 mt-1.5">
               {layout?.statusCount?.RESERVED ?? 0} ô
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-200/70">
-            <span className="text-[11px] font-semibold text-rose-700">Đang Bảo Trì</span>
-            <div className="text-xl font-black text-rose-900 mt-0.5">
+          <div className="p-4 sm:p-5 rounded-2xl bg-rose-50/70 border border-rose-200/80 shadow-2xs">
+            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider block">Đang Bảo Trì</span>
+            <div className="text-2xl sm:text-3xl font-black text-rose-900 mt-1.5">
               {layout?.statusCount?.UNDER_MAINTENANCE ?? 0} ô
             </div>
           </div>
@@ -495,7 +477,7 @@ export default function FacilityLayoutView({ facilityId, userRole }: FacilityLay
       {(!isManager || activeSubTab === 'layout') && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left 8 Cols: Floor Tabs & Unit Grid */}
-          <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 flex flex-col">
+          <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-6 sm:p-8 flex flex-col">
             {/* Controls: Floor selector + Filters */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               {/* Floor tabs - Clean label without duplicated "Tầng" */}
@@ -601,7 +583,7 @@ export default function FacilityLayoutView({ facilityId, userRole }: FacilityLay
           </div>
 
           {/* Right 4 Cols: Unit Detail Drawer */}
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 flex flex-col h-[600px] overflow-y-auto">
+          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-6 sm:p-8 flex flex-col h-[640px] overflow-y-auto">
             {selectedUnit ? (
               <div className="space-y-5">
                 <div className="pb-4 border-b border-slate-100 flex items-start justify-between">
@@ -689,18 +671,18 @@ export default function FacilityLayoutView({ facilityId, userRole }: FacilityLay
 
       {/* TAB PHÂN CÔNG NHÂN SỰ: Only for Manager & Admin when activeSubTab === 'staff' */}
       {isManager && activeSubTab === 'staff' && (
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-6 sm:p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900">
-                  Quản Lý Phân Công & Ca Trực Nhân Sự
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                  Quản Lý Phân Công &amp; Ca Trực Nhân Sự
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                   Quyền Quản Lý
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
                 Cơ sở: <strong className="text-slate-800">{layout?.facility?.name || 'Cơ sở hiện tại'}</strong> • Giám sát đội ngũ vận hành kho và kỹ thuật viên trực tại điểm.
               </p>
             </div>
@@ -708,7 +690,7 @@ export default function FacilityLayoutView({ facilityId, userRole }: FacilityLay
             <button
               type="button"
               onClick={() => setIsAssignModalOpen(true)}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xs"
+              className="px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xs self-start sm:self-auto"
             >
               <UserPlus className="w-4 h-4" />
               <span>+ Phân Công Nhân Viên Mới</span>
@@ -725,31 +707,31 @@ export default function FacilityLayoutView({ facilityId, userRole }: FacilityLay
               Chưa có nhân sự nào được phân công tại cơ sở này. Bấm nút <strong>"+ Phân Công Nhân Viên Mới"</strong> để chỉ định nhân sự.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
               {staffList.map((assignment) => {
                 const isEnded = Boolean(assignment.endedAt);
                 const user = assignment.user || {};
                 return (
                   <div
                     key={assignment.id}
-                    className={`p-4 rounded-2xl border transition flex flex-col justify-between ${
+                    className={`p-5 sm:p-6 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
                       isEnded
                         ? 'bg-slate-50 border-slate-200 opacity-60'
-                        : 'bg-white border-slate-200 hover:border-indigo-300 shadow-2xs'
+                        : 'bg-white border-slate-200/80 hover:border-indigo-400 hover:shadow-xs shadow-2xs'
                     }`}
                   >
                     <div>
                       {/* Top Header */}
                       <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-bold text-sm">
                             {user.fullName ? user.fullName.slice(0, 2).toUpperCase() : 'NV'}
                           </div>
                           <div>
                             <h4 className="text-sm font-bold text-slate-900 leading-tight">
                               {user.fullName || 'Nhân viên'}
                             </h4>
-                            <span className="text-[10px] text-slate-500 font-medium">
+                            <span className="text-[11px] text-slate-500 font-medium">
                               {user.role?.name || user.role || 'STAFF'}
                             </span>
                           </div>

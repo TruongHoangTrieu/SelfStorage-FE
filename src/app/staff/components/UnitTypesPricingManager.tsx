@@ -350,7 +350,7 @@ export default function UnitTypesPricingManager({
     '';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-[1800px] mx-auto">
       {/* Top Header Card */}
       <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
