@@ -49,6 +49,48 @@ export interface BackendCheckInResponse {
   }>;
 }
 
+export interface ReservationPaymentSummary {
+  reservationId: string;
+  reservationCode: string;
+  reservationStatus: string;
+  depositAmount: number;
+  depositPaid: boolean;
+  depositPayment?: any;
+  rentalAmount: number;
+  rentalPaid: boolean;
+  rentalPayment?: any;
+  grandTotal: number;
+  remainingAmountToPay: number;
+  isReadyForCheckIn: boolean;
+  payments?: any[];
+}
+
+export interface RentalPaymentResponse {
+  payment: {
+    id: string;
+    paymentCode: string;
+    amount: number;
+    paymentType: string;
+    paymentMethod: string;
+    status: string;
+    paidAt?: string;
+  };
+  qr?: {
+    qrCodeUrl: string;
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+    amount: number;
+    transferContent: string;
+  };
+  reservation: {
+    id: string;
+    reservationCode: string;
+    status: string;
+  };
+}
+
+
 /**
  * Normalizes backend reservation object to UI CheckInAppointment
  */
@@ -162,6 +204,11 @@ export function normalizeReservation(item: any): CheckInAppointment {
     ? `${new Intl.NumberFormat('vi-VN').format(monthlyRentVal)} đ/tháng`
     : '1.200.000 đ/tháng';
 
+  const paidRentalPayment = Array.isArray(item.payments)
+    ? item.payments.find((p: any) => p.paymentType === 'RENTAL' && p.status === 'PAID')
+    : undefined;
+  const rentalStatus = paidRentalPayment ? 'paid' : 'unpaid';
+
   return {
     id: item.reservationCode || `RSV-${item.id}`,
     rawId: item.id,
@@ -185,6 +232,7 @@ export function normalizeReservation(item: any): CheckInAppointment {
     status: uiStatus,
     depositStatus: depositVal > 0 ? 'paid' : 'unpaid',
     depositAmount: depositFormatted,
+    rentalStatus,
     monthlyRent: monthlyRentFormatted,
     startDate,
     durationMonths: item.rentalPeriod || 6,
@@ -384,5 +432,52 @@ export const handoversApi = {
       photos: payload.photos || [],
     };
     return await api.post<BackendCheckInResponse>('/handovers/check-in', body);
+  },
+
+  /**
+   * Tra cứu tổng hợp tình trạng thanh toán của đơn đặt chỗ (Flow 2: Payment Summary)
+   */
+  async getReservationPaymentSummary(reservationId: string | number): Promise<ReservationPaymentSummary> {
+    const rawId = typeof reservationId === 'string' && reservationId.startsWith('RSV-')
+      ? reservationId.replace('RSV-', '')
+      : reservationId;
+    return await api.get<ReservationPaymentSummary>(`/payments/reservations/${rawId}/summary`);
+  },
+
+  /**
+   * Tạo đơn thanh toán tiền thuê cho giai đoạn Check-in (Flow 2: Rental Payment)
+   */
+  async createRentalPayment(
+    reservationId: string | number,
+    paymentMethod: 'BANK_TRANSFER' | 'CASH' = 'BANK_TRANSFER',
+  ): Promise<RentalPaymentResponse> {
+    const rawId = typeof reservationId === 'string' && reservationId.startsWith('RSV-')
+      ? reservationId.replace('RSV-', '')
+      : reservationId;
+    return await api.post<RentalPaymentResponse>('/payments/rental', {
+      reservationId: String(rawId),
+      paymentMethod,
+    });
+  },
+
+  /**
+   * Mô phỏng xác nhận thanh toán qua SePay webhook (Hỗ trợ xác nhận thu tiền mặt / demo tức thì)
+   */
+  async simulateConfirmPayment(payload: {
+    paymentCode: string;
+    amount: number;
+    gateway?: string;
+  }): Promise<any> {
+    const webhookPayload = {
+      id: Math.floor(Math.random() * 900000) + 100000,
+      gateway: payload.gateway || 'MBBank',
+      transactionDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      accountNumber: '0900000000',
+      code: payload.paymentCode,
+      content: `${payload.paymentCode} thanh toan tien thue`,
+      transferType: 'in' as const,
+      transferAmount: payload.amount,
+    };
+    return await api.post('/payments/sepay/webhook', webhookPayload);
   },
 };
