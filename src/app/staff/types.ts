@@ -40,6 +40,12 @@ export interface CheckInAppointment {
   unitAutoReleased?: boolean;
   contactConfirmed?: boolean;
   contactConfirmedAt?: string;
+  managerApprovalStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+  managerApprovalRequestedAt?: string;
+  managerApprovalRequestedBy?: string;
+  managerApprovalRequestReason?: string;
+  managerApprovalRejectReason?: string;
+  managerApprovalFacilityName?: string;
 }
 
 export interface AvailableUnit {

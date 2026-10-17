@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { CheckInAppointment, AvailableUnit, StaffTab, FlowStep, StaffUser } from './types';
 import { handoversApi } from '../../lib/api/handovers';
 import { renewalsApi } from '@/lib/api/renewals';
+import { approvalRequestsService } from './services/approvalRequests';
 
 // Import Sub-Components
 import Sidebar from './components/Sidebar';
@@ -127,11 +128,12 @@ export default function StaffPortalPage() {
           facilityId: staffFacilityId,
         });
         if (queueRes.items && queueRes.items.length > 0) {
-          setAppointments(queueRes.items);
-          setSelectedAppointmentId(queueRes.items[0].id);
+          const enhanced = queueRes.items.map((item) => approvalRequestsService.attachToAppointment(item));
+          setAppointments(enhanced);
+          setSelectedAppointmentId(enhanced[0].id);
           setUsingLiveApi(true);
           const facName = storedUser?.assignedFacility?.name || 'cơ sở';
-          if (showToast) toast.success(`Đã cập nhật ${queueRes.items.length} đơn nhận kho của ${facName}.`);
+          if (showToast) toast.success(`Đã cập nhật ${enhanced.length} đơn nhận kho của ${facName}.`);
         } else {
           setAppointments([]);
           setSelectedAppointmentId('');
@@ -220,6 +222,16 @@ export default function StaffPortalPage() {
     window.addEventListener('popstate', checkTabQuery);
     return () => window.removeEventListener('popstate', checkTabQuery);
   }, [loadBackendData]);
+
+  // Lắng nghe cập nhật phê duyệt từ localStorage (Cross-tab sync giữa Staff & Manager)
+  useEffect(() => {
+    const unsubscribe = approvalRequestsService.subscribe(() => {
+      setAppointments((prev) =>
+        prev.map((item) => approvalRequestsService.attachToAppointment(item))
+      );
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Đồng bộ ô kho & mã pin khi chọn một cuộc hẹn
   const handleSelectAppointment = (appointment: CheckInAppointment) => {
@@ -320,6 +332,32 @@ export default function StaffPortalPage() {
     }
   };
 
+  // Action: Nhân viên (Staff) gửi yêu cầu xin mở lại đơn quá hạn tới Quản lý cơ sở
+  const handleRequestApproval = async (apt: CheckInAppointment, reason: string) => {
+    const staffName = currentUser?.fullName || 'Nhân viên lễ tân';
+    const record = approvalRequestsService.submitRequest(apt, staffName, reason);
+
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === apt.id
+          ? {
+              ...item,
+              managerApprovalStatus: 'pending',
+              managerApprovalRequestedBy: record.requestedBy,
+              managerApprovalRequestedAt: record.requestedAt,
+              managerApprovalRequestReason: record.reason,
+              managerApprovalFacilityName: record.facilityName,
+            }
+          : item
+      )
+    );
+
+    const facilityDisplay = apt.facilityName || currentUser?.assignedFacility?.name || 'cơ sở';
+    toast.success(
+      `Đã gửi yêu cầu xin mở lại đơn ${apt.id} tới Quản lý cơ sở (${facilityDisplay}) thành công. Vui lòng chờ Quản lý phê duyệt!`
+    );
+  };
+
   // Action: Quản lý phê duyệt mở lại đơn quá hạn (> 24 giờ) - Hiệu lực cố định đến hết ngày hôm nay (23:59)
   const handleManagerReopen = async (
     apt: CheckInAppointment,
@@ -335,6 +373,9 @@ export default function StaffPortalPage() {
     endOfDay.setHours(23, 59, 59, 999);
     const expiryIso = endOfDay.toISOString();
 
+    // Lưu vào Service để đồng bộ
+    approvalRequestsService.approveRequest(apt.id, managerName, reason, expiryIso);
+
     setAppointments((prev) =>
       prev.map((item) =>
         item.id === apt.id
@@ -345,6 +386,7 @@ export default function StaffPortalPage() {
               slotTime: `${nowTime} (Đã duyệt)`,
               dateDisplay: 'Hôm nay',
               timeCategory: now.getHours() < 12 ? 'morning' : 'afternoon',
+              managerApprovalStatus: 'approved',
               managerApprovedAt: nowIso,
               managerApprovedExpiry: expiryIso,
               managerApproverName: managerName,
@@ -362,6 +404,27 @@ export default function StaffPortalPage() {
     toast.success(
       `Đã phê duyệt mở lại đơn ${apt.id} (hiệu lực đến hết hôm nay 23:59)! Ô kho ${apt.assignedUnit} sẽ tự động giải phóng nếu không nhận trong ngày.`
     );
+  };
+
+  // Action: Quản lý từ chối mở lại đơn quá hạn
+  const handleManagerReject = async (apt: CheckInAppointment, reason: string) => {
+    const managerName = currentUser?.fullName || 'Quản lý cơ sở';
+    approvalRequestsService.rejectRequest(apt.id, managerName, reason);
+
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === apt.id
+          ? {
+              ...item,
+              managerApprovalStatus: 'rejected',
+              managerApprovalRejectReason: reason,
+              managerApproverName: managerName,
+            }
+          : item
+      )
+    );
+
+    toast.info(`Quản lý đã từ chối yêu cầu mở lại đơn ${apt.id}.`);
   };
 
   // Tự động kiểm tra các đơn đã được duyệt mở lại nhưng hết hạn cuối ngày (sau 23:59) -> Tự động giải phóng ô kho
@@ -768,6 +831,8 @@ export default function StaffPortalPage() {
                 onReschedule={handleReschedule}
                 onCancelOrNoShow={handleCancelOrNoShow}
                 onManagerReopen={handleManagerReopen}
+                onRequestApproval={handleRequestApproval}
+                onManagerReject={handleManagerReject}
                 currentUser={currentUser}
               />
             )}

@@ -29,6 +29,7 @@ import { CheckInAppointment, AvailableUnit, FlowStep, StaffUser } from '../staff
 import { ManagerTab } from './types';
 import { handoversApi } from '@/lib/api/handovers';
 import { renewalsApi } from '@/lib/api/renewals';
+import { approvalRequestsService } from '../staff/services/approvalRequests';
 
 // Import Sub-Components
 import ManagerSidebar from './components/ManagerSidebar';
@@ -129,11 +130,12 @@ export default function ManagerPortalPage() {
           facilityId: managerFacilityId,
         });
         if (queueRes.items && queueRes.items.length > 0) {
-          setAppointments(queueRes.items);
-          setSelectedAppointmentId(queueRes.items[0].id);
+          const enhanced = queueRes.items.map((item) => approvalRequestsService.attachToAppointment(item));
+          setAppointments(enhanced);
+          setSelectedAppointmentId(enhanced[0].id);
           setUsingLiveApi(true);
           const facName = storedUser?.assignedFacility?.name || 'cơ sở';
-          if (showToast) toast.success(`Đã cập nhật ${queueRes.items.length} đơn nhận kho của ${facName}.`);
+          if (showToast) toast.success(`Đã cập nhật ${enhanced.length} đơn nhận kho của ${facName}.`);
         } else {
           setAppointments([]);
           setSelectedAppointmentId('');
@@ -233,6 +235,16 @@ export default function ManagerPortalPage() {
     window.addEventListener('popstate', checkTabQuery);
     return () => window.removeEventListener('popstate', checkTabQuery);
   }, [loadBackendData]);
+
+  // Lắng nghe cập nhật phê duyệt từ localStorage (Cross-tab sync giữa Staff & Manager)
+  useEffect(() => {
+    const unsubscribe = approvalRequestsService.subscribe(() => {
+      setAppointments((prev) =>
+        prev.map((item) => approvalRequestsService.attachToAppointment(item))
+      );
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Đồng bộ ô kho & mã pin khi chọn một cuộc hẹn
   const handleSelectAppointment = (appointment: CheckInAppointment) => {
@@ -409,6 +421,73 @@ export default function ManagerPortalPage() {
       toast.error(err?.message || 'Không thể hủy lịch hẹn.');
       throw err;
     }
+  };
+
+  // Action: Quản lý phê duyệt mở lại đơn quá hạn (> 24 giờ)
+  const handleManagerReopen = async (
+    apt: CheckInAppointment,
+    reason: string,
+    managerName: string
+  ) => {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const nowTime = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+    const expiryIso = endOfDay.toISOString();
+
+    approvalRequestsService.approveRequest(apt.id, managerName, reason, expiryIso);
+
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === apt.id
+          ? {
+              ...item,
+              status: 'confirmed',
+              appointmentDateRaw: nowIso,
+              slotTime: `${nowTime} (Đã duyệt)`,
+              dateDisplay: 'Hôm nay',
+              timeCategory: now.getHours() < 12 ? 'morning' : 'afternoon',
+              managerApprovalStatus: 'approved',
+              managerApprovedAt: nowIso,
+              managerApprovedExpiry: expiryIso,
+              managerApproverName: managerName,
+              managerApprovalReason: reason,
+              isApprovalExpired: false,
+              unitAutoReleased: false,
+              specialNotes: item.specialNotes
+                ? `${item.specialNotes} | [Quản lý duyệt mở lại - Hạn hết ngày]: ${reason} (Duyệt: ${managerName})`
+                : `[Quản lý duyệt mở lại - Hạn hết ngày]: ${reason} (Duyệt: ${managerName})`,
+            }
+          : item
+      )
+    );
+
+    toast.success(
+      `Quản lý đã phê duyệt mở lại đơn ${apt.id} (hiệu lực đến hết hôm nay 23:59)! Ô kho ${apt.assignedUnit} sẵn sàng bàn giao.`
+    );
+  };
+
+  // Action: Quản lý từ chối mở lại đơn quá hạn
+  const handleManagerReject = async (apt: CheckInAppointment, reason: string) => {
+    const managerName = currentUser?.fullName || 'Quản lý cơ sở';
+    approvalRequestsService.rejectRequest(apt.id, managerName, reason);
+
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === apt.id
+          ? {
+              ...item,
+              managerApprovalStatus: 'rejected',
+              managerApprovalRejectReason: reason,
+              managerApproverName: managerName,
+            }
+          : item
+      )
+    );
+
+    toast.info(`Quản lý đã từ chối yêu cầu mở lại đơn ${apt.id}.`);
   };
 
   const handleExecuteNativePrint = () => {
@@ -602,6 +681,9 @@ export default function ManagerPortalPage() {
                   selectedAppointmentId={selectedAppointmentId}
                   onReschedule={handleReschedule}
                   onCancelOrNoShow={handleCancelOrNoShow}
+                  onManagerReopen={handleManagerReopen}
+                  onManagerReject={handleManagerReject}
+                  currentUser={currentUser}
                 />
               </div>
             )}

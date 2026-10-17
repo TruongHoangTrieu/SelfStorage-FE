@@ -290,7 +290,7 @@ export default function CustomerDashboardPage() {
     setIsCancellingReservation(true);
     try {
       await customerUnitsApi.cancelReservation(cancelReservationId, 'Khách hàng hủy trên Cổng khách hàng');
-      toast.success('Đã hủy đơn đặt giữ chỗ thành công. Ngăn kho đã được giải phóng.');
+      toast.success('Đã hủy đơn đặt giữ chỗ thành công.');
       setCancelReservationId(null);
       await loadContractsData(false);
     } catch (err: any) {

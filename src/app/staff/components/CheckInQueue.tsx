@@ -16,6 +16,11 @@ import {
   HelpCircle,
   Sparkles,
   ShieldCheck,
+  Send,
+  CalendarDays,
+  Users,
+  KeyRound,
+  CheckCircle2,
 } from 'lucide-react';
 import { CheckInAppointment, StaffUser } from '../types';
 import { toast } from 'sonner';
@@ -23,6 +28,7 @@ import RescheduleModal from './RescheduleModal';
 import NoShowModal from './NoShowModal';
 import ContactModal from './ContactModal';
 import ManagerApprovalModal from './ManagerApprovalModal';
+import RequestApprovalModal from './RequestApprovalModal';
 
 /**
  * Phân tích trạng thái thời gian lịch hẹn:
@@ -375,6 +381,14 @@ interface CheckInQueueProps {
     reason: string,
     managerName: string
   ) => Promise<void> | void;
+  onRequestApproval?: (
+    apt: CheckInAppointment,
+    reason: string
+  ) => Promise<void> | void;
+  onManagerReject?: (
+    apt: CheckInAppointment,
+    reason: string
+  ) => Promise<void> | void;
   currentUser?: StaffUser | null;
 }
 
@@ -385,6 +399,8 @@ export default function CheckInQueue({
   onReschedule,
   onCancelOrNoShow,
   onManagerReopen,
+  onRequestApproval,
+  onManagerReject,
   currentUser,
 }: CheckInQueueProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -393,11 +409,24 @@ export default function CheckInQueue({
   >('all');
   const [viewMode, setViewMode] = useState<'timeline' | 'kanban'>('timeline');
 
+  // Check role: Quản lý cơ sở hay Nhân viên
+  const userRole = (currentUser?.role || '').toUpperCase();
+  const isManager = Boolean(
+    currentUser && (
+      userRole === 'FACILITY_MANAGER' ||
+      userRole === 'BUSINESS_OPERATIONS_MANAGER' ||
+      userRole === 'SYSTEM_ADMINISTRATOR' ||
+      userRole === 'ADMIN' ||
+      userRole === 'MANAGER'
+    )
+  );
+
   // Modal states
   const [contactModalApt, setContactModalApt] = useState<CheckInAppointment | null>(null);
   const [rescheduleModalApt, setRescheduleModalApt] = useState<CheckInAppointment | null>(null);
   const [noShowModalApt, setNoShowModalApt] = useState<CheckInAppointment | null>(null);
   const [managerApprovalModalApt, setManagerApprovalModalApt] = useState<CheckInAppointment | null>(null);
+  const [requestApprovalModalApt, setRequestApprovalModalApt] = useState<CheckInAppointment | null>(null);
 
   // Danh sách các cuộc hẹn trễ đã được liên hệ xác nhận (để mở khóa nút Nhận kho khi trễ >= 3 tiếng)
   const [confirmedContactAptIds, setConfirmedContactAptIds] = useState<string[]>([]);
@@ -462,20 +491,11 @@ export default function CheckInQueue({
       const sched = getAppointmentScheduleStatus(apt);
 
       if (statusFilter === 'all') return true;
-      if (statusFilter === 'overdue') {
+      if (statusFilter === 'late' || statusFilter === 'overdue') {
         return (
-          (sched.isOverdue || apt.status === 'expired') &&
+          (sched.isLate || sched.isOverdue || apt.status === 'expired') &&
           apt.status !== 'completed' &&
           apt.status !== 'cancelled'
-        );
-      }
-      if (statusFilter === 'late') {
-        return (
-          sched.isLate &&
-          !sched.isOverdue &&
-          apt.status !== 'completed' &&
-          apt.status !== 'cancelled' &&
-          apt.status !== 'expired'
         );
       }
       if (statusFilter === 'confirmed') {
@@ -507,45 +527,49 @@ export default function CheckInQueue({
         {/* 1. Tổng lịch hẹn */}
         <div
           onClick={() => setStatusFilter('all')}
-          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+          className={`p-4 rounded-2xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none flex items-center justify-between ${
             statusFilter === 'all'
-              ? 'bg-slate-100/80 border-slate-400 ring-2 ring-slate-400/20 shadow-xs'
+              ? 'bg-slate-100/90 border-slate-400 ring-2 ring-slate-400/20 shadow-xs'
               : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
           }`}
         >
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Tổng lịch hẹn</span>
-            <span className={`w-2 h-2 rounded-full ${statusFilter === 'all' ? 'bg-slate-600' : 'bg-slate-300'}`} />
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <span>Tổng lịch hẹn</span>
+              <span className={`w-2 h-2 rounded-full ${statusFilter === 'all' ? 'bg-slate-600' : 'bg-slate-300'}`} />
+            </div>
+            <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
           </div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
-            {stats.todayCount} hôm nay • {Math.max(0, stats.total - stats.todayCount)} ngày khác
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-slate-100 text-slate-600 border border-slate-200/60">
+            <CalendarDays className="w-5 h-5" />
           </div>
         </div>
 
         {/* 2. Chờ đón tiếp (Đúng hẹn) */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'confirmed' ? 'all' : 'confirmed')}
-          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+          className={`p-4 rounded-2xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none flex items-center justify-between ${
             statusFilter === 'confirmed'
-              ? 'bg-blue-50/80 border-blue-500 ring-2 ring-blue-500/25 shadow-xs'
+              ? 'bg-blue-50/90 border-blue-500 ring-2 ring-blue-500/25 shadow-xs'
               : 'bg-white border-blue-100 hover:border-blue-300 hover:bg-blue-50/20'
           }`}
         >
-          <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider flex items-center justify-between">
-            <span>Chờ đón tiếp</span>
-            <span className={`w-2 h-2 rounded-full ${statusFilter === 'confirmed' ? 'bg-blue-600 ring-2 ring-blue-200' : 'bg-blue-500'}`} />
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+              <span>Chờ đón tiếp</span>
+              <span className={`w-2 h-2 rounded-full ${statusFilter === 'confirmed' ? 'bg-blue-600 ring-2 ring-blue-200' : 'bg-blue-500'}`} />
+            </div>
+            <div className="text-2xl font-bold text-blue-900">{stats.confirmed}</div>
           </div>
-          <div className="text-2xl font-bold text-blue-900 mt-1">{stats.confirmed}</div>
-          <div className="text-[11px] text-blue-700/90 mt-0.5">
-            Sẵn sàng phục vụ đúng hẹn
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600 border border-blue-100">
+            <Users className="w-5 h-5" />
           </div>
         </div>
 
         {/* 3. Trễ hẹn / Cần gọi (Cảnh báo nghiệp vụ) */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'late' ? 'all' : 'late')}
-          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+          className={`p-4 rounded-2xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none flex items-center justify-between ${
             statusFilter === 'late' || statusFilter === 'overdue'
               ? 'bg-rose-50/90 border-rose-500 ring-2 ring-rose-500/25 shadow-xs'
               : stats.lateCount > 0 || stats.overdueCount > 0
@@ -553,69 +577,70 @@ export default function CheckInQueue({
               : 'bg-white border-slate-200 hover:border-rose-200 hover:bg-rose-50/10'
           }`}
         >
-          <div className="text-xs font-semibold text-rose-700 uppercase tracking-wider flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-rose-700 uppercase tracking-wider flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
               <span>Trễ hẹn / Quá hạn</span>
-            </span>
-            {(stats.lateCount > 0 || stats.overdueCount > 0) && (
-              <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'late' || statusFilter === 'overdue' ? 'bg-rose-600' : 'bg-rose-500 animate-ping'}`} />
-            )}
+              {(stats.lateCount > 0 || stats.overdueCount > 0) && (
+                <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'late' || statusFilter === 'overdue' ? 'bg-rose-600' : 'bg-rose-500 animate-ping'}`} />
+              )}
+            </div>
+            <div className="text-2xl font-black text-rose-900 flex items-baseline gap-2">
+              <span>{stats.lateCount}</span>
+              {stats.overdueCount > 0 && (
+                <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
+                  +{stats.overdueCount} quá hạn
+                </span>
+              )}
+            </div>
           </div>
-          <div className="text-2xl font-black text-rose-900 mt-1 flex items-baseline gap-2">
-            <span>{stats.lateCount}</span>
-            {stats.overdueCount > 0 && (
-              <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
-                +{stats.overdueCount} quá hạn
-              </span>
-            )}
-          </div>
-          <div className="text-[11px] text-rose-700/90 mt-0.5">
-            {stats.overdueCount > 0
-              ? `${stats.overdueCount} đơn trễ >24h bị khóa`
-              : stats.lateCount > 0
-              ? 'Cần nhân viên hỗ trợ ngay'
-              : 'Không có đơn trễ giờ'}
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-rose-50 text-rose-600 border border-rose-200/80">
+            <AlertTriangle className="w-5 h-5" />
           </div>
         </div>
 
         {/* 4. Đang xử lý */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'in_progress' ? 'all' : 'in_progress')}
-          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+          className={`p-4 rounded-2xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none flex items-center justify-between ${
             statusFilter === 'in_progress'
-              ? 'bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-500/25 shadow-xs'
+              ? 'bg-indigo-50/90 border-indigo-500 ring-2 ring-indigo-500/25 shadow-xs'
               : 'bg-white border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50/20'
           }`}
         >
-          <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wider flex items-center justify-between">
-            <span>Đang xử lý</span>
-            <span className={`w-2 h-2 rounded-full ${statusFilter === 'in_progress' ? 'bg-indigo-600 ring-2 ring-indigo-200' : 'bg-indigo-600 animate-pulse'}`} />
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
+              <span>Đang xử lý</span>
+              <span className={`w-2 h-2 rounded-full ${statusFilter === 'in_progress' ? 'bg-indigo-600 ring-2 ring-indigo-200' : 'bg-indigo-600 animate-pulse'}`} />
+            </div>
+            <div className="text-2xl font-bold text-indigo-600">{stats.inProgress}</div>
           </div>
-          <div className="text-2xl font-bold text-indigo-600 mt-1">{stats.inProgress}</div>
-          <div className="text-[11px] text-indigo-700/90 mt-0.5">
-            Đang bàn giao tại chỗ
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600 border border-indigo-100">
+            <KeyRound className="w-5 h-5" />
           </div>
         </div>
 
         {/* 5. Hoàn tất */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
-          className={`p-4 rounded-xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none ${
+          className={`p-4 rounded-2xl border shadow-2xs cursor-pointer transition-all active:scale-98 select-none flex items-center justify-between ${
             statusFilter === 'completed'
-              ? 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/25 shadow-xs'
+              ? 'bg-emerald-50/90 border-emerald-500 ring-2 ring-emerald-500/25 shadow-xs'
               : 'bg-white border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/20'
           }`}
         >
-          <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider flex items-center justify-between">
-            <span>Hoàn tất</span>
-            <span className={`w-2 h-2 rounded-full ${statusFilter === 'completed' ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-emerald-500'}`} />
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+              <span>Hoàn tất</span>
+              <span className={`w-2 h-2 rounded-full ${statusFilter === 'completed' ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-emerald-500'}`} />
+            </div>
+            <div className="text-2xl font-bold text-emerald-900">{stats.completed}</div>
           </div>
-          <div className="text-2xl font-bold text-emerald-900 mt-1">{stats.completed}</div>
-          <div className="text-[11px] text-emerald-700/90 mt-0.5">
-            Đã bàn giao ô kho
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600 border border-emerald-100">
+            <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
+
       </div>
 
       {/* 2. Thanh Tìm kiếm & Bộ lọc trạng thái */}
@@ -646,35 +671,33 @@ export default function CheckInQueue({
             [
               { key: 'all', label: 'Tất cả' },
               { key: 'confirmed', label: 'Chờ đón tiếp' },
-              { key: 'late', label: 'Trễ hẹn' },
-              { key: 'overdue', label: 'Đơn quá hạn' },
+              { key: 'late', label: 'Trễ hẹn / Quá hạn' },
               { key: 'in_progress', label: 'Đang xử lý' },
               { key: 'completed', label: 'Hoàn tất' },
               { key: 'cancelled', label: 'Đã hủy' },
             ] as const
           ).map((item) => {
-            const isActive = statusFilter === item.key;
+            const totalLateOverdue = stats.lateCount + stats.overdueCount;
+            const isActive =
+              statusFilter === item.key ||
+              (item.key === 'late' && (statusFilter === 'late' || statusFilter === 'overdue'));
+
             return (
               <button
                 key={item.key}
                 onClick={() => setStatusFilter(item.key)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   isActive
-                    ? item.key === 'overdue'
-                      ? 'bg-red-700 text-white shadow-xs font-bold'
-                      : item.key === 'late'
+                    ? item.key === 'late'
                       ? 'bg-rose-600 text-white shadow-xs font-bold'
                       : 'bg-[#4f39f6] text-white shadow-xs'
-                    : item.key === 'overdue' && stats.overdueCount > 0
-                    ? 'bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 font-bold'
-                    : item.key === 'late' && stats.lateCount > 0
-                    ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 font-bold'
+                    : item.key === 'late' && totalLateOverdue > 0
+                    ? 'bg-rose-50 text-rose-700 border border-rose-300 hover:bg-rose-100 font-bold'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
                 {item.label}
-                {item.key === 'overdue' && stats.overdueCount > 0 ? ` (${stats.overdueCount})` : ''}
-                {item.key === 'late' && stats.lateCount > 0 ? ` (${stats.lateCount})` : ''}
+                {item.key === 'late' && totalLateOverdue > 0 ? ` (${totalLateOverdue})` : ''}
               </button>
             );
           })}
@@ -831,6 +854,23 @@ export default function CheckInQueue({
         onConfirm={async (apt, reason, managerName) => {
           if (onManagerReopen) {
             await onManagerReopen(apt, reason, managerName);
+          }
+        }}
+        onReject={async (apt, reason) => {
+          if (onManagerReject) {
+            await onManagerReject(apt, reason);
+          }
+        }}
+      />
+
+      <RequestApprovalModal
+        isOpen={!!requestApprovalModalApt}
+        onClose={() => setRequestApprovalModalApt(null)}
+        appointment={requestApprovalModalApt}
+        currentUser={currentUser}
+        onSubmit={async (apt, reason) => {
+          if (onRequestApproval) {
+            await onRequestApproval(apt, reason);
           }
         }}
       />
@@ -1024,6 +1064,26 @@ export default function CheckInQueue({
               </div>
             )}
 
+            {/* Thông báo đơn đang chờ Quản lý duyệt */}
+            {apt.managerApprovalStatus === 'pending' && !isApprovedValidToday && (
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 w-fit mt-1">
+                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 animate-spin" />
+                <span>
+                  Đã gửi yêu cầu tới Quản lý cơ sở ({apt.managerApprovalFacilityName || 'Cơ sở'}). Nhân viên gửi: <strong>{apt.managerApprovalRequestedBy || 'Nhân viên'}</strong> • Đang chờ Quản lý duyệt.
+                </span>
+              </div>
+            )}
+
+            {/* Thông báo Quản lý từ chối mở lại */}
+            {apt.managerApprovalStatus === 'rejected' && (
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-900 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 w-fit mt-1">
+                <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>
+                  Quản lý đã từ chối mở lại: <em>{apt.managerApprovalRejectReason || 'Không đủ điều kiện'}</em>. Vui lòng dời lịch hoặc hủy đơn.
+                </span>
+              </div>
+            )}
+
             {isApprovalExpired && (
               <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-800 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 w-fit mt-1">
                 <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
@@ -1115,16 +1175,59 @@ export default function CheckInQueue({
                 <span>Dời lịch hẹn</span>
               </button>
 
-              {/* Bấm Quản lý phê duyệt mở lại */}
-              <button
-                type="button"
-                onClick={() => setManagerApprovalModalApt(apt)}
-                title="Cấp Quản lý phê duyệt mở lại đơn (hiệu lực đến hết ngày hôm nay)"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-xl border border-indigo-200 transition-all cursor-pointer shadow-2xs"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Quản lý duyệt mở lại</span>
-              </button>
+              {/* Nút Báo vắng & Giải phóng kho: Chỉ dành cho Quản lý cơ sở hoặc khi Quản lý đã từ chối mở lại */}
+              {(isManager || apt.managerApprovalStatus === 'rejected') && (
+                <button
+                  type="button"
+                  onClick={() => setNoShowModalApt(apt)}
+                  title="Xác nhận khách vắng mặt: Hủy đơn và giải phóng ô kho về trạng thái Khả dụng"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all cursor-pointer shadow-2xs"
+                >
+                  <UserX className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Báo vắng &amp; Giải phóng</span>
+                </button>
+              )}
+
+              {/* PHÂN QUYỀN NÚT DUYỆT / GỬI YÊU CẦU: */}
+              {!isManager ? (
+                /* GIAO DIỆN DÀNH CHO NHÂN VIÊN LỄ TÂN (STAFF) */
+                apt.managerApprovalStatus === 'pending' ? (
+                  <button
+                    type="button"
+                    disabled
+                    title={`Đã gửi tờ trình tới Quản lý cơ sở. Người gửi: ${apt.managerApprovalRequestedBy || 'Nhân viên'}. Đang chờ Quản lý duyệt.`}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-amber-800 bg-amber-100/90 border border-amber-300 rounded-xl cursor-wait select-none shadow-2xs"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                    <span>Chờ Quản lý duyệt...</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setRequestApprovalModalApt(apt)}
+                    title="Gửi yêu cầu tới Quản lý cơ sở để xin mở lại đơn quá hạn này"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-xl border border-indigo-200 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Send className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Gửi yêu cầu Quản lý duyệt</span>
+                  </button>
+                )
+              ) : (
+                /* GIAO DIỆN DÀNH CHO QUẢN LÝ (MANAGER) */
+                <button
+                  type="button"
+                  onClick={() => setManagerApprovalModalApt(apt)}
+                  title="Cấp Quản lý phê duyệt mở lại đơn (hiệu lực đến hết ngày hôm nay)"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-xl border border-indigo-300 transition-all cursor-pointer shadow-2xs"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>
+                    {apt.managerApprovalStatus === 'pending'
+                      ? 'Xem & Phê duyệt'
+                      : 'Quản lý duyệt mở lại'}
+                  </span>
+                </button>
+              )}
             </div>
           ) : (
             /* TRƯỜNG HỢP BÌNH THƯỜNG / TRỄ DƯỚI 24 GIỜ */
@@ -1360,14 +1463,36 @@ export default function CheckInQueue({
                             >
                               Dời lịch
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => setManagerApprovalModalApt(apt)}
-                              title="Quản lý duyệt mở lại"
-                              className="flex-1 py-1 text-center text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-all cursor-pointer"
-                            >
-                              Duyệt mở
-                            </button>
+                            {!isManager ? (
+                              apt.managerApprovalStatus === 'pending' ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="flex-1 py-1 text-center text-[11px] font-bold text-amber-800 bg-amber-100 rounded-lg border border-amber-300 cursor-wait flex items-center justify-center gap-1"
+                                >
+                                  <Clock className="w-2.5 h-2.5 animate-spin" />
+                                  <span>Chờ duyệt</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setRequestApprovalModalApt(apt)}
+                                  title="Gửi yêu cầu Quản lý duyệt"
+                                  className="flex-1 py-1 text-center text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-all cursor-pointer"
+                                >
+                                  Xin duyệt
+                                </button>
+                              )
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setManagerApprovalModalApt(apt)}
+                                title="Quản lý phê duyệt mở lại"
+                                className="flex-1 py-1 text-center text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-all cursor-pointer"
+                              >
+                                {apt.managerApprovalStatus === 'pending' ? 'Duyệt' : 'Duyệt mở'}
+                              </button>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -1463,6 +1588,22 @@ export default function CheckInQueue({
 
     // Nếu đơn trễ hơn 24 giờ hoặc trạng thái expired -> "Đơn quá hạn"
     if (apt.status === 'expired' || (sched.isOverdue && apt.status !== 'completed' && apt.status !== 'cancelled')) {
+      if (apt.managerApprovalStatus === 'pending') {
+        return (
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">
+            <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+            Chờ Quản lý duyệt
+          </span>
+        );
+      }
+      if (apt.managerApprovalStatus === 'rejected') {
+        return (
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-300">
+            <XCircle className="w-3 h-3 text-rose-600" />
+            Quản lý từ chối
+          </span>
+        );
+      }
       return (
         <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
           <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
