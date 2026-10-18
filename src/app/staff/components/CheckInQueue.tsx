@@ -350,16 +350,7 @@ export function checkAppointmentEligibility(apt: CheckInAppointment): {
     };
   }
 
-  // Nếu còn hơn 1 tiếng nữa mới tới giờ hẹn: Khóa nút
-  const futureDiffMs = apptDate.getTime() - now.getTime();
-  const oneHourMs = 60 * 60 * 1000;
-  if (futureDiffMs > oneHourMs) {
-    return {
-      allowed: false,
-      reason: 'Chỉ mở trước giờ hẹn 1 tiếng',
-    };
-  }
-
+  // Khách đến sớm hoặc đúng giờ đều cho phép nhân viên tiếp nhận và bàn giao ngay
   return { allowed: true };
 }
 
@@ -1246,21 +1237,6 @@ export default function CheckInQueue({
           ) : (
             /* TRƯỜNG HỢP BÌNH THƯỜNG / TRỄ DƯỚI 24 GIỜ */
             <>
-              {/* Nút Tạo Đơn / Thu Tiền Thuê Kho */}
-              <button
-                type="button"
-                onClick={() => onOpenRentalPayment?.(apt)}
-                title="Tạo đơn thu tiền thuê hoặc kiểm tra VietQR"
-                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all border cursor-pointer active:scale-95 shadow-2xs ${
-                  apt.rentalStatus === 'paid'
-                    ? 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300'
-                    : 'text-amber-900 bg-amber-50 hover:bg-amber-100 border-amber-300'
-                }`}
-              >
-                <Banknote className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{apt.rentalStatus === 'paid' ? 'Đã thu tiền' : 'Thu tiền thuê'}</span>
-              </button>
-
               {/* Khi TRỄ HẸN (isLate): Bắt buộc gọi điện / liên hệ xác nhận trước */}
               {isLate && (
                 <button
@@ -1282,32 +1258,16 @@ export default function CheckInQueue({
                 </button>
               )}
 
-              {/* Nút Bắt đầu nhận kho: Nếu trễ quá 3 tiếng (>= 180 phút) và CHƯA liên hệ xác nhận -> ẨN NÚT */}
-              {!(isLateOver3Hours && !isContactConfirmed) && (() => {
-                const eligibility = checkAppointmentEligibility(apt);
-                if (!eligibility.allowed) {
-                  return (
-                    <button
-                      type="button"
-                      disabled
-                      title={eligibility.reason || 'Chỉ mở trước giờ hẹn 1 tiếng'}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-xl opacity-50 cursor-not-allowed select-none shadow-none"
-                    >
-                      <Lock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Nhận kho</span>
-                    </button>
-                  );
-                }
-                return (
-                  <button
-                    onClick={() => onStartCheckIn(apt)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl transition-all shadow-xs hover:shadow-sm cursor-pointer"
-                  >
-                    <span>Bắt đầu nhận kho</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                );
-              })()}
+              {/* Nút Bắt đầu nhận kho (Khách đến sớm hay đúng giờ đều tiếp nhận ngay) */}
+              {!(isLateOver3Hours && !isContactConfirmed) && (
+                <button
+                  onClick={() => onStartCheckIn(apt)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl transition-all shadow-xs hover:shadow-sm cursor-pointer"
+                >
+                  <span>Bắt đầu nhận kho</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </>
           )}
         </div>
@@ -1459,21 +1419,6 @@ export default function CheckInQueue({
                   {/* Kanban Quick Action Buttons */}
                   {apt.status !== 'completed' && apt.status !== 'cancelled' && (
                     <div className="pt-1 flex flex-col gap-1.5">
-                      {/* Nút Thu tiền nhanh */}
-                      <button
-                        type="button"
-                        onClick={() => onOpenRentalPayment?.(apt)}
-                        title="Tạo đơn hoặc thu tiền thuê kho"
-                        className={`flex items-center justify-center gap-1.5 w-full px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors border ${
-                          apt.rentalStatus === 'paid'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                            : 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
-                        }`}
-                      >
-                        <Banknote className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{apt.rentalStatus === 'paid' ? 'Đã thu tiền' : 'Thu tiền thuê'}</span>
-                      </button>
-
                       {isAppExpired ? (
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-1 rounded border border-slate-200">
@@ -1495,7 +1440,7 @@ export default function CheckInQueue({
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => onStartCheckIn(apt)}
-                            className="w-full py-1 text-center text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all cursor-pointer"
+                            className="w-full py-1 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all cursor-pointer"
                           >
                             Nhận kho (Hôm nay) →
                           </button>
@@ -1571,30 +1516,15 @@ export default function CheckInQueue({
                             </button>
                           )}
 
-                          {/* Nút nhận kho: Ẩn khi trễ quá 3 tiếng và chưa liên hệ xác nhận */}
-                          {!(isLateOver3Hours && !isContactConfirmed) && (() => {
-                            const eligibility = checkAppointmentEligibility(apt);
-                            if (!eligibility.allowed) {
-                              return (
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="flex-1 py-1 text-center text-xs font-semibold text-slate-400 bg-slate-100 rounded-lg cursor-not-allowed opacity-50 flex items-center justify-center gap-1"
-                                >
-                                  <Lock className="w-3 h-3" />
-                                  <span>Khóa</span>
-                                </button>
-                              );
-                            }
-                            return (
-                              <button
-                                onClick={() => onStartCheckIn(apt)}
-                                className="flex-1 py-1 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all cursor-pointer"
-                              >
-                                Nhận kho →
-                              </button>
-                            );
-                          })()}
+                          {/* Nút nhận kho (Khách đến sớm hay đúng giờ đều tiếp nhận ngay) */}
+                          {!(isLateOver3Hours && !isContactConfirmed) && (
+                            <button
+                              onClick={() => onStartCheckIn(apt)}
+                              className="flex-1 py-1 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all cursor-pointer"
+                            >
+                              Nhận kho →
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

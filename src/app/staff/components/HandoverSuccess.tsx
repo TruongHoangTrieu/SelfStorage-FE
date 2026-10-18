@@ -164,11 +164,11 @@ export default function HandoverSuccess({
                   onClick={() => setPaymentMethod('cash')}
                   className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer ${
                     paymentMethod === 'cash'
-                      ? 'border-emerald-600 bg-emerald-50/70 text-emerald-900 ring-2 ring-emerald-600/20 font-bold'
+                      ? 'border-blue-600 bg-blue-50/70 text-blue-900 ring-2 ring-blue-600/20 font-bold'
                       : 'border-slate-200 hover:bg-white text-slate-700 text-xs font-medium'
                   }`}
                 >
-                  <Banknote className="w-5 h-5 mx-auto mb-1 text-emerald-600" />
+                  <Banknote className="w-5 h-5 mx-auto mb-1 text-blue-600" />
                   <div className="text-xs">Tiền mặt tại quầy</div>
                 </button>
               </div>
@@ -198,7 +198,7 @@ export default function HandoverSuccess({
                     className={`w-full sm:w-auto px-6 py-2.5 text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
                       isRemainingPaid
                         ? 'bg-emerald-700 text-white hover:bg-emerald-800'
-                        : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
+                        : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
                     }`}
                   >
                     {isRemainingPaid ? (

@@ -168,12 +168,34 @@ export default function HandoverProcess({
     cleanlinessChecked: true,
   });
 
+  // Trạng thái kiểm tra đối chiếu CCCD/Hộ chiếu tại quầy
+  const [isCccdVerified, setIsCccdVerified] = useState<boolean>(true);
+
+  // Sinh mã PIN Smart Lock ngẫu nhiên
+  const handleGenerateRandomPin = () => {
+    const randomPin = Math.floor(100000 + Math.random() * 900000).toString();
+    onChangeCustomPin(randomPin);
+  };
+
   const activeUnit = selectedUnitCode || appointment.assignedUnit;
 
   const handleAttemptProceed = () => {
-    if (!isContractSigned) {
-      alert('Vui lòng xác nhận KÝ HỢP ĐỒNG KỸ THUẬT SỐ trước khi tiếp tục sang bước Thu tiền & Bàn giao mã PIN!');
+    if (!isCccdVerified) {
+      alert('Vui lòng kiểm tra và xác nhận ĐỐI CHIẾU CCCD/HỘ CHIẾU của khách hàng trước khi bàn giao kho!');
       return;
+    }
+    if (!isContractSigned) {
+      alert('Vui lòng xem/in và xác nhận KÝ HỢP ĐỒNG KỸ THUẬT SỐ trước khi tiếp tục bàn giao kho!');
+      return;
+    }
+    if (appointment.rentalStatus !== 'paid' && remainingAmount > 0) {
+      const openPay = window.confirm(
+        `Đơn này còn tiền thuê kho chưa quyết toán (${formatVND(remainingAmount)}).\n\nNhấn 'OK' để mở giao diện thu tiền ngay (VietQR / Tiền mặt), hoặc nhấn 'Cancel' nếu bạn muốn ghi nợ/thu sau để hoàn tất cấp mã PIN ngay.`
+      );
+      if (openPay) {
+        onOpenRentalPayment?.();
+        return;
+      }
     }
     onCompleteHandover();
   };
@@ -193,14 +215,14 @@ export default function HandoverProcess({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-slate-900">
-                Thủ tục Hợp Đồng & Bàn Giao: {appointment.customerName}
+                Thủ tục Bàn Giao &amp; Kích Hoạt Kho: {appointment.customerName}
               </h2>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200">
-                Bước 1: Ký Hợp Đồng
+                Tiếp nhận trực tiếp
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              Mã đơn hẹn: {appointment.id} • Giờ hẹn: {appointment.slotTime}
+              Mã đơn: {appointment.id} • Giờ hẹn dự kiến: {appointment.slotTime} (Linh hoạt tiếp nhận)
             </p>
           </div>
         </div>
@@ -208,6 +230,7 @@ export default function HandoverProcess({
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           {/* [ NÚT IN TÀI LIỆU ] */}
           <button
+            type="button"
             onClick={onOpenPrintModal}
             className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer"
           >
@@ -215,14 +238,15 @@ export default function HandoverProcess({
             <span>In tài liệu</span>
           </button>
 
-          {/* [ NÚT TIẾP TỤC SANG THU TIỀN & BÀN GIAO ] */}
+          {/* [ NÚT HOÀN TẤT BÀN GIAO & CẤP PIN ] */}
           <button
+            type="button"
             onClick={handleAttemptProceed}
             disabled={isSubmitting || !isContractSigned}
             title={
               !isContractSigned
                 ? 'Yêu cầu: Ký hợp đồng trước khi tiếp tục'
-                : 'Tiếp tục sang bước Thu tiền & Cấp mã PIN'
+                : 'Hoàn tất bàn giao, cấp mã PIN Smart Lock và kích hoạt ô kho'
             }
             className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-md active:scale-95 cursor-pointer ${
               !isContractSigned
@@ -239,7 +263,7 @@ export default function HandoverProcess({
               </>
             ) : (
               <>
-                <span>Ký Hợp Đồng & Tiếp Tục Thu Tiền</span>
+                <span>Hoàn Tất &amp; Cấp Mã PIN</span>
                 <CheckCircle2 className="w-4 h-4" />
               </>
             )}
@@ -247,18 +271,31 @@ export default function HandoverProcess({
         </div>
       </div>
 
-      {/* Progress Tracker Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Progress Tracker Bar (5 chuẩn bước theo luồng tiếp đón khách) */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {/* Bước 1 */}
         <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
             1
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-bold text-slate-900 truncate">1. Ô kho bàn giao</div>
-            <div className="text-[11px] text-blue-600 font-medium">Ô #{activeUnit}</div>
+            <div className="text-xs font-bold text-slate-900 truncate">1. CCCD &amp; Ô kho</div>
+            <div className="text-[11px] text-blue-600 font-medium truncate">Ô #{activeUnit}</div>
           </div>
         </div>
 
+        {/* Bước 2 */}
+        <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+            2
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-bold text-slate-900 truncate">2. Ảnh hiện trạng</div>
+            <div className="text-[11px] text-slate-500 font-medium truncate">{photos.length} ảnh kiểm tra</div>
+          </div>
+        </div>
+
+        {/* Bước 3 */}
         <div
           className={`p-3 rounded-xl border flex items-center gap-3 transition-colors ${
             isContractSigned
@@ -267,33 +304,59 @@ export default function HandoverProcess({
           }`}
         >
           <div
-            className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
+            className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
               isContractSigned ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
             }`}
           >
-            {isContractSigned ? '✓' : '2'}
+            {isContractSigned ? '✓' : '3'}
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-bold text-slate-900 truncate">2. Hợp đồng điện tử</div>
+            <div className="text-xs font-bold text-slate-900 truncate">3. Xem &amp; In HĐ</div>
             <div
-              className={`text-[11px] font-semibold ${
+              className={`text-[11px] font-semibold truncate ${
                 isContractSigned ? 'text-emerald-700' : 'text-amber-700'
               }`}
             >
-              {isContractSigned ? 'Đã ký số ✓' : 'Chưa ký tại quầy'}
+              {isContractSigned ? 'Đã ký số ✓' : 'Chờ ký & in'}
             </div>
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3 text-slate-500">
-          <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-xs">
-            3
+        {/* Bước 4 */}
+        <div
+          className={`p-3 rounded-xl border flex items-center gap-3 transition-colors ${
+            appointment.rentalStatus === 'paid'
+              ? 'bg-emerald-50 border-emerald-200'
+              : 'bg-blue-50 border-blue-200'
+          }`}
+        >
+          <div
+            className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+              appointment.rentalStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
+            }`}
+          >
+            {appointment.rentalStatus === 'paid' ? '✓' : '4'}
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-bold text-slate-700 truncate">3. Xác nhận & Cấp mã PIN</div>
-            <div className="text-[11px] text-slate-500">
-              {isContractSigned ? 'Sẵn sàng chuyển bước →' : 'Bước tiếp theo'}
+            <div className="text-xs font-bold text-slate-900 truncate">4. Thu tiền thuê</div>
+            <div
+              className={`text-[11px] font-semibold truncate ${
+                appointment.rentalStatus === 'paid' ? 'text-emerald-700' : 'text-blue-700'
+              }`}
+            >
+              {appointment.rentalStatus === 'paid' ? 'Đã thu tiền' : 'Quyết toán tại quầy'}
             </div>
+          </div>
+        </div>
+
+        {/* Bước 5 */}
+        <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center gap-3 col-span-2 sm:col-span-1">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+            5
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-bold text-slate-900 truncate">5. Cấp PIN &amp; Mở kho</div>
+            <div className="text-[11px] text-blue-600 font-medium truncate font-mono">PIN: {customPin || '••••••'}</div>
           </div>
         </div>
       </div>
@@ -304,7 +367,7 @@ export default function HandoverProcess({
         {/* BẢNG BÊN TRÁI (THÔNG TIN KHÁCH HÀNG & TÀI CHÍNH) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Thẻ định danh khách hàng */}
+          {/* Thẻ định danh khách hàng & Kiểm tra CCCD */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2.5">
@@ -317,7 +380,7 @@ export default function HandoverProcess({
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">{appointment.customerName}</h3>
-                  <p className="text-xs text-slate-500">Khách thuê mới</p>
+                  <p className="text-xs text-slate-500">Khách thuê kho tự quản</p>
                 </div>
               </div>
               <span className="flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
@@ -337,6 +400,40 @@ export default function HandoverProcess({
                   {appointment.email}
                 </span>
               </div>
+              <div className="sm:col-span-2 pt-1 border-t border-slate-100">
+                <span className="text-slate-400 block mb-0.5">Số Căn cước công dân (CCCD / Hộ chiếu):</span>
+                <span className="font-mono font-bold text-slate-900 text-sm tracking-wide">
+                  {appointment.idCard || '079201008899'}
+                </span>
+              </div>
+            </div>
+
+            {/* Hộp đối chiếu CCCD tại quầy */}
+            <div
+              className={`p-3 rounded-xl border transition-all ${
+                isCccdVerified
+                  ? 'bg-blue-50/70 border-blue-200 text-blue-900'
+                  : 'bg-amber-50 border-amber-300 text-amber-900'
+              }`}
+            >
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isCccdVerified}
+                  onChange={(e) => setIsCccdVerified(e.target.checked)}
+                  className="mt-0.5 rounded text-blue-600 focus:ring-blue-600 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold">
+                    {isCccdVerified
+                      ? '✓ Đã kiểm tra & đối chiếu CCCD/Hộ chiếu gốc'
+                      : '⚠️ Chưa xác thực CCCD/Hộ chiếu gốc tại quầy'}
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Nhân viên đối chiếu ảnh và thông tin khách hàng trực tiếp tại quầy tiếp đón.
+                  </p>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -345,7 +442,7 @@ export default function HandoverProcess({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-blue-600" />
-                Bảng Kê Hợp Đồng & Tài Chính
+                Bảng Kê Hợp Đồng &amp; Tài Chính
               </h3>
               <span className="tabular-nums text-xs text-slate-500 font-semibold">
                 {appointment.id}
@@ -399,7 +496,7 @@ export default function HandoverProcess({
                       Tiền đặt cọc: ĐÃ XÁC NHẬN
                     </div>
                     <div className="text-[11px] text-emerald-700">
-                      Đã thanh toán {formatVND(depositNum)} trực tuyến
+                      Đã thanh toán {formatVND(depositNum)} trực tuyến khi đặt chỗ
                     </div>
                   </div>
                 </div>
@@ -407,42 +504,31 @@ export default function HandoverProcess({
               </div>
 
               {/* Phần tiền thuê còn lại */}
-              <div className="p-3.5 rounded-xl border bg-amber-50 border-amber-300 shadow-2xs space-y-2.5">
+              <div className="p-3 rounded-xl border bg-slate-50 border-slate-200 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-bold text-slate-900">
+                    <div className="text-xs font-bold text-slate-800">
                       Tiền thuê còn lại (Quyết toán tại quầy):
                     </div>
-                    <div className="text-[11px] text-slate-600 mt-0.5">
-                      Thanh toán bằng VietQR (SePay) hoặc Tiền mặt
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      Thực hiện sau bước xem &amp; in hợp đồng (Mục 4)
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-base font-extrabold tabular-nums text-amber-900">
+                    <div className="text-sm font-extrabold tabular-nums text-slate-900">
                       {formatVND(remainingAmount)}
                     </div>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 ${
                         appointment.rentalStatus === 'paid'
                           ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-amber-200 text-amber-900'
+                          : 'bg-blue-100 text-blue-800'
                       }`}
                     >
-                      {appointment.rentalStatus === 'paid' ? 'ĐÃ THU ĐỦ' : 'CẦN THU TẠI QUẦY'}
+                      {appointment.rentalStatus === 'paid' ? 'ĐÃ THU ĐỦ' : 'THU SAU KHI IN HĐ'}
                     </span>
                   </div>
                 </div>
-
-                {onOpenRentalPayment && (
-                  <button
-                    type="button"
-                    onClick={onOpenRentalPayment}
-                    className="w-full py-2 px-3 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-2xs"
-                  >
-                    <Banknote className="w-3.5 h-3.5 text-amber-800" />
-                    <span>Tạo đơn / Mở giao diện thu tiền thuê</span>
-                  </button>
-                )}
               </div>
 
               {/* Mục đích lưu kho */}
@@ -470,19 +556,19 @@ export default function HandoverProcess({
         </div>
 
         {/* ========================================================================= */}
-        {/* BẢNG BÊN PHẢI (CÁC THAO TÁC HỢP ĐỒNG BÀN GIAO) */}
+        {/* BẢNG BÊN PHẢI (CÁC THAO TÁC HỢP ĐỒNG BÀN GIAO THEO ĐÚNG TRÌNH TỰ) */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-6">
-          {/* 1. Gán Ô Kho (Unit Allocation Dropdown) */}
+          {/* BƯỚC 1: Xác nhận hoặc Đổi Ô Kho */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-blue-600" />
-                  1. Xác nhận hoặc Thay đổi Ô kho được Gán
+                  1. Kiểm Tra &amp; Xác Nhận Gán Ô Kho (Đổi ô kho nếu khách đổi ý)
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Chọn ô kho khác nếu ô ban đầu không khả dụng hoặc khách muốn đổi vị trí.
+                  Nhân viên có thể linh hoạt đổi sang ô kho trống khác cùng phân hạng nếu khách có nhu cầu.
                 </p>
               </div>
               <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200/60">
@@ -500,13 +586,12 @@ export default function HandoverProcess({
                   onChange={(e) => onChangeUnitCode(e.target.value)}
                   className="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-900 text-sm font-semibold rounded-xl px-4 py-3 pr-10 focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all cursor-pointer"
                 >
-                  <optgroup label="Ô ban đầu chỉ định">
+                  <optgroup label="Ô ban đầu chỉ định theo đơn đặt">
                     <option value={appointment.assignedUnit}>
-                      Ô {appointment.assignedUnit} • {appointment.preferredFloor} (Chỉ định theo đơn
-                      đặt)
+                      Ô {appointment.assignedUnit} • {appointment.preferredFloor} (Chỉ định theo đơn đặt)
                     </option>
                   </optgroup>
-                  <optgroup label="Các ô kho trống khả dụng cùng loại">
+                  <optgroup label="Các ô kho trống khả dụng khác cùng loại">
                     {availableUnits
                       .filter((u) => u.code !== appointment.assignedUnit && u.status === 'vacant')
                       .map((unit) => (
@@ -521,147 +606,26 @@ export default function HandoverProcess({
             </div>
           </div>
 
-          {/* 2. Hợp đồng Kỹ thuật số & Xác nhận Ký (Bắt buộc) */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  2. Ký Hợp Đồng Kỹ Thuật Số (Bắt buộc)
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Khách hàng đọc điều khoản & hoàn tất ký số thỏa thuận thuê kho
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onOpenContractModal}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200 cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  Xem toàn văn HĐ
-                </button>
-              </div>
-            </div>
-
-            {/* Trích đoạn tóm tắt hợp đồng */}
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs space-y-2.5 font-sans text-slate-700">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200 pb-2">
-                <div>
-                  <span className="font-bold text-slate-900 block">
-                    HỢP ĐỒNG CHO THUÊ KHO BÃI & NHÀ XƯỞNG
-                  </span>
-                  <span className="text-[11px] text-slate-500 tabular-nums">
-                    Số: SS-HĐ-{appointment.id.replace(/[^a-zA-Z0-9]/g, '')}/2026
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 self-start sm:self-auto">
-                  
-                  {isContractSigned ? (
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Đã ký số thành công
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> Chờ ký kết tại quầy
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <p>
-                  • <strong>Bên A (Cho thuê):</strong> CÔNG TY CP SELFSTORAGE VN
-                </p>
-                <p>
-                  • <strong>Bên B (Khách thuê):</strong>{' '}
-                  <strong className="text-slate-900">{appointment.customerName}</strong> (SĐT:{' '}
-                  {appointment.phone})
-                </p>
-                <p>
-                  • <strong>Ngăn kho bàn giao:</strong>{' '}
-                  <strong className="text-blue-600">Ô #{activeUnit}</strong> (
-                  {appointment.unitSize})
-                </p>
-                <p>
-                  • <strong>Thời hạn thuê:</strong> {durationMonths} tháng (Từ{' '}
-                  {appointment.startDate})
-                </p>
-              </div>
-            </div>
-
-            {/* Hộp hành động Ký hợp đồng */}
-            <div
-              className={`p-4 rounded-xl border transition-all ${
-                isContractSigned
-                  ? 'bg-emerald-50/70 border-emerald-300'
-                  : 'bg-amber-50/60 border-amber-300'
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-slate-900">
-                      {isContractSigned
-                        ? '✓ Khách hàng & Nhân viên ĐÃ KÝ HỢP ĐỒNG'
-                        : ' Khách hàng chưa ký kết hợp đồng số'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600">
-                    {isContractSigned
-                      ? 'Hợp đồng điện tử đã có hiệu lực pháp lý. Bạn có thể bấm tiếp tục sang bước Thu tiền & Bàn giao.'
-                      : 'Vui lòng cho khách ký trên tablet hoặc xác nhận khách đã đồng ý toàn văn điều khoản.'}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsContractSigned(!isContractSigned)}
-                  className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer ${
-                    isContractSigned
-                      ? 'bg-emerald-700 text-white hover:bg-emerald-800'
-                      : 'bg-[#4f39f6] text-white hover:bg-[#432fe0] active:scale-95'
-                  }`}
-                >
-                  {isContractSigned ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Đã Ký Hợp Đồng (Nhấn để hủy)</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Xác Nhận Ký Hợp Đồng Ngay</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Checklist kiểm tra kho tại chỗ & Ảnh hiện trạng từ Mobile */}
+          {/* BƯỚC 2: Lập Biên Bản Hiện Trạng Kèm Ảnh Chụp Thực Địa */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-blue-600" />
-                  3. Danh mục Kiểm tra Thực địa &amp; Ảnh Hiện Trạng Ô Kho
+                  <Camera className="w-4 h-4 text-blue-600" />
+                  2. Lập Biên Bản Hiện Trạng Kèm Ảnh Chụp Thực Địa
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Đối soát cơ sở vật chất và ảnh chụp thực địa từ ứng dụng di động trước khi bàn giao
+                  Đối soát cơ sở vật chất và ảnh chụp thực địa từ ứng dụng di động tuần kho hoặc quầy trước khi ký hợp đồng
                 </p>
               </div>
-
-              
             </div>
 
-            {/* KHUNG HIỂN THỊ ẢNH CHỤP TỪ MOBILE APP */}
+            {/* KHUNG HIỂN THỊ ẢNH CHỤP */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <Camera className="w-4 h-4 text-blue-600" />
-                  Ảnh hiện trạng ô kho #{activeUnit} (Chụp bởi nhân viên đi kho):
+                  Ảnh hiện trạng ô kho #{activeUnit} ({photos.length} ảnh):
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -716,7 +680,7 @@ export default function HandoverProcess({
               <div className="p-2.5 rounded-lg bg-blue-50/60 border border-blue-200/60 flex items-center justify-between text-[11px] text-blue-800">
                 <div className="flex items-center gap-1.5">
                   <Smartphone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                  <span>Ảnh chụp sẽ được lưu trữ tự động vào Phụ lục Biên bản Bàn giao hiện trạng tài sản.</span>
+                  <span>Ảnh chụp sẽ được lưu trữ tự động vào Phụ lục Biên bản Bàn giao hiện trạng ô kho.</span>
                 </div>
                 <span className="font-semibold">{photos.length} ảnh đã xác thực</span>
               </div>
@@ -746,7 +710,7 @@ export default function HandoverProcess({
                     }
                     className="rounded text-blue-600 focus:ring-blue-600 cursor-pointer"
                   />
-                  <span className="text-slate-800 font-medium">Đèn chiếu sáng &amp; thông gió ổn định</span>
+                  <span className="text-slate-800 font-medium">Đèn chiếu sáng ổn định</span>
                 </label>
                 <label className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100">
                   <input
@@ -757,23 +721,332 @@ export default function HandoverProcess({
                     }
                     className="rounded text-blue-600 focus:ring-blue-600 cursor-pointer"
                   />
-                  <span className="text-slate-800 font-medium">Ô kho sạch sẽ, không mùi lạ</span>
+                  <span className="text-slate-800 font-medium">Ô kho sạch sẽ, khô ráo</span>
                 </label>
+              </div>
+            </div>
+
+            {/* Tình trạng ô kho ghi nhận */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-bold text-slate-700 block">
+                Ghi chú tình trạng ô kho trong biên bản:
+              </label>
+              <input
+                type="text"
+                value={condition}
+                onChange={(e) => onChangeCondition?.(e.target.value)}
+                placeholder="VD: Ô kho sạch sẽ, không trầy xước, khóa hoạt động tốt"
+                className="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl px-3 py-2.5 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
+              />
+            </div>
+          </div>
+
+          {/* BƯỚC 3: Xem, In & Ký Hợp Đồng Kỹ Thuật Số */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  3. Xem, In &amp; Ký Hợp Đồng Kỹ Thuật Số
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Khách hàng đọc điều khoản, nhân viên in hợp đồng và hoàn tất ký thỏa thuận
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenContractModal}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200 cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Xem toàn văn HĐ</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onOpenPrintModal}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-blue-600" />
+                  <span>In Hợp đồng &amp; Phụ lục</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Trích đoạn tóm tắt hợp đồng */}
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs space-y-2.5 font-sans text-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200 pb-2">
+                <div>
+                  <span className="font-bold text-slate-900 block">
+                    HỢP ĐỒNG CHO THUÊ KHO TỰ QUẢN THÔNG MINH
+                  </span>
+                  <span className="text-[11px] text-slate-500 tabular-nums">
+                    Số: SS-HĐ-{appointment.id.replace(/[^a-zA-Z0-9]/g, '')}/2026
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  {isContractSigned ? (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Đã ký số thành công
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> Chờ ký kết tại quầy
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <p>
+                  • <strong>Bên A (Cho thuê):</strong> CÔNG TY CP SELFSTORAGE VN
+                </p>
+                <p>
+                  • <strong>Bên B (Khách thuê):</strong>{' '}
+                  <strong className="text-slate-900">{appointment.customerName}</strong> (CCCD:{' '}
+                  {appointment.idCard || '079201008899'})
+                </p>
+                <p>
+                  • <strong>Ngăn kho bàn giao:</strong>{' '}
+                  <strong className="text-blue-600">Ô #{activeUnit}</strong> (
+                  {appointment.unitSize})
+                </p>
+                <p>
+                  • <strong>Thời hạn thuê:</strong> {durationMonths} tháng (Từ{' '}
+                  {appointment.startDate})
+                </p>
+              </div>
+            </div>
+
+            {/* Hộp hành động Ký hợp đồng */}
+            <div
+              className={`p-4 rounded-xl border transition-all ${
+                isContractSigned
+                  ? 'bg-emerald-50/70 border-emerald-300'
+                  : 'bg-amber-50/60 border-amber-300'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-900">
+                      {isContractSigned
+                        ? '✓ Khách hàng & Nhân viên ĐÃ KÝ HỢP ĐỒNG'
+                        : 'Khách hàng chưa ký kết hợp đồng'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    {isContractSigned
+                      ? 'Hợp đồng điện tử đã có hiệu lực pháp lý. Tiếp tục bước 4 để thu tiền thuê kho tại quầy.'
+                      : 'Vui lòng cho khách xem/in hợp đồng, đọc điều khoản và xác nhận ký tên.'}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsContractSigned(!isContractSigned)}
+                  className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer ${
+                    isContractSigned
+                      ? 'bg-emerald-700 text-white hover:bg-emerald-800'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
+                  }`}
+                >
+                  {isContractSigned ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Đã Ký Hợp Đồng (Nhấn để hủy)</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Xác Nhận Ký Hợp Đồng Ngay</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Thanh tác vụ chính */}
+          {/* BƯỚC 4: Quyết Toán & Thu Tiền Thuê Kho Tại Quầy (ĐẶT SAU BƯỚC IN HỢP ĐỒNG THEO YÊU CẦU) */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-blue-600" />
+                  4. Quyết Toán &amp; Thu Tiền Thuê Kho Tại Quầy
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Thực hiện sau khi đã xem/in và ký kết hợp đồng. Khách thanh toán phần tiền thuê còn lại.
+                </p>
+              </div>
+              <span
+                className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                  appointment.rentalStatus === 'paid'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                {appointment.rentalStatus === 'paid' ? 'ĐÃ THU ĐỦ TIỀN THUÊ' : 'CẦN THU TẠI QUẦY'}
+              </span>
+            </div>
+
+            {/* Chi tiết tài chính thu tiền */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <span className="text-slate-500 block">Tiền cọc đã thanh toán (Online):</span>
+                <span className="text-sm font-bold text-emerald-700">{formatVND(depositNum)}</span>
+                <span className="text-[11px] text-slate-500 block">Đã đối soát qua cổng thanh toán</span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 space-y-1">
+                <span className="text-blue-700 block font-semibold">Tiền thuê còn lại cần thu:</span>
+                <span className="text-base font-extrabold text-blue-900">{formatVND(remainingAmount)}</span>
+                <span className="text-[11px] text-blue-700 block">VietQR SePay (tự động) hoặc Tiền mặt</span>
+              </div>
+            </div>
+
+            {/* Hộp trạng thái và Nút thu tiền */}
+            {appointment.rentalStatus === 'paid' ? (
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                    ✓
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-emerald-950">
+                      ĐÃ THU ĐỦ TIỀN THUÊ KHO: {formatVND(remainingAmount)}
+                    </div>
+                    <div className="text-[11px] text-emerald-700">
+                      Giao dịch đã được ghi nhận trên hệ thống tài chính và xuất biên nhận.
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-600 text-white">
+                  Đã hoàn tất thanh toán
+                </span>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-300 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-amber-950">
+                      Chưa quyết toán tiền thuê: {formatVND(remainingAmount)}
+                    </div>
+                    <p className="text-[11px] text-amber-800">
+                      Mở giao diện VietQR để khách quét mã chuyển khoản tự động hoặc thu tiền mặt tại quầy.
+                    </p>
+                  </div>
+                </div>
+
+                {onOpenRentalPayment && (
+                  <button
+                    type="button"
+                    onClick={onOpenRentalPayment}
+                    className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer shadow-blue-600/20"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span>Thu Tiền Thuê Kho Ngay (VietQR SePay / Tiền Mặt)</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* BƯỚC 5: Cấp Mã PIN Smart Lock & Kích Hoạt Kho */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-blue-600" />
+                  5. Cấp Mã PIN Smart Lock &amp; Kích Hoạt Kho
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Thiết lập mã mở cửa điện tử Smart Lock và kích hoạt ô kho sang trạng thái Đang sử dụng
+                </p>
+              </div>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                Ô #{activeUnit}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="space-y-2">
+                <label className="font-bold text-slate-800 flex items-center justify-between">
+                  <span>Mã PIN Smart Lock (6 số):</span>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomPin}
+                    className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <Key className="w-3 h-3" />
+                    <span>Sinh mã ngẫu nhiên</span>
+                  </button>
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={customPin}
+                  onChange={(e) => onChangeCustomPin(e.target.value)}
+                  placeholder="VD: 891234"
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono font-bold text-base tracking-widest text-center rounded-xl py-2.5 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-bold text-slate-800 block">
+                  Mã thẻ từ RFID (Nếu cấp thẻ vật lý phụ):
+                </label>
+                <input
+                  type="text"
+                  value={customRfid}
+                  onChange={(e) => onChangeCustomRfid(e.target.value)}
+                  placeholder="Quẹt thẻ hoặc nhập mã RFID..."
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono text-xs rounded-xl py-2.5 px-3 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="font-bold text-slate-800 block">
+                  Ghi chú dặn dò khi bàn giao:
+                </label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => onChangeNotes?.(e.target.value)}
+                  placeholder="VD: Đã hướng dẫn khách mở khóa qua ứng dụng di động và mã PIN..."
+                  className="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl px-3 py-2.5 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200/70 text-[11px] text-blue-900 flex items-start gap-2">
+              <Key className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <span>
+                Khi nhấn Hoàn Tất Bàn Giao, hệ thống sẽ kích hoạt ô kho #{activeUnit} sang trạng thái <strong>Đang sử dụng (Occupied)</strong> và tự động gửi mã PIN Smart Lock qua SMS và App Mobile cho khách hàng <strong>{appointment.customerName}</strong>.
+              </span>
+            </div>
+          </div>
+
+          {/* Thanh tác vụ chính kết thúc bàn giao */}
           <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs text-slate-600">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <ShieldCheck className="w-4 h-4 text-blue-600" />
               <span>
-                Nhân viên phụ trách: <strong className="text-slate-900">{staffName}</strong>
+                Nhân viên bàn giao: <strong className="text-slate-900">{staffName}</strong>
               </span>
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-              {/* [ NÚT TIẾP TỤC SANG THU TIỀN ] */}
+              <button
+                type="button"
+                onClick={onOpenPrintModal}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-all shadow-xs cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-blue-600" />
+                <span>In tài liệu</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleAttemptProceed}
@@ -781,7 +1054,7 @@ export default function HandoverProcess({
                 title={
                   !isContractSigned
                     ? 'Yêu cầu: Khách hàng ký hợp đồng trước khi tiếp tục'
-                    : 'Tiếp tục sang bước Thu tiền & Cấp mã PIN'
+                    : 'Hoàn tất bàn giao, cấp mã PIN Smart Lock và kích hoạt kho'
                 }
                 className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-md active:scale-95 cursor-pointer ${
                   !isContractSigned
@@ -798,8 +1071,8 @@ export default function HandoverProcess({
                   </>
                 ) : (
                   <>
-                    <span>Xác nhận</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span>Hoàn Tất Bàn Giao &amp; Cấp Mã PIN</span>
+                    <CheckCircle2 className="w-4 h-4" />
                   </>
                 )}
               </button>

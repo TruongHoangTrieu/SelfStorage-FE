@@ -641,7 +641,7 @@ export default function StaffPortalPage() {
   }
 
   return (
-    <div className="h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans antialiased overflow-hidden selection:bg-emerald-600/20 selection:text-emerald-600">
+    <div className="h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans antialiased overflow-hidden selection:bg-blue-600/20 selection:text-blue-600">
       
       {/* 1. TOP HEADER (Fixed Full-Width Header Matching /dashboard) */}
       <header className="h-18 bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 z-40 shadow-2xs">
@@ -676,8 +676,8 @@ export default function StaffPortalPage() {
         {/* Right: Actions, Status & User Pill */}
         <div className="flex items-center gap-2.5 sm:gap-4">
           {/* Facility Location Pill */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50/70 border border-emerald-200 text-emerald-900">
-            <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50/70 border border-blue-200 text-blue-900">
+            <Building2 className="w-3.5 h-3.5 text-blue-600" />
             <span className="max-w-[180px] truncate">{facilityName}</span>
           </div>
 
@@ -702,15 +702,15 @@ export default function StaffPortalPage() {
                 title="Hồ sơ & Đổi mật khẩu nhân viên"
               >
                 <div
-                  className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs transition-transform"
+                  className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs transition-transform"
                 >
                   {getInitials(currentUser.fullName, currentUser.email)}
                 </div>
                 <div className="hidden md:block">
-                  <div className="text-xs font-bold text-slate-800 leading-tight group-hover:text-emerald-600 transition-colors">
+                  <div className="text-xs font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">
                     {currentUser.fullName}
                   </div>
-                  <div className="text-[10px] text-emerald-600 font-extrabold uppercase tracking-wider">
+                  <div className="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider">
                     {staffRole}
                   </div>
                 </div>
