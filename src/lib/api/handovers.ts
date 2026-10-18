@@ -209,6 +209,17 @@ export function normalizeReservation(item: any): CheckInAppointment {
     : undefined;
   const rentalStatus = paidRentalPayment ? 'paid' : 'unpaid';
 
+  // Xác định trạng thái cọc:
+  // Chỉ tính là 'paid' nếu có payment DEPOSIT với status PAID hoặc đơn đã được xác nhận (CONFIRMED/ARRIVED/IN_PROGRESS/COMPLETED)
+  const paidDepositPayment = Array.isArray(item.payments)
+    ? item.payments.find((p: any) => p.paymentType === 'DEPOSIT' && p.status === 'PAID')
+    : undefined;
+  const isDepositPaid = Boolean(
+    paidDepositPayment ||
+    (rawStatus !== 'PENDING' && rawStatus !== 'CANCELLED' && rawStatus !== 'EXPIRED' && depositVal > 0)
+  );
+  const depositStatus: CheckInAppointment['depositStatus'] = isDepositPaid ? 'paid' : 'unpaid';
+
   return {
     id: item.reservationCode || `RSV-${item.id}`,
     rawId: item.id,
@@ -230,7 +241,7 @@ export function normalizeReservation(item: any): CheckInAppointment {
     assignedUnit: unit.unitNumber || `U-${item.id}`,
     preferredFloor: unit.floor || 'Tầng 1',
     status: uiStatus,
-    depositStatus: depositVal > 0 ? 'paid' : 'unpaid',
+    depositStatus,
     depositAmount: depositFormatted,
     rentalStatus,
     monthlyRent: monthlyRentFormatted,

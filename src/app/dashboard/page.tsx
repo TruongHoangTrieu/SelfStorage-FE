@@ -24,9 +24,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Types & Mock Data
+// Types & API
 import { CustomerUnit, CustomerTab, GuestPass, SupportTicket, CustomerUser } from './types';
-import { INITIAL_CUSTOMER_UNITS } from './mockData';
 import { customerUnitsApi } from '@/lib/api/customerUnits';
 import { renewalsApi } from '@/lib/api/renewals';
 
@@ -101,11 +100,11 @@ export default function CustomerDashboardPage() {
       setIsBackendOnline(isOnline);
 
       if (!isOnline) {
-        setUnits(INITIAL_CUSTOMER_UNITS);
-        setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
+        setUnits([]);
+        setSelectedUnitId('');
         setReservations([]);
         setIsLiveApi(false);
-        if (showToast) triggerToast('Đã làm mới dữ liệu ô kho.');
+        if (showToast) triggerToast('Không thể kết nối đến máy chủ.');
         return;
       }
 
@@ -153,30 +152,16 @@ export default function CustomerDashboardPage() {
           setIsLiveApi(true);
           if (showToast) triggerToast(`Đã đồng bộ ${enrichedUnits.length} ô kho thành công.`);
         } else {
-          // If no active contracts returned:
-          // Check if customer is authenticated or has reservations: show real empty state
-          const storedUser = customerUnitsApi.getStoredCustomer();
-          if (storedUser || rawReservations.length > 0) {
-            setUnits([]);
-            setSelectedUnitId('');
-          } else {
-            // Unauthenticated guest demo
-            setUnits(INITIAL_CUSTOMER_UNITS);
-            setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
-          }
+          // No active contracts returned: show real empty state
+          setUnits([]);
+          setSelectedUnitId('');
           setIsLiveApi(true);
           if (showToast) triggerToast('Đã đồng bộ dữ liệu ô kho.');
         }
       } catch (err: any) {
         console.warn('Could not fetch contracts (likely unauthenticated or 401):', err);
-        const storedUser = customerUnitsApi.getStoredCustomer();
-        if (storedUser) {
-          setUnits([]);
-          setSelectedUnitId('');
-        } else {
-          setUnits(INITIAL_CUSTOMER_UNITS);
-          setSelectedUnitId(INITIAL_CUSTOMER_UNITS[0]?.id || '');
-        }
+        setUnits([]);
+        setSelectedUnitId('');
         setIsLiveApi(false);
         if (showToast) triggerToast('Đã làm mới dữ liệu ô kho.');
       }

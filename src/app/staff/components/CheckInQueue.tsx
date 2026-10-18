@@ -100,6 +100,17 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
   }
 
   if (apt.status === 'expired') {
+    if (apt.depositStatus !== 'paid') {
+      return {
+        isLate: false,
+        isOverdue: false,
+        lateMinutes: 0,
+        isOnTime: false,
+        isUpcoming: false,
+        label: 'Hết hạn cọc (Đã hủy)',
+        badgeClass: 'bg-slate-100 text-slate-700 border border-slate-300 font-bold',
+      };
+    }
     return {
       isLate: true,
       isOverdue: true,
@@ -437,20 +448,29 @@ export default function CheckInQueue({
     let lateCount = 0;
     let overdueCount = 0;
     let confirmedCount = 0;
+    let activeTotal = 0;
 
     appointments.forEach((a) => {
-      if (a.dateDisplay === 'Hôm nay') todayCount++;
+      const isDepExpired = a.status === 'expired' && a.depositStatus !== 'paid';
+      const isUnpaidPending = a.status === 'pending' && a.depositStatus !== 'paid';
+      const isNotDeposited = isDepExpired || isUnpaidPending;
 
-      if (a.status !== 'completed' && a.status !== 'cancelled') {
+      // Chỉ tính vào hàng đợi tiếp đón thực tế nếu đơn đã đặt cọc hợp lệ
+      if (!isNotDeposited) {
+        activeTotal++;
+        if (a.dateDisplay === 'Hôm nay') todayCount++;
+      }
+
+      if (a.status !== 'completed' && a.status !== 'cancelled' && !isDepExpired) {
         const sched = getAppointmentScheduleStatus(a);
-        if (sched.isOverdue || a.status === 'expired') {
+        if (sched.isOverdue || (a.status === 'expired' && a.depositStatus === 'paid')) {
           overdueCount++;
         } else if (sched.isLate) {
           lateCount++;
         }
 
         if (
-          (a.status === 'confirmed' || a.status === 'arrived' || a.status === 'pending') &&
+          (a.status === 'confirmed' || a.status === 'arrived' || (a.status === 'pending' && a.depositStatus === 'paid')) &&
           !sched.isLate &&
           !sched.isOverdue
         ) {
@@ -460,19 +480,21 @@ export default function CheckInQueue({
     });
 
     return {
-      total: appointments.length,
+      total: activeTotal,
       todayCount,
       confirmed: confirmedCount,
       lateCount,
       overdueCount,
       inProgress: appointments.filter((a) => a.status === 'in_progress').length,
       completed: appointments.filter((a) => a.status === 'completed').length,
-      cancelled: appointments.filter((a) => a.status === 'cancelled').length,
+      cancelled: appointments.filter((a) => a.status === 'cancelled' || (a.status === 'expired' && a.depositStatus !== 'paid')).length,
     };
   }, [appointments]);
 
   // Lọc theo tìm kiếm và trạng thái
   const filteredAppointments = useMemo(() => {
+    const hasSearchQuery = Boolean(searchQuery.trim());
+
     return appointments.filter((apt) => {
       const matchSearch =
         apt.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -484,25 +506,49 @@ export default function CheckInQueue({
       if (!matchSearch) return false;
 
       const sched = getAppointmentScheduleStatus(apt);
+      const isDepExpired = apt.status === 'expired' && apt.depositStatus !== 'paid';
+      const isUnpaidPending = apt.status === 'pending' && apt.depositStatus !== 'paid';
+      const isNotDeposited = isDepExpired || isUnpaidPending;
 
-      if (statusFilter === 'all') return true;
+      // 1. Khi xem tab "Tất cả":
+      // - Nếu không gõ tìm kiếm: ẩn đơn chưa cọc / hết hạn cọc để hàng đợi lễ tân sạch sẽ, chỉ chứa đơn hợp lệ.
+      // - Nếu nhân viên đang gõ tìm kiếm (Tên/SĐT/Mã đơn): cho phép hiển thị để tra cứu lịch sử phục vụ khách.
+      if (statusFilter === 'all') {
+        if (!hasSearchQuery && isNotDeposited) return false;
+        return true;
+      }
+
+      // 2. Khi xem tab "Trễ hẹn / Quá hạn":
+      // Chỉ hiển thị đơn ĐÃ CỌC nhưng khách đến muộn hoặc quá hạn >24h.
       if (statusFilter === 'late' || statusFilter === 'overdue') {
         return (
-          (sched.isLate || sched.isOverdue || apt.status === 'expired') &&
+          !isNotDeposited &&
+          (sched.isLate || sched.isOverdue || (apt.status === 'expired' && apt.depositStatus === 'paid')) &&
           apt.status !== 'completed' &&
           apt.status !== 'cancelled'
         );
       }
+
+      // 3. Khi xem tab "Chờ đón tiếp":
+      // Chỉ hiển thị các đơn đã cọc hợp lệ và đúng hẹn / trong khung giờ
       if (statusFilter === 'confirmed') {
+        if (isNotDeposited) return false;
         return (
-          (apt.status === 'confirmed' || apt.status === 'arrived' || apt.status === 'pending') &&
+          (apt.status === 'confirmed' || apt.status === 'arrived' || (apt.status === 'pending' && apt.depositStatus === 'paid')) &&
           !sched.isLate &&
           !sched.isOverdue
         );
       }
+
+      // 4. Các tab xử lý / hoàn tất:
       if (statusFilter === 'in_progress') return apt.status === 'in_progress';
       if (statusFilter === 'completed') return apt.status === 'completed';
-      if (statusFilter === 'cancelled') return apt.status === 'cancelled';
+
+      // 5. Khi xem tab "Đã hủy":
+      // Luôn hiển thị đơn đã hủy hoặc đơn đã hết hạn cọc 15 phút
+      if (statusFilter === 'cancelled') {
+        return apt.status === 'cancelled' || isDepExpired;
+      }
 
       return true;
     });
@@ -693,6 +739,7 @@ export default function CheckInQueue({
               >
                 {item.label}
                 {item.key === 'late' && totalLateOverdue > 0 ? ` (${totalLateOverdue})` : ''}
+                {item.key === 'cancelled' && stats.cancelled > 0 ? ` (${stats.cancelled})` : ''}
               </button>
             );
           })}
@@ -888,6 +935,8 @@ export default function CheckInQueue({
       apt.status !== 'completed' &&
       apt.status !== 'cancelled';
 
+    const isDepositExpired = apt.status === 'expired' && apt.depositStatus !== 'paid';
+
     const isApprovedValidToday =
       Boolean(
         apt.managerApprovedExpiry &&
@@ -898,7 +947,8 @@ export default function CheckInQueue({
       !isApprovalExpired;
 
     const isOverdue =
-      (sched.isOverdue || apt.status === 'expired') &&
+      !isDepositExpired &&
+      (sched.isOverdue || (apt.status === 'expired' && apt.depositStatus === 'paid')) &&
       !isApprovedValidToday &&
       !isApprovalExpired &&
       apt.status !== 'completed' &&
@@ -909,6 +959,7 @@ export default function CheckInQueue({
       !isOverdue &&
       !isApprovedValidToday &&
       !isApprovalExpired &&
+      !isDepositExpired &&
       apt.status !== 'completed' &&
       apt.status !== 'cancelled' &&
       apt.status !== 'expired';
@@ -927,6 +978,8 @@ export default function CheckInQueue({
             ? 'bg-indigo-50/25 border-l-4 border-indigo-600'
             : isApprovalExpired
             ? 'bg-slate-50 border-l-4 border-slate-400 opacity-90'
+            : isDepositExpired
+            ? 'bg-slate-50/70 border-l-4 border-slate-300 opacity-80'
             : isOverdue
             ? 'bg-red-50/30 border-l-4 border-red-600'
             : isLate
@@ -942,6 +995,8 @@ export default function CheckInQueue({
                 ? 'bg-indigo-50 text-indigo-900 border-indigo-200'
                 : isApprovalExpired
                 ? 'bg-slate-100 text-slate-700 border-slate-300'
+                : isDepositExpired
+                ? 'bg-slate-100 text-slate-600 border-slate-200'
                 : isOverdue
                 ? 'bg-red-50 text-red-900 border-red-300 ring-1 ring-red-200'
                 : isLate
@@ -956,6 +1011,8 @@ export default function CheckInQueue({
                   ? 'bg-indigo-600 text-white'
                   : isApprovalExpired
                   ? 'bg-slate-500 text-white'
+                  : isDepositExpired
+                  ? 'bg-slate-400 text-white'
                   : isOverdue
                   ? 'bg-red-600 text-white'
                   : isToday
@@ -999,6 +1056,11 @@ export default function CheckInQueue({
                   <Lock className="w-3 h-3 text-slate-500" />
                   Đã giải phóng ô kho
                 </span>
+              ) : isDepositExpired ? (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-300 flex items-center gap-1">
+                  <XCircle className="w-3 h-3 text-slate-500" />
+                  Hết hạn cọc (Đã hủy)
+                </span>
               ) : isOverdue ? (
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-red-100 text-red-800 border border-red-300 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3 text-red-600" />
@@ -1024,8 +1086,8 @@ export default function CheckInQueue({
                 {apt.unitType} ({apt.unitSize})
               </span>
               <span>•</span>
-              <span className="text-emerald-700 font-medium">
-                {apt.depositStatus === 'paid' ? 'Cọc: Đã cọc 100%' : 'Chưa đặt cọc'}
+              <span className={apt.depositStatus === 'paid' ? "text-emerald-700 font-medium" : "text-amber-700 font-medium"}>
+                {apt.depositStatus === 'paid' ? 'Cọc: Đã cọc 100%' : 'Cọc: Chưa đặt cọc'}
               </span>
               <span>•</span>
               <span
@@ -1113,6 +1175,23 @@ export default function CheckInQueue({
                 <XCircle className="w-3.5 h-3.5" />
                 Đã hủy
               </span>
+            </div>
+          ) : isDepositExpired ? (
+            /* TRƯỜNG HỢP HẾT HẠN CỌC 15 PHÚT (CHƯA THANH TOÁN TIỀN CỌC): ĐÃ TỰ ĐỘNG GIẢI PHÓNG Ô KHO */
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
+                <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                Hết hạn cọc • Đã hủy đơn
+              </span>
+              <button
+                type="button"
+                onClick={() => setContactModalApt(apt)}
+                title="Bấm để liên hệ khách hàng tư vấn đặt lại đơn mới"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 active:scale-95 rounded-xl border border-slate-300 transition-all cursor-pointer shadow-2xs"
+              >
+                <Phone className="w-3.5 h-3.5 text-slate-600" />
+                <span>Liên hệ khách</span>
+              </button>
             </div>
           ) : isApprovalExpired ? (
             /* TRƯỜNG HỢP HẾT HẠN PHÊ DUYỆT CUỐI NGÀY: Khóa nhận kho & Báo đã giải phóng kho */
@@ -1402,7 +1481,7 @@ export default function CheckInQueue({
                   <div className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-100 flex justify-between items-center">
                     <span>{apt.unitType}</span>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-emerald-700 font-semibold text-[10px]">
+                      <span className={`font-semibold text-[10px] ${apt.depositStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
                         {apt.depositStatus === 'paid' ? 'Đã cọc' : 'Chưa cọc'}
                       </span>
                       <span>•</span>
@@ -1570,8 +1649,21 @@ export default function CheckInQueue({
       );
     }
 
-    // Nếu đơn trễ hơn 24 giờ hoặc trạng thái expired -> "Đơn quá hạn"
-    if (apt.status === 'expired' || (sched.isOverdue && apt.status !== 'completed' && apt.status !== 'cancelled')) {
+    // Nếu đơn hết hạn cọc 15 phút (chưa đặt cọc) -> "Hết hạn cọc • Đã hủy"
+    if (apt.status === 'expired' && apt.depositStatus !== 'paid') {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+          Hết hạn cọc • Đã hủy
+        </span>
+      );
+    }
+
+    // Nếu đơn trễ hơn 24 giờ hoặc trạng thái expired (đã cọc nhưng quá hạn nhận kho) -> "Đơn quá hạn"
+    if (
+      (apt.status === 'expired' && apt.depositStatus === 'paid') ||
+      (sched.isOverdue && apt.status !== 'completed' && apt.status !== 'cancelled')
+    ) {
       if (apt.managerApprovalStatus === 'pending') {
         return (
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">

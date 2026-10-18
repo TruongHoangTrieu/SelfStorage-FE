@@ -31,6 +31,7 @@ import {
   Copy,
   Lock,
   ShieldAlert,
+  RefreshCw,
 } from "lucide-react";
 
 interface DurationOption {
@@ -153,25 +154,107 @@ function BookingFlowContent() {
     )
   );
 
+  // 1. Khôi phục phiên thanh toán nếu người dùng F5 / Reload trang
+  useEffect(() => {
+    if (!facilityId) return;
+
+    try {
+      const savedStr = sessionStorage.getItem(`booking_pending_${facilityId}`);
+      if (!savedStr) return;
+
+      const saved = JSON.parse(savedStr);
+      if (!saved.reservationId) return;
+
+      const elapsed = Math.floor((Date.now() - (saved.createdAt || Date.now())) / 1000);
+      const remaining = 900 - elapsed;
+
+      // Nếu đã quá 15 phút -> Gọi Backend hủy ngay và dọn session
+      if (remaining <= 0) {
+        sessionStorage.removeItem(`booking_pending_${facilityId}`);
+        api.post(`/reservations/${saved.reservationId}/expire`).catch(() => {});
+        setReservationId(saved.reservationId);
+        setReservationCode(saved.reservationCode || "");
+        setQrData(saved.qrData || null);
+        setPaymentData(saved.paymentData || null);
+        setTimeLeft(0);
+        setStep("payment_qr");
+        return;
+      }
+
+      // Nếu còn thời gian -> Kiểm tra trạng thái thực tế từ Backend
+      api
+        .get(`/payments/reservations/${saved.reservationId}/summary`)
+        .then((summary: any) => {
+          if (summary?.depositPaid || summary?.reservation?.status === "CONFIRMED") {
+            sessionStorage.removeItem(`booking_pending_${facilityId}`);
+            setReservationId(saved.reservationId);
+            setReservationCode(saved.reservationCode || "");
+            setStep("success");
+          } else if (
+            summary?.reservationStatus === "EXPIRED" ||
+            summary?.reservation?.status === "EXPIRED" ||
+            summary?.reservationStatus === "CANCELLED"
+          ) {
+            sessionStorage.removeItem(`booking_pending_${facilityId}`);
+            setTimeLeft(0);
+            setReservationId(saved.reservationId);
+            setReservationCode(saved.reservationCode || "");
+            setQrData(saved.qrData || null);
+            setPaymentData(saved.paymentData || null);
+            setStep("payment_qr");
+          } else {
+            // Đơn vẫn PENDING -> Khôi phục chính xác giao diện thanh toán & thời gian còn lại
+            setReservationId(saved.reservationId);
+            setReservationCode(saved.reservationCode || "");
+            if (saved.selectedUnitType) setSelectedUnitType(saved.selectedUnitType);
+            if (saved.moveInDate) setMoveInDate(saved.moveInDate);
+            if (saved.timeSlot) setTimeSlot(saved.timeSlot);
+            if (saved.durationKey) setDurationKey(saved.durationKey);
+            setQrData(saved.qrData);
+            setPaymentData(saved.paymentData);
+            setTimeLeft(remaining);
+            setStep("payment_qr");
+          }
+        })
+        .catch(() => {
+          // Fallback nếu mạng chập chờn: vẫn khôi phục giao diện từ session
+          setReservationId(saved.reservationId);
+          setReservationCode(saved.reservationCode || "");
+          setQrData(saved.qrData);
+          setPaymentData(saved.paymentData);
+          setTimeLeft(remaining);
+          setStep("payment_qr");
+        });
+    } catch {
+      // Ignore JSON parse error
+    }
+  }, [facilityId]);
+
   // 15-minute countdown timer when on payment_qr
   useEffect(() => {
-    if (step !== "payment_qr") return;
-    setTimeLeft(900);
+    if (step !== "payment_qr" || timeLeft <= 0) return;
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          toast.error("Đã quá 15 phút đặt cọc. Đơn đặt chỗ đã tự động hủy.");
+          if (reservationId) {
+            sessionStorage.removeItem(`booking_pending_${facilityId}`);
+            api.post(`/reservations/${reservationId}/expire`).catch(() => {});
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+
     return () => clearInterval(timer);
-  }, [step]);
+  }, [step, reservationId, facilityId, timeLeft]);
 
   // Auto-polling for payment confirmation (SePay VietQR)
   useEffect(() => {
-    if (step !== "payment_qr" || !reservationId) return;
+    if (step !== "payment_qr" || !reservationId || timeLeft === 0) return;
 
     let isSubscribed = true;
     const interval = setInterval(async () => {
@@ -180,8 +263,14 @@ function BookingFlowContent() {
         if (!isSubscribed) return;
         if (summary?.depositPaid || summary?.reservation?.status === "CONFIRMED") {
           clearInterval(interval);
+          sessionStorage.removeItem(`booking_pending_${facilityId}`);
           toast.success("Hệ thống đã nhận được tiền cọc thành công! Ô kho đã được giữ chỗ.");
           setStep("success");
+        } else if (summary?.reservationStatus === "EXPIRED" || summary?.reservation?.status === "EXPIRED") {
+          clearInterval(interval);
+          sessionStorage.removeItem(`booking_pending_${facilityId}`);
+          setTimeLeft(0);
+          toast.error("Đơn đặt chỗ đã hết hạn 15 phút và bị hủy.");
         }
       } catch {
         // silent catch during background polling
@@ -192,7 +281,7 @@ function BookingFlowContent() {
       isSubscribed = false;
       clearInterval(interval);
     };
-  }, [step, reservationId]);
+  }, [step, reservationId, facilityId, timeLeft]);
 
   const formatCountdown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -373,7 +462,28 @@ function BookingFlowContent() {
 
       setQrData(payResult.qr);
       setPaymentData(payResult.payment);
+      setTimeLeft(900);
       setStep("payment_qr");
+
+      // Lưu phiên thanh toán vào sessionStorage để không bị mất khi F5
+      try {
+        const sessionData = {
+          reservationId: resId,
+          reservationCode: resResult.reservationCode || "RES-" + Date.now(),
+          facilityId,
+          selectedUnitType,
+          moveInDate,
+          timeSlot,
+          durationKey,
+          qrData: payResult.qr,
+          paymentData: payResult.payment,
+          createdAt: Date.now(),
+        };
+        sessionStorage.setItem(`booking_pending_${facilityId}`, JSON.stringify(sessionData));
+      } catch {
+        // Ignore storage error
+      }
+
       toast.success("Đã tạo mã QR thanh toán cọc thành công!");
     } catch (err: any) {
       setStep("failed");
@@ -435,6 +545,7 @@ function BookingFlowContent() {
       if (!res.ok) throw new Error(body?.message || `HTTP ${res.status}`);
       if (body?.success === false) throw new Error(body?.message || "Webhook trả về thất bại");
 
+      sessionStorage.removeItem(`booking_pending_${facilityId}`);
       toast.success("Thanh toán cọc thành công! Đã giữ chỗ ô kho.");
       setStep("success");
     } catch (err: any) {
@@ -1191,39 +1302,65 @@ function BookingFlowContent() {
               {/* ================= STEP 3: PAYMENT QR ================= */}
               {step === "payment_qr" && qrData && (
                 <div>
-                  <div className="mb-8">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-                      <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        Bước 3 / 3: Quét Mã Thanh Toán Cọc
-                      </span>
-                      <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold self-start sm:self-auto transition-colors ${
-                        timeLeft <= 120 
-                          ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse'
-                          : 'bg-amber-50 border-amber-200 text-amber-800'
-                      }`}>
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>Thời gian giữ chỗ còn: <strong className="tabular-nums font-black">{formatCountdown(timeLeft)}</strong></span>
+                  {timeLeft <= 0 ? (
+                    <div className="bg-white rounded-3xl border border-rose-200 p-8 sm:p-12 text-center max-w-xl mx-auto shadow-sm">
+                      <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="w-8 h-8" />
                       </div>
+                      <h2 className="text-2xl font-bold text-slate-900 mb-2">Đơn Đặt Chỗ Đã Hết Hạn</h2>
+                      <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                        Đã quá thời hạn 15 phút thanh toán cọc. Hệ thống đã tự động hủy đơn giữ chỗ và giải phóng ô kho cho khách hàng khác. Vui lòng chọn lại ô kho nếu bạn vẫn có nhu cầu thuê.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sessionStorage.removeItem(`booking_pending_${facilityId}`);
+                          setStep("unit");
+                          setTimeLeft(900);
+                          setReservationId(null);
+                          setQrData(null);
+                        }}
+                        className="inline-flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition shadow-md shadow-blue-600/20 cursor-pointer"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Đặt Lại Ô Kho Khác</span>
+                      </button>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
-                      Thanh Toán Cọc Giữ Chỗ Tự Động
-                    </h1>
-                    <p className="text-slate-500 text-sm mt-1.5">
-                      Mở ứng dụng ngân hàng bất kỳ để quét mã VietQR. Hệ thống tự động xác nhận sau 5 - 10 giây khi nhận được tiền.
-                    </p>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="mb-8">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Bước 3 / 3: Quét Mã Thanh Toán Cọc
+                          </span>
+                          <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold self-start sm:self-auto transition-colors ${
+                            timeLeft <= 120 
+                              ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse'
+                              : 'bg-amber-50 border-amber-200 text-amber-800'
+                          }`}>
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Thời gian giữ chỗ còn: <strong className="tabular-nums font-black">{formatCountdown(timeLeft)}</strong></span>
+                          </div>
+                        </div>
+                        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
+                          Thanh Toán Cọc Giữ Chỗ Tự Động
+                        </h1>
+                        <p className="text-slate-500 text-sm mt-1.5">
+                          Mở ứng dụng ngân hàng bất kỳ để quét mã VietQR. Hệ thống tự động xác nhận sau 5 - 10 giây khi nhận được tiền.
+                        </p>
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-8 bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200">
-                    
-                    {/* VietQR Display (Chỉ hiển thị ảnh VietQR như ảnh 2) */}
-                    <div className="md:col-span-6 flex flex-col items-center justify-center bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
-                      <img
-                        src={qrData.qrCodeUrl}
-                        alt="Mã VietQR Chuyển Khoản"
-                        className="w-full max-w-[280px] sm:max-w-[320px] aspect-square object-contain"
-                      />
-                    </div>
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200">
+                        
+                        {/* VietQR Display (Chỉ hiển thị ảnh VietQR như ảnh 2) */}
+                        <div className="md:col-span-6 flex flex-col items-center justify-center bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+                          <img
+                            src={qrData.qrCodeUrl}
+                            alt="Mã VietQR Chuyển Khoản"
+                            className="w-full max-w-[280px] sm:max-w-[320px] aspect-square object-contain"
+                          />
+                        </div>
 
                     {/* Bank Info Details */}
                     <div className="md:col-span-6 space-y-3.5 text-xs sm:text-sm">
@@ -1312,7 +1449,9 @@ function BookingFlowContent() {
                       )}
                       <span>Mô Phỏng Đã Chuyển Khoản Thành Công (Demo Webhook)</span>
                     </button>
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
