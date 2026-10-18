@@ -26,6 +26,7 @@ interface HandoverSuccessProps {
   onOpenPrintModal: () => void;
   onSendNotification: () => void;
   onBackToQueue: () => void;
+  onOpenRentalPayment?: () => void;
 }
 
 function parseCurrency(val?: string | number): number {
@@ -49,6 +50,7 @@ export default function HandoverSuccess({
   onOpenPrintModal,
   onSendNotification,
   onBackToQueue,
+  onOpenRentalPayment,
 }: HandoverSuccessProps) {
   const finalUnit = assignedUnit || appointment.assignedUnit;
   const finalPin = customPin || appointment.accessPin || '825884';
@@ -66,8 +68,9 @@ export default function HandoverSuccess({
   const totalRent = rawTotal - discountAmount;
   const remainingAmount = Math.max(0, totalRent - depositNum);
 
-  // Trạng thái thu tiền còn lại: Nếu tiền còn lại <= 0 thì tự động là true
-  const [isRemainingPaid, setIsRemainingPaid] = useState<boolean>(remainingAmount <= 0);
+  // Trạng thái thu tiền còn lại: Nếu tiền còn lại <= 0 hoặc đã thu thì tự động là true
+  const isPaidInitially = remainingAmount <= 0 || appointment.rentalStatus === 'paid';
+  const [isRemainingPaid, setIsRemainingPaid] = useState<boolean>(isPaidInitially);
   const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'cash'>('vietqr');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
 
@@ -174,7 +177,13 @@ export default function HandoverSuccess({
                 {paymentMethod === 'vietqr' && (
                   <button
                     type="button"
-                    onClick={() => setShowQrModal(true)}
+                    onClick={() => {
+                      if (onOpenRentalPayment) {
+                        onOpenRentalPayment();
+                      } else {
+                        setShowQrModal(true);
+                      }
+                    }}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-xl transition-colors cursor-pointer w-full sm:w-auto justify-center"
                   >
                     <QrCode className="w-4 h-4" />

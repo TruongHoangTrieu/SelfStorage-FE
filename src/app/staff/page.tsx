@@ -43,6 +43,7 @@ import FacilityLayoutView from './components/FacilityLayoutView';
 import StaffSupportTicketsView from './components/StaffSupportTicketsView';
 import StaffRenewalsOverdueView from './components/StaffRenewalsOverdueView';
 import StaffOverviewDashboard from './components/StaffOverviewDashboard';
+import RentalPaymentModal from './components/RentalPaymentModal';
 
 export default function StaffPortalPage() {
   const router = useRouter();
@@ -87,6 +88,7 @@ export default function StaffPortalPage() {
   // Modals & Feedback State
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [rentalPaymentApt, setRentalPaymentApt] = useState<CheckInAppointment | null>(null);
 
   // Cuộc hẹn đang được xử lý
   const currentAppointment = useMemo(() => {
@@ -834,6 +836,7 @@ export default function StaffPortalPage() {
                 onRequestApproval={handleRequestApproval}
                 onManagerReject={handleManagerReject}
                 currentUser={currentUser}
+                onOpenRentalPayment={(apt) => setRentalPaymentApt(apt)}
               />
             )}
 
@@ -858,6 +861,7 @@ export default function StaffPortalPage() {
                 onOpenContractModal={() => setIsContractModalOpen(true)}
                 onOpenPrintModal={() => setIsPrintModalOpen(true)}
                 onCompleteHandover={handleCompleteHandover}
+                onOpenRentalPayment={() => setRentalPaymentApt(currentAppointment)}
               />
             )}
 
@@ -873,6 +877,7 @@ export default function StaffPortalPage() {
                   toast.success(`Đã gửi SMS & Email mã khóa cho khách: ${currentAppointment.phone}`);
                 }}
                 onBackToQueue={() => setFlowStep('queue')}
+                onOpenRentalPayment={() => setRentalPaymentApt(currentAppointment)}
               />
             )}
 
@@ -977,6 +982,33 @@ export default function StaffPortalPage() {
           setCurrentUser(user);
           toast.success(`Đăng nhập thành công: ${user.fullName} (${user.role})`);
           loadBackendData(true, user.facilityId);
+        }}
+      />
+
+      {/* MODAL 4: TẠO ĐƠN & THU TIỀN THUÊ KHO CHO KHÁCH (VIETQR / TIỀN MẶT) */}
+      <RentalPaymentModal
+        isOpen={!!rentalPaymentApt}
+        onClose={() => setRentalPaymentApt(null)}
+        appointment={rentalPaymentApt}
+        onPaymentSuccess={(summary, paymentCode) => {
+          if (rentalPaymentApt) {
+            setAppointments((prev) =>
+              prev.map((item) =>
+                item.id === rentalPaymentApt.id
+                  ? {
+                      ...item,
+                      rentalStatus: 'paid',
+                      specialNotes: paymentCode
+                        ? `Đã thanh toán tiền thuê (${paymentCode})`
+                        : item.specialNotes,
+                    }
+                  : item
+              )
+            );
+            toast.success(
+              `Đã xác nhận thu tiền thuê cho đơn ${rentalPaymentApt.id} của khách ${rentalPaymentApt.customerName}!`
+            );
+          }
         }}
       />
     </div>

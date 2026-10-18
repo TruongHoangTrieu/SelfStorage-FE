@@ -51,6 +51,7 @@ interface HandoverProcessProps {
   onOpenContractModal: () => void;
   onOpenPrintModal: () => void;
   onCompleteHandover: () => void;
+  onOpenRentalPayment?: () => void;
 }
 
 // Hàm tách số tiền từ chuỗi định dạng VND (ví dụ: "1.200.000 đ" -> 1200000)
@@ -86,6 +87,7 @@ export default function HandoverProcess({
   onOpenContractModal,
   onOpenPrintModal,
   onCompleteHandover,
+  onOpenRentalPayment,
 }: HandoverProcessProps) {
   // Tính toán tài chính dự kiến
   const monthlyRentNum = parseCurrency(appointment.monthlyRent);
@@ -404,24 +406,43 @@ export default function HandoverProcess({
                 <span className="text-xs font-bold text-emerald-800">{formatVND(depositNum)}</span>
               </div>
 
-              {/* Phần tiền thuê còn lại sẽ thu ở bước sau */}
-              <div className="p-3.5 rounded-xl border bg-amber-50 border-amber-300 shadow-2xs flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-slate-900">
-                    Tiền thuê còn lại (Sẽ thu ở bước tiếp theo):
+              {/* Phần tiền thuê còn lại */}
+              <div className="p-3.5 rounded-xl border bg-amber-50 border-amber-300 shadow-2xs space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">
+                      Tiền thuê còn lại (Quyết toán tại quầy):
+                    </div>
+                    <div className="text-[11px] text-slate-600 mt-0.5">
+                      Thanh toán bằng VietQR (SePay) hoặc Tiền mặt
+                    </div>
                   </div>
-                  <div className="text-[11px] text-slate-600 mt-0.5">
-                    Thanh toán bằng VietQR hoặc Tiền mặt sau khi ký HĐ
+                  <div className="text-right">
+                    <div className="text-base font-extrabold tabular-nums text-amber-900">
+                      {formatVND(remainingAmount)}
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 ${
+                        appointment.rentalStatus === 'paid'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-200 text-amber-900'
+                      }`}
+                    >
+                      {appointment.rentalStatus === 'paid' ? 'ĐÃ THU ĐỦ' : 'CẦN THU TẠI QUẦY'}
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-base font-extrabold tabular-nums text-amber-900">
-                    {formatVND(remainingAmount)}
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 bg-amber-200 text-amber-900">
-                    THU TẠI BƯỚC TIẾP THEO
-                  </span>
-                </div>
+
+                {onOpenRentalPayment && (
+                  <button
+                    type="button"
+                    onClick={onOpenRentalPayment}
+                    className="w-full py-2 px-3 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-2xs"
+                  >
+                    <Banknote className="w-3.5 h-3.5 text-amber-800" />
+                    <span>Tạo đơn / Mở giao diện thu tiền thuê</span>
+                  </button>
+                )}
               </div>
 
               {/* Mục đích lưu kho */}

@@ -21,6 +21,8 @@ import {
   Users,
   KeyRound,
   CheckCircle2,
+  Banknote,
+  CreditCard,
 } from 'lucide-react';
 import { CheckInAppointment, StaffUser } from '../types';
 import { toast } from 'sonner';
@@ -390,6 +392,7 @@ interface CheckInQueueProps {
     reason: string
   ) => Promise<void> | void;
   currentUser?: StaffUser | null;
+  onOpenRentalPayment?: (apt: CheckInAppointment) => void;
 }
 
 export default function CheckInQueue({
@@ -402,6 +405,7 @@ export default function CheckInQueue({
   onRequestApproval,
   onManagerReject,
   currentUser,
+  onOpenRentalPayment,
 }: CheckInQueueProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<
@@ -1030,7 +1034,17 @@ export default function CheckInQueue({
               </span>
               <span>•</span>
               <span className="text-emerald-700 font-medium">
-                {apt.depositStatus === 'paid' ? 'Cọc: Đã thanh toán 100%' : 'Chưa đặt cọc'}
+                {apt.depositStatus === 'paid' ? 'Cọc: Đã cọc 100%' : 'Chưa đặt cọc'}
+              </span>
+              <span>•</span>
+              <span
+                className={`font-semibold px-2 py-0.5 rounded ${
+                  apt.rentalStatus === 'paid'
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                }`}
+              >
+                {apt.rentalStatus === 'paid' ? 'Tiền thuê: Đã thu đủ' : 'Tiền thuê: Chưa thu'}
               </span>
               <span>•</span>
               <span className="text-slate-500 font-medium">
@@ -1093,7 +1107,7 @@ export default function CheckInQueue({
           </div>
         </div>
 
-        {/* Right Actions: Liên Hệ, Dời Lịch, Phê duyệt mở lại, Nhận Kho */}
+        {/* Right Actions: Liên Hệ, Thu Tiền Thuê, Dời Lịch, Phê duyệt mở lại, Báo Vắng, Nhận Kho */}
         <div className="flex items-center gap-2 self-end md:self-center shrink-0 flex-wrap">
           {apt.status === 'completed' ? (
             <div className="text-right">
@@ -1232,6 +1246,21 @@ export default function CheckInQueue({
           ) : (
             /* TRƯỜNG HỢP BÌNH THƯỜNG / TRỄ DƯỚI 24 GIỜ */
             <>
+              {/* Nút Tạo Đơn / Thu Tiền Thuê Kho */}
+              <button
+                type="button"
+                onClick={() => onOpenRentalPayment?.(apt)}
+                title="Tạo đơn thu tiền thuê hoặc kiểm tra VietQR"
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all border cursor-pointer active:scale-95 shadow-2xs ${
+                  apt.rentalStatus === 'paid'
+                    ? 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border-emerald-300'
+                    : 'text-amber-900 bg-amber-50 hover:bg-amber-100 border-amber-300'
+                }`}
+              >
+                <Banknote className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{apt.rentalStatus === 'paid' ? 'Đã thu tiền' : 'Thu tiền thuê'}</span>
+              </button>
+
               {/* Khi TRỄ HẸN (isLate): Bắt buộc gọi điện / liên hệ xác nhận trước */}
               {isLate && (
                 <button
@@ -1412,14 +1441,39 @@ export default function CheckInQueue({
 
                   <div className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-100 flex justify-between items-center">
                     <span>{apt.unitType}</span>
-                    <span className="text-emerald-700 font-semibold text-[10px]">
-                      {apt.depositStatus === 'paid' ? 'Đã cọc' : 'Chưa cọc'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-emerald-700 font-semibold text-[10px]">
+                        {apt.depositStatus === 'paid' ? 'Đã cọc' : 'Chưa cọc'}
+                      </span>
+                      <span>•</span>
+                      <span
+                        className={`text-[10px] font-bold ${
+                          apt.rentalStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'
+                        }`}
+                      >
+                        {apt.rentalStatus === 'paid' ? 'Đã thu thuê' : 'Chưa thu thuê'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Kanban Quick Action Buttons */}
                   {apt.status !== 'completed' && apt.status !== 'cancelled' && (
-                    <div className="pt-1">
+                    <div className="pt-1 flex flex-col gap-1.5">
+                      {/* Nút Thu tiền nhanh */}
+                      <button
+                        type="button"
+                        onClick={() => onOpenRentalPayment?.(apt)}
+                        title="Tạo đơn hoặc thu tiền thuê kho"
+                        className={`flex items-center justify-center gap-1.5 w-full px-2 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors border ${
+                          apt.rentalStatus === 'paid'
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                            : 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
+                        }`}
+                      >
+                        <Banknote className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{apt.rentalStatus === 'paid' ? 'Đã thu tiền' : 'Thu tiền thuê'}</span>
+                      </button>
+
                       {isAppExpired ? (
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-1 rounded border border-slate-200">
@@ -1441,7 +1495,7 @@ export default function CheckInQueue({
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => onStartCheckIn(apt)}
-                            className="flex-1 py-1 text-center text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all cursor-pointer"
+                            className="w-full py-1 text-center text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all cursor-pointer"
                           >
                             Nhận kho (Hôm nay) →
                           </button>
