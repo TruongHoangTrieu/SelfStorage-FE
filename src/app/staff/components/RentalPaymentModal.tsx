@@ -139,21 +139,24 @@ export default function RentalPaymentModal({
       // Nếu đã có pending payment hoặc lỗi, tạo fallback QR để nhân viên không bị chặn
       const resCode = appointment.id.replace('RSV-', '');
       const fallbackCode = `SSREN${appointment.rawId || resCode}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const cleanAmount = Math.max(0, remainingToPay || 0);
+      const encodedAccountName = encodeURIComponent('SELFSTORAGE VN');
+      const encodedAddInfo = encodeURIComponent(fallbackCode);
       setRentalPaymentData({
         payment: {
           id: `pay-${Date.now()}`,
           paymentCode: fallbackCode,
-          amount: remainingToPay,
+          amount: cleanAmount,
           paymentType: 'RENTAL',
           paymentMethod: method,
           status: 'PENDING',
         },
         qr: {
-          qrCodeUrl: `https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${remainingToPay}&addInfo=${fallbackCode}&accountName=SELFSTORAGE VN`,
+          qrCodeUrl: `https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${cleanAmount}&addInfo=${encodedAddInfo}&accountName=${encodedAccountName}`,
           bankCode: 'MBBank',
           accountNumber: '0900000000',
           accountName: 'SELFSTORAGE VN',
-          amount: remainingToPay,
+          amount: cleanAmount,
           transferContent: fallbackCode,
         },
         reservation: {
@@ -273,9 +276,11 @@ export default function RentalPaymentModal({
 
   if (!isOpen || !appointment) return null;
 
+  const cleanAmount = Math.max(0, remainingToPay || 0);
+  const transferInfo = rentalPaymentData?.qr?.transferContent || rentalPaymentData?.payment?.paymentCode || `SSREN${appointment.rawId || appointment.id.replace('RSV-', '')}`;
   const currentQrUrl =
     rentalPaymentData?.qr?.qrCodeUrl ||
-    `https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${remainingToPay}&addInfo=${rentalPaymentData?.payment?.paymentCode || appointment.id}&accountName=SELFSTORAGE VN`;
+    `https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${cleanAmount}&addInfo=${encodeURIComponent(transferInfo)}&accountName=${encodeURIComponent('SELFSTORAGE VN')}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in">
@@ -418,6 +423,15 @@ export default function RentalPaymentModal({
                           src={currentQrUrl}
                           alt="VietQR Payment Code"
                           className="w-40 h-40 object-contain mx-auto rounded-lg"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                              `00020101021238540010A00000072701260006970422011209000000000208QRIBFTTA5303704540${cleanAmount}5802VN62${transferInfo.length + 4}08${transferInfo.length}${transferInfo}6304`
+                            )}`;
+                            if (target.src !== fallback) {
+                              target.src = fallback;
+                            }
+                          }}
                         />
                         <span className="text-[10px] text-slate-400 block mt-1 font-medium">
                           Quét bằng ứng dụng Mobile Banking

@@ -359,9 +359,18 @@ export default function HandoverSuccess({
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center">
               <img
-                src={`https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${remainingAmount}&addInfo=THANH TOAN ${appointment.id}&accountName=SELFSTORAGE VN`}
+                src={`https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${Math.max(0, remainingAmount || 0)}&addInfo=${encodeURIComponent(`THANH TOAN ${appointment.id}`)}&accountName=${encodeURIComponent('SELFSTORAGE VN')}`}
                 alt="VietQR Code"
                 className="w-56 h-auto rounded-xl shadow-xs border border-slate-200"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                    `THANH TOAN ${appointment.id} - ${formatVND(remainingAmount)}`
+                  )}`;
+                  if (target.src !== fallback) {
+                    target.src = fallback;
+                  }
+                }}
               />
               <div className="mt-3 text-xs space-y-0.5">
                 <div className="font-extrabold text-blue-900 text-base">
