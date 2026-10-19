@@ -21,8 +21,10 @@ import {
   Building2,
   Calendar,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { CheckInAppointment, AvailableUnit } from '../types';
+import { handoversApi } from '@/lib/api/handovers';
 
 interface HandoverProcessProps {
   appointment: CheckInAppointment;
@@ -42,7 +44,7 @@ interface HandoverProcessProps {
   onBackToQueue: () => void;
   onOpenContractModal: () => void;
   onOpenPrintModal: () => void;
-  onCompleteHandover: () => void;
+  onCompleteHandover: (photos?: string[]) => void;
   onOpenRentalPayment?: () => void;
 }
 
@@ -129,10 +131,26 @@ export default function HandoverProcess({
     cleanlinessChecked: true,
   });
 
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const handleUploadPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const res = await handoversApi.uploadHandoverPhoto(file);
+      setPhotos((prev) => [
+        ...prev,
+        {
+          id: res.public_id || `photo-${Date.now()}`,
+          title: `Ảnh hiện trạng (${file.name})`,
+          url: res.url,
+        },
+      ]);
+    } catch (err: any) {
+      console.warn('Upload Cloudinary failed, using local preview fallback:', err);
       const newUrl = URL.createObjectURL(file);
       setPhotos((prev) => [
         ...prev,
@@ -142,6 +160,11 @@ export default function HandoverProcess({
           url: newUrl,
         },
       ]);
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -199,7 +222,7 @@ export default function HandoverProcess({
       alert('Vui lòng thiết lập mã PIN mở kho tối thiểu 4-6 số!');
       return;
     }
-    onCompleteHandover();
+    onCompleteHandover(photos.map((p) => p.url));
   };
 
   // Thông tin thanh toán QR chuẩn
@@ -391,7 +414,7 @@ export default function HandoverProcess({
                       .filter((u) => u.code !== appointment.assignedUnit)
                       .map((u) => (
                         <option key={u.id} value={u.code}>
-                          Ô #{u.code} - {u.type} (Tầng {u.floor})
+                          Ô #{u.code} - {u.type} ({String(u.floor).toLowerCase().startsWith('tầng') ? u.floor : `Tầng ${u.floor}`})
                         </option>
                       ))}
                   </select>
@@ -417,11 +440,21 @@ export default function HandoverProcess({
 
               <button
                 type="button"
+                disabled={isUploadingPhoto}
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed border border-blue-200 rounded-lg transition cursor-pointer"
               >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Chụp / Thêm ảnh</span>
+                {isUploadingPhoto ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                    <span>Đang tải lên Cloudinary...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Chụp / Thêm ảnh</span>
+                  </>
+                )}
               </button>
               <input
                 ref={fileInputRef}
@@ -441,6 +474,20 @@ export default function HandoverProcess({
                   className="group relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-4/3 cursor-pointer hover:shadow-md transition"
                 >
                   <img src={p.url} alt={p.title} className="w-full h-full object-cover" />
+                  
+                  {/* Nút xóa ảnh */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPhotos((prev) => prev.filter((item) => item.id !== p.id));
+                    }}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-slate-900/60 hover:bg-rose-600 text-white transition cursor-pointer z-10"
+                    title="Xóa ảnh này"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+
                   <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white gap-1 text-xs font-bold">
                     <Eye className="w-4 h-4" />
                     <span>Xem rõ</span>

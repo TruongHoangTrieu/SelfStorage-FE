@@ -92,6 +92,21 @@ export interface RentalPaymentResponse {
 
 
 /**
+ * Chuẩn hóa hiển thị tầng: tự động thêm "Tầng " nếu dữ liệu chỉ là số (ví dụ: 1 -> Tầng 1)
+ */
+export function formatFloor(floor?: string | number | null): string {
+  if (floor === undefined || floor === null || floor === '') return 'Tầng 1';
+  const str = String(floor).trim();
+  if (str.toLowerCase().startsWith('tầng') || str.toLowerCase().startsWith('tang')) {
+    return str;
+  }
+  if (/^\d+$/.test(str)) {
+    return `Tầng ${str}`;
+  }
+  return str;
+}
+
+/**
  * Normalizes backend reservation object to UI CheckInAppointment
  */
 export function normalizeReservation(item: any): CheckInAppointment {
@@ -239,7 +254,7 @@ export function normalizeReservation(item: any): CheckInAppointment {
     unitSize: unitType.size ? `${unitType.size} ${unitType.sizeUnit || 'm²'}` : '3m² (1.5 x 2.0m)',
     unitId: unit.id,
     assignedUnit: unit.unitNumber || `U-${item.id}`,
-    preferredFloor: unit.floor || 'Tầng 1',
+    preferredFloor: formatFloor(unit.floor),
     status: uiStatus,
     depositStatus,
     depositAmount: depositFormatted,
@@ -267,7 +282,7 @@ export function normalizeStorageUnit(unit: any): AvailableUnit {
     code: unit.unitNumber,
     type: unitType.name || 'Kho Tiêu chuẩn',
     size: unitType.size ? `${unitType.size} ${unitType.sizeUnit || 'm²'}` : '3m²',
-    floor: unit.floor || 'Tầng 1',
+    floor: formatFloor(unit.floor),
     zone: unit.zone || 'Khu A',
     features: unit.condition || 'Khóa Smart Lock IoT',
     status: unit.status === 'AVAILABLE' ? 'vacant' : unit.status === 'OCCUPIED' ? 'occupied' : 'maintenance',
@@ -425,6 +440,30 @@ export const handoversApi = {
     const res = await api.get(`/storage-units?${query.toString()}`);
     const rawList = Array.isArray(res) ? res : (res?.data || []);
     return rawList.map(normalizeStorageUnit);
+  },
+
+  /**
+   * Tải ảnh biên bản bàn giao lên Cloudinary qua Backend
+   */
+  async uploadHandoverPhoto(file: File): Promise<{ url: string; public_id: string }> {
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const res = await fetch('/api/handovers/upload-photo', {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'Không thể tải ảnh lên Cloudinary');
+    }
+
+    return await res.json();
   },
 
   /**

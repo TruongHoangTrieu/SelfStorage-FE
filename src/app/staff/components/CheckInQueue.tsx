@@ -256,6 +256,21 @@ export function getAppointmentScheduleStatus(apt: CheckInAppointment): {
 }
 
 /**
+ * Tự động thêm chữ "Tầng " nếu dữ liệu chỉ là số (ví dụ: "1" -> "Tầng 1")
+ */
+export function formatFloor(floor?: string | number | null): string {
+  if (floor === undefined || floor === null || floor === '') return 'Tầng 1';
+  const str = String(floor).trim();
+  if (str.toLowerCase().startsWith('tầng') || str.toLowerCase().startsWith('tang')) {
+    return str;
+  }
+  if (/^\d+$/.test(str)) {
+    return `Tầng ${str}`;
+  }
+  return str;
+}
+
+/**
  * Kiểm tra xem đơn hẹn có được phép bắt đầu nhận kho không.
  * Quy định:
  * - Nút chỉ mở trước giờ hẹn tối đa 1 tiếng (60 phút).
@@ -274,6 +289,18 @@ export function checkAppointmentEligibility(apt: CheckInAppointment): {
 
   if (apt.status === 'cancelled') {
     return { allowed: false, reason: 'Đơn đã bị hủy' };
+  }
+
+  // Khóa nút nếu đơn hẹn là của Ngày mai
+  const isTomorrow = Boolean(
+    apt.dateDisplay?.startsWith('Ngày mai') ||
+    apt.dateDisplay?.toLowerCase().includes('ngày mai')
+  );
+  if (isTomorrow) {
+    return {
+      allowed: false,
+      reason: 'Lịch hẹn vào ngày mai. Nút nhận kho sẽ mở khi đến ngày hẹn.',
+    };
   }
 
   // Đơn được Quản lý duyệt mở lại
@@ -575,7 +602,7 @@ export default function CheckInQueue({
           }`}
         >
           <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="text-sm font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <span>Tổng lịch hẹn</span>
               <span className={`w-2 h-2 rounded-full ${statusFilter === 'all' ? 'bg-slate-600' : 'bg-slate-300'}`} />
             </div>
@@ -596,7 +623,7 @@ export default function CheckInQueue({
           }`}
         >
           <div className="space-y-1">
-            <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="text-sm font-semibold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
               <span>Chờ đón tiếp</span>
               <span className={`w-2 h-2 rounded-full ${statusFilter === 'confirmed' ? 'bg-blue-600 ring-2 ring-blue-200' : 'bg-blue-500'}`} />
             </div>
@@ -619,7 +646,7 @@ export default function CheckInQueue({
           }`}
         >
           <div className="space-y-1">
-            <div className="text-xs font-semibold text-rose-700 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="text-sm font-semibold text-rose-700 uppercase tracking-wider flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
               <span>Trễ hẹn / Quá hạn</span>
               {(stats.lateCount > 0 || stats.overdueCount > 0) && (
@@ -629,7 +656,7 @@ export default function CheckInQueue({
             <div className="text-2xl font-black text-rose-900 flex items-baseline gap-2">
               <span>{stats.lateCount}</span>
               {stats.overdueCount > 0 && (
-                <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
+                <span className="text-sm font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
                   +{stats.overdueCount} quá hạn
                 </span>
               )}
@@ -650,7 +677,7 @@ export default function CheckInQueue({
           }`}
         >
           <div className="space-y-1">
-            <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="text-sm font-semibold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
               <span>Đang xử lý</span>
               <span className={`w-2 h-2 rounded-full ${statusFilter === 'in_progress' ? 'bg-indigo-600 ring-2 ring-indigo-200' : 'bg-indigo-600 animate-pulse'}`} />
             </div>
@@ -671,7 +698,7 @@ export default function CheckInQueue({
           }`}
         >
           <div className="space-y-1">
-            <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="text-sm font-semibold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
               <span>Hoàn tất</span>
               <span className={`w-2 h-2 rounded-full ${statusFilter === 'completed' ? 'bg-emerald-600 ring-2 ring-emerald-200' : 'bg-emerald-500'}`} />
             </div>
@@ -694,12 +721,12 @@ export default function CheckInQueue({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Tìm theo Tên, SĐT, Mã đơn (#SS-BK) hoặc Ô kho..."
-            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#4f39f6] focus:border-transparent transition-all"
+            className="w-full pl-10 pr-4 py-2 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-[#4f39f6] focus:border-transparent transition-all"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 hover:text-slate-600"
             >
               Xóa
             </button>
@@ -727,7 +754,7 @@ export default function CheckInQueue({
               <button
                 key={item.key}
                 onClick={() => setStatusFilter(item.key)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                   isActive
                     ? item.key === 'late'
                       ? 'bg-rose-600 text-white shadow-xs font-bold'
@@ -746,7 +773,7 @@ export default function CheckInQueue({
         </div>
 
         {/* Chuyển đổi Khung giờ / Kanban */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-medium">
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-sm font-medium">
           <button
             onClick={() => setViewMode('timeline')}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
@@ -777,19 +804,19 @@ export default function CheckInQueue({
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="bg-slate-50 px-6 py-3.5 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-slate-800">
+                <span className="font-bold text-base text-slate-800">
                   Khung giờ buổi sáng (08:00 - 12:00)
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">
+                <span className="text-sm px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">
                   {groupedAppointments.morningSlots.length} lượt hẹn
                 </span>
               </div>
-              <span className="text-xs text-slate-400">Ưu tiên phục vụ khách đúng giờ hẹn</span>
+              <span className="text-sm text-slate-400">Ưu tiên phục vụ khách đúng giờ hẹn</span>
             </div>
 
             <div className="divide-y divide-slate-100">
               {groupedAppointments.morningSlots.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-sm">
+                <div className="p-8 text-center text-slate-400 text-base">
                   Không có lượt nhận kho nào phù hợp với bộ lọc.
                 </div>
               ) : (
@@ -802,19 +829,19 @@ export default function CheckInQueue({
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="bg-slate-50 px-6 py-3.5 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-slate-800">
+                <span className="font-bold text-base text-slate-800">
                   Khung giờ buổi chiều (13:00 - 18:00)
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">
+                <span className="text-sm px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">
                   {groupedAppointments.afternoonSlots.length} lượt hẹn
                 </span>
               </div>
-              <span className="text-xs text-slate-400">Kiểm tra sẵn sàng trạng thái ô kho</span>
+              <span className="text-sm text-slate-400">Kiểm tra sẵn sàng trạng thái ô kho</span>
             </div>
 
             <div className="divide-y divide-slate-100">
               {groupedAppointments.afternoonSlots.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-sm">
+                <div className="p-8 text-center text-slate-400 text-base">
                   Không có lượt nhận kho nào trong buổi chiều phù hợp với bộ lọc.
                 </div>
               ) : (
@@ -923,7 +950,10 @@ export default function CheckInQueue({
   function renderAppointmentRow(apt: CheckInAppointment) {
     const isCurrent = apt.id === selectedAppointmentId && apt.status === 'in_progress';
     const isToday = apt.dateDisplay === 'Hôm nay';
-    const isTomorrow = apt.dateDisplay?.startsWith('Ngày mai');
+    const isTomorrow = Boolean(
+      apt.dateDisplay?.startsWith('Ngày mai') ||
+      apt.dateDisplay?.toLowerCase().includes('ngày mai')
+    );
     const sched = getAppointmentScheduleStatus(apt);
 
     // Kiểm tra phê duyệt Quản lý mở lại và thời hạn cuối ngày
@@ -1006,7 +1036,7 @@ export default function CheckInQueue({
           >
             {/* Tag Ngày Hẹn */}
             <span
-              className={`text-[10px] font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md mb-1 ${
+              className={`text-xs font-black uppercase tracking-tight px-1.5 py-0.5 rounded-md mb-1 ${
                 isApprovedValidToday
                   ? 'bg-indigo-600 text-white'
                   : isApprovalExpired
@@ -1026,79 +1056,61 @@ export default function CheckInQueue({
             >
               {isApprovedValidToday ? 'Hôm nay' : apt.dateDisplay || apt.startDate}
             </span>
-            <span className="text-xs font-black text-slate-900 tabular-nums">{apt.slotTime}</span>
+            <span className="text-sm font-black text-slate-900 tabular-nums">{apt.slotTime}</span>
           </div>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="font-bold text-slate-900 text-sm">{apt.customerName}</span>
-              <span className="text-xs text-slate-500 tabular-nums">({apt.phone})</span>
+              <span className="font-bold text-slate-900 text-base">{apt.customerName}</span>
+              <span className="text-sm text-slate-500 tabular-nums">({apt.phone})</span>
 
               {/* Status Badge */}
               {renderStatusBadge(apt)}
 
               {/* Tag Đã liên hệ xác nhận (khi trễ >= 3 tiếng đã được xác nhận) */}
               {isLateOver3Hours && isContactConfirmed && (
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                  <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                <span className="text-[13px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
                   Đã xác nhận liên hệ
                 </span>
               )}
 
               {/* Tag Trễ Hẹn / Quá Hạn / Đã Duyệt */}
               {isApprovedValidToday ? (
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-300 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-indigo-600" />
+                <span className="text-[13px] font-bold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-300 flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
                   Hiệu lực đến 23:59
                 </span>
               ) : isApprovalExpired ? (
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 border border-slate-300 flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-slate-500" />
+                <span className="text-[13px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 border border-slate-300 flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
                   Đã giải phóng ô kho
                 </span>
               ) : isDepositExpired ? (
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-300 flex items-center gap-1">
-                  <XCircle className="w-3 h-3 text-slate-500" />
+                <span className="text-[13px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-300 flex items-center gap-1">
+                  <XCircle className="w-3.5 h-3.5 text-slate-500" />
                   Hết hạn cọc (Đã hủy)
                 </span>
-              ) : isOverdue ? (
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-red-100 text-red-800 border border-red-300 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3 text-red-600" />
-                  Trễ &gt; 24h
-                </span>
-              ) : isLate ? (
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1 animate-pulse">
-                  <AlertTriangle className="w-3 h-3 text-rose-600" />
+              ) : isOverdue ? null : isLate ? (
+                <span className="text-[13px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1 animate-pulse">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                   {sched.label}
                 </span>
               ) : sched.isOnTime && apt.status !== 'completed' && apt.status !== 'in_progress' ? (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="text-[13px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
                   {sched.label}
                 </span>
               ) : null}
             </div>
 
-            <div className="flex items-center gap-2.5 text-xs text-slate-500 flex-wrap">
+            <div className="flex items-center gap-2.5 text-sm text-slate-500 flex-wrap">
               <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                Ô {apt.assignedUnit} • {apt.preferredFloor}
+                Ô {apt.assignedUnit} • {formatFloor(apt.preferredFloor)}
               </span>
               <span>
                 {apt.unitType} ({apt.unitSize})
               </span>
-              <span>•</span>
-              <span className={apt.depositStatus === 'paid' ? "text-emerald-700 font-medium" : "text-amber-700 font-medium"}>
-                {apt.depositStatus === 'paid' ? 'Cọc: Đã cọc 100%' : 'Cọc: Chưa đặt cọc'}
-              </span>
-              <span>•</span>
-              <span
-                className={`font-semibold px-2 py-0.5 rounded ${
-                  apt.rentalStatus === 'paid'
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : 'bg-amber-100 text-amber-800 border border-amber-200'
-                }`}
-              >
-                {apt.rentalStatus === 'paid' ? 'Tiền thuê: Đã thu đủ' : 'Tiền thuê: Chưa thu'}
-              </span>
+
               <span>•</span>
               <span className="text-slate-500 font-medium">
                 Ngày nhận: <strong className="text-slate-800 font-semibold">{apt.startDate}</strong>
@@ -1125,16 +1137,16 @@ export default function CheckInQueue({
 
             {/* Thông báo chính sách giữ kho đối với đơn được phê duyệt */}
             {isApprovedValidToday && (
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-900 bg-indigo-50/80 px-2.5 py-1 rounded-lg border border-indigo-200 w-fit mt-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-indigo-900 bg-indigo-50/80 px-2.5 py-1 rounded-lg border border-indigo-200 w-fit mt-1">
+                <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
                 <span>Quản lý ({apt.managerApproverName || 'Cơ sở'}) đã duyệt • Giữ ô kho #{apt.assignedUnit} đến hết hôm nay 23:59. Sau 23:59 sẽ tự động giải phóng kho nếu chưa nhận.</span>
               </div>
             )}
 
             {/* Thông báo đơn đang chờ Quản lý duyệt */}
             {apt.managerApprovalStatus === 'pending' && !isApprovedValidToday && (
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 w-fit mt-1">
-                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 animate-spin" />
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 w-fit mt-1">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-spin" />
                 <span>
                   Đã gửi yêu cầu tới Quản lý cơ sở ({apt.managerApprovalFacilityName || 'Cơ sở'}). Nhân viên gửi: <strong>{apt.managerApprovalRequestedBy || 'Nhân viên'}</strong> • Đang chờ Quản lý duyệt.
                 </span>
@@ -1143,8 +1155,8 @@ export default function CheckInQueue({
 
             {/* Thông báo Quản lý từ chối mở lại */}
             {apt.managerApprovalStatus === 'rejected' && (
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-900 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 w-fit mt-1">
-                <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-rose-900 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 w-fit mt-1">
+                <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 <span>
                   Quản lý đã từ chối mở lại: <em>{apt.managerApprovalRejectReason || 'Không đủ điều kiện'}</em>. Vui lòng dời lịch hoặc hủy đơn.
                 </span>
@@ -1152,8 +1164,8 @@ export default function CheckInQueue({
             )}
 
             {isApprovalExpired && (
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-800 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 w-fit mt-1">
-                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-rose-800 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 w-fit mt-1">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 <span>Hết hạn phê duyệt cuối ngày (23:59 hôm qua): Hệ thống đã tự động giải phóng ô kho #{apt.assignedUnit} về trạng thái Khả dụng.</span>
               </div>
             )}
@@ -1164,32 +1176,32 @@ export default function CheckInQueue({
         <div className="flex items-center gap-2 self-end md:self-center shrink-0 flex-wrap">
           {apt.status === 'completed' ? (
             <div className="text-right">
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5" />
+              <span className="text-sm font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5">
+                <Check className="w-4 h-4" />
                 Đã bàn giao lúc {apt.completedAt || '08:48'}
               </span>
             </div>
           ) : apt.status === 'cancelled' ? (
             <div className="text-right">
-              <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 flex items-center gap-1.5">
-                <XCircle className="w-3.5 h-3.5" />
+              <span className="text-sm font-semibold text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 flex items-center gap-1.5">
+                <XCircle className="w-4 h-4" />
                 Đã hủy
               </span>
             </div>
           ) : isDepositExpired ? (
             /* TRƯỜNG HỢP HẾT HẠN CỌC 15 PHÚT (CHƯA THANH TOÁN TIỀN CỌC): ĐÃ TỰ ĐỘNG GIẢI PHÓNG Ô KHO */
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
-                <XCircle className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-sm font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
+                <XCircle className="w-4 h-4 text-slate-400" />
                 Hết hạn cọc • Đã hủy đơn
               </span>
               <button
                 type="button"
                 onClick={() => setContactModalApt(apt)}
                 title="Bấm để liên hệ khách hàng tư vấn đặt lại đơn mới"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 active:scale-95 rounded-xl border border-slate-300 transition-all cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 active:scale-95 rounded-xl border border-slate-300 transition-all cursor-pointer shadow-2xs"
               >
-                <Phone className="w-3.5 h-3.5 text-slate-600" />
+                <Phone className="w-4 h-4 text-slate-600" />
                 <span>Liên hệ khách</span>
               </button>
             </div>
@@ -1200,18 +1212,18 @@ export default function CheckInQueue({
                 type="button"
                 disabled
                 title="Đơn mở lại đã hết hạn cuối ngày hôm qua. Ô kho đã được tự động giải phóng về trạng thái Khả dụng."
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed select-none opacity-60 shadow-none"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed select-none opacity-60 shadow-none"
               >
-                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <Lock className="w-4 h-4 text-slate-400" />
                 <span>Đã giải phóng ô kho</span>
               </button>
               <button
                 type="button"
                 onClick={() => setRescheduleModalApt(apt)}
                 title="Bấm để dời lịch hẹn sang ngày mới cho khách"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 active:scale-95 rounded-xl border border-amber-300 transition-all cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 active:scale-95 rounded-xl border border-amber-300 transition-all cursor-pointer shadow-2xs"
               >
-                <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                <Calendar className="w-4 h-4 text-amber-700" />
                 <span>Dời lịch hẹn mới</span>
               </button>
             </div>
@@ -1220,16 +1232,16 @@ export default function CheckInQueue({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => onStartCheckIn(apt)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-xl transition-all shadow-xs hover:shadow-sm cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-xl transition-all shadow-xs hover:shadow-sm cursor-pointer"
               >
                 <span>Bắt đầu nhận kho</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setNoShowModalApt(apt)}
                 title="Khách báo không đến: Bấm để hủy đơn và giải phóng ngay ô kho"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all cursor-pointer shadow-2xs"
               >
                 <span>Báo vắng &amp; Giải phóng kho</span>
               </button>
@@ -1242,9 +1254,9 @@ export default function CheckInQueue({
                 type="button"
                 disabled
                 title="Đơn đã quá hạn (trễ hơn 24 giờ). Nút nhận kho đã bị khóa. Vui lòng dời lịch hẹn hoặc yêu cầu Quản lý phê duyệt mở lại."
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed select-none opacity-60 shadow-none"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed select-none opacity-60 shadow-none"
               >
-                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <Lock className="w-4 h-4 text-slate-400" />
                 <span>Khóa nhận kho (Quá hạn)</span>
               </button>
 
@@ -1253,9 +1265,9 @@ export default function CheckInQueue({
                 type="button"
                 onClick={() => setRescheduleModalApt(apt)}
                 title="Dời lịch hẹn sang ngày/giờ mới để kích hoạt lại đơn nhận kho"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 active:scale-95 rounded-xl border border-amber-300 transition-all cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 active:scale-95 rounded-xl border border-amber-300 transition-all cursor-pointer shadow-2xs"
               >
-                <Calendar className="w-3.5 h-3.5 text-amber-700" />
+                <Calendar className="w-4 h-4 text-amber-700" />
                 <span>Dời lịch hẹn</span>
               </button>
 
@@ -1265,9 +1277,9 @@ export default function CheckInQueue({
                   type="button"
                   onClick={() => setNoShowModalApt(apt)}
                   title="Xác nhận khách vắng mặt: Hủy đơn và giải phóng ô kho về trạng thái Khả dụng"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all cursor-pointer shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl border border-rose-200 transition-all cursor-pointer shadow-2xs"
                 >
-                  <UserX className="w-3.5 h-3.5 text-rose-600" />
+                  <UserX className="w-4 h-4 text-rose-600" />
                   <span>Báo vắng &amp; Giải phóng</span>
                 </button>
               )}
@@ -1280,9 +1292,9 @@ export default function CheckInQueue({
                     type="button"
                     disabled
                     title={`Đã gửi tờ trình tới Quản lý cơ sở. Người gửi: ${apt.managerApprovalRequestedBy || 'Nhân viên'}. Đang chờ Quản lý duyệt.`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-amber-800 bg-amber-100/90 border border-amber-300 rounded-xl cursor-wait select-none shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold text-amber-800 bg-amber-100/90 border border-amber-300 rounded-xl cursor-wait select-none shadow-2xs"
                   >
-                    <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                    <Clock className="w-4 h-4 text-amber-600 animate-spin" />
                     <span>Chờ Quản lý duyệt...</span>
                   </button>
                 ) : (
@@ -1290,9 +1302,9 @@ export default function CheckInQueue({
                     type="button"
                     onClick={() => setRequestApprovalModalApt(apt)}
                     title="Gửi yêu cầu tới Quản lý cơ sở để xin mở lại đơn quá hạn này"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-xl border border-indigo-200 transition-all cursor-pointer shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-xl border border-indigo-200 transition-all cursor-pointer shadow-2xs"
                   >
-                    <Send className="w-3.5 h-3.5 text-indigo-600" />
+                    <Send className="w-4 h-4 text-indigo-600" />
                     <span>Gửi yêu cầu Quản lý duyệt</span>
                   </button>
                 )
@@ -1302,9 +1314,9 @@ export default function CheckInQueue({
                   type="button"
                   onClick={() => setManagerApprovalModalApt(apt)}
                   title="Cấp Quản lý phê duyệt mở lại đơn (hiệu lực đến hết ngày hôm nay)"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-xl border border-indigo-300 transition-all cursor-pointer shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-xl border border-indigo-300 transition-all cursor-pointer shadow-2xs"
                 >
-                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
                   <span>
                     {apt.managerApprovalStatus === 'pending'
                       ? 'Xem & Phê duyệt'
@@ -1326,25 +1338,35 @@ export default function CheckInQueue({
                       ? 'Đơn trễ quá 3 tiếng: Bắt buộc bấm gọi/nhắn xác nhận với khách trước khi mở lại thủ tục nhận kho'
                       : 'Bấm để liên hệ khách hàng'
                   }
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-bold rounded-xl border transition-all cursor-pointer shadow-2xs ${
                     isLateOver3Hours && !isContactConfirmed
                       ? 'text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-300 ring-2 ring-rose-200'
                       : 'text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200'
                   }`}
                 >
-                  <Phone className={`w-3.5 h-3.5 ${isLateOver3Hours && !isContactConfirmed ? 'text-rose-600 animate-bounce' : 'text-blue-600 animate-pulse'}`} />
+                  <Phone className={`w-4 h-4 ${isLateOver3Hours && !isContactConfirmed ? 'text-rose-600 animate-bounce' : 'text-blue-600 animate-pulse'}`} />
                   <span>{isContactConfirmed ? 'Đã liên hệ (Xem lại)' : 'Liên hệ xác nhận'}</span>
                 </button>
               )}
 
-              {/* Nút Bắt đầu nhận kho (Khách đến sớm hay đúng giờ đều tiếp nhận ngay) */}
-              {!(isLateOver3Hours && !isContactConfirmed) && (
+              {/* Nút Bắt đầu nhận kho (Khóa nếu đơn hẹn là của Ngày mai) */}
+              {isTomorrow ? (
+                <button
+                  type="button"
+                  disabled
+                  title="Lịch hẹn vào ngày mai. Nút nhận kho sẽ mở khi đến ngày hẹn."
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-xl cursor-not-allowed select-none opacity-60 shadow-none"
+                >
+                  <Lock className="w-4 h-4 text-slate-400" />
+                  <span>Chưa đến ngày hẹn</span>
+                </button>
+              ) : !(isLateOver3Hours && !isContactConfirmed) && (
                 <button
                   onClick={() => onStartCheckIn(apt)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl transition-all shadow-xs hover:shadow-sm cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 rounded-xl transition-all shadow-xs hover:shadow-sm cursor-pointer"
                 >
                   <span>Bắt đầu nhận kho</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               )}
             </>
@@ -1399,8 +1421,8 @@ export default function CheckInQueue({
       >
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="font-bold text-sm text-slate-800">{title}</h3>
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
+            <h3 className="font-bold text-base text-slate-800">{title}</h3>
+            <span className={`text-[13px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
               {items.length}
             </span>
           </div>
@@ -1408,7 +1430,7 @@ export default function CheckInQueue({
 
         <div className="p-3 space-y-3 flex-1 overflow-y-auto">
           {items.length === 0 ? (
-            <div className="text-center py-12 text-xs text-slate-400">Không có đơn nào</div>
+            <div className="text-center py-12 text-sm text-slate-400">Không có đơn nào</div>
           ) : (
             items.map((apt) => {
               const sched = getAppointmentScheduleStatus(apt);
@@ -1437,6 +1459,10 @@ export default function CheckInQueue({
 
               const isLateOver3Hours = isLate && sched.lateMinutes >= 180;
               const isContactConfirmed = !!apt.contactConfirmed || confirmedContactAptIds.includes(apt.id);
+              const isTomorrow = Boolean(
+                apt.dateDisplay?.startsWith('Ngày mai') ||
+                apt.dateDisplay?.toLowerCase().includes('ngày mai')
+              );
 
               return (
                 <div
@@ -1455,7 +1481,7 @@ export default function CheckInQueue({
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-[11px] font-bold px-2 py-0.5 rounded border ${
+                      className={`text-[13px] font-bold px-2 py-0.5 rounded border ${
                         isApprovedValid
                           ? 'text-indigo-700 bg-indigo-50 border-indigo-200'
                           : isAppExpired
@@ -1468,25 +1494,25 @@ export default function CheckInQueue({
                       {apt.dateDisplay ? `${apt.dateDisplay} • ` : ''}
                       {apt.slotTime}
                     </span>
-                    <span className="tabular-nums text-[11px] font-bold text-blue-600">
+                    <span className="tabular-nums text-[13px] font-bold text-blue-600">
                       #{apt.assignedUnit}
                     </span>
                   </div>
 
                   <div>
-                    <div className="font-bold text-slate-900 text-xs">{apt.customerName}</div>
-                    <div className="text-[11px] text-slate-500">{apt.phone}</div>
+                    <div className="font-bold text-slate-900 text-sm">{apt.customerName}</div>
+                    <div className="text-[13px] text-slate-500">{apt.phone}</div>
                   </div>
 
-                  <div className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-100 flex justify-between items-center">
+                  <div className="text-[13px] text-slate-600 bg-white p-2 rounded-lg border border-slate-100 flex justify-between items-center">
                     <span>{apt.unitType}</span>
                     <div className="flex items-center gap-1.5">
-                      <span className={`font-semibold text-[10px] ${apt.depositStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      <span className={`font-semibold text-xs ${apt.depositStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
                         {apt.depositStatus === 'paid' ? 'Đã cọc' : 'Chưa cọc'}
                       </span>
                       <span>•</span>
                       <span
-                        className={`text-[10px] font-bold ${
+                        className={`text-xs font-bold ${
                           apt.rentalStatus === 'paid' ? 'text-emerald-700' : 'text-amber-700'
                         }`}
                       >
@@ -1500,9 +1526,9 @@ export default function CheckInQueue({
                     <div className="pt-1 flex flex-col gap-1.5">
                       {isAppExpired ? (
                         <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                          <div className="flex items-center justify-between text-xs text-slate-600 font-bold bg-slate-100 px-2 py-1 rounded border border-slate-200">
                             <span className="flex items-center gap-1">
-                              <Lock className="w-3 h-3 text-slate-500" />
+                              <Lock className="w-3.5 h-3.5 text-slate-500" />
                               Đã giải phóng ô kho
                             </span>
                           </div>
@@ -1510,7 +1536,7 @@ export default function CheckInQueue({
                             type="button"
                             onClick={() => setRescheduleModalApt(apt)}
                             title="Dời lịch hẹn"
-                            className="w-full py-1 text-center text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-300 transition-all cursor-pointer"
+                            className="w-full py-1 text-center text-[13px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-300 transition-all cursor-pointer"
                           >
                             Dời lịch mới
                           </button>
@@ -1519,16 +1545,16 @@ export default function CheckInQueue({
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => onStartCheckIn(apt)}
-                            className="w-full py-1 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all cursor-pointer"
+                            className="w-full py-1 text-center text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all cursor-pointer"
                           >
                             Nhận kho (Hôm nay) →
                           </button>
                         </div>
                       ) : isOverdue ? (
                         <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center justify-between text-[10px] text-red-700 font-bold bg-red-50 px-2 py-1 rounded border border-red-200">
+                          <div className="flex items-center justify-between text-xs text-red-700 font-bold bg-red-50 px-2 py-1 rounded border border-red-200">
                             <span className="flex items-center gap-1">
-                              <Lock className="w-3 h-3 text-red-600" />
+                              <Lock className="w-3.5 h-3.5 text-red-600" />
                               Khóa nhận kho (&gt;24h)
                             </span>
                           </div>
@@ -1537,7 +1563,7 @@ export default function CheckInQueue({
                               type="button"
                               onClick={() => setRescheduleModalApt(apt)}
                               title="Dời lịch hẹn"
-                              className="flex-1 py-1 text-center text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-300 transition-all cursor-pointer"
+                              className="flex-1 py-1 text-center text-[13px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-300 transition-all cursor-pointer"
                             >
                               Dời lịch
                             </button>
@@ -1546,9 +1572,9 @@ export default function CheckInQueue({
                                 <button
                                   type="button"
                                   disabled
-                                  className="flex-1 py-1 text-center text-[11px] font-bold text-amber-800 bg-amber-100 rounded-lg border border-amber-300 cursor-wait flex items-center justify-center gap-1"
+                                  className="flex-1 py-1 text-center text-[13px] font-bold text-amber-800 bg-amber-100 rounded-lg border border-amber-300 cursor-wait flex items-center justify-center gap-1"
                                 >
-                                  <Clock className="w-2.5 h-2.5 animate-spin" />
+                                  <Clock className="w-3 h-3 animate-spin" />
                                   <span>Chờ duyệt</span>
                                 </button>
                               ) : (
@@ -1556,7 +1582,7 @@ export default function CheckInQueue({
                                   type="button"
                                   onClick={() => setRequestApprovalModalApt(apt)}
                                   title="Gửi yêu cầu Quản lý duyệt"
-                                  className="flex-1 py-1 text-center text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-all cursor-pointer"
+                                  className="flex-1 py-1 text-center text-[13px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-all cursor-pointer"
                                 >
                                   Xin duyệt
                                 </button>
@@ -1595,8 +1621,18 @@ export default function CheckInQueue({
                             </button>
                           )}
 
-                          {/* Nút nhận kho (Khách đến sớm hay đúng giờ đều tiếp nhận ngay) */}
-                          {!(isLateOver3Hours && !isContactConfirmed) && (
+                          {/* Nút nhận kho (Khóa nếu đơn hẹn là của Ngày mai) */}
+                          {isTomorrow ? (
+                            <button
+                              type="button"
+                              disabled
+                              title="Lịch hẹn vào ngày mai. Nút nhận kho sẽ mở khi đến ngày hẹn."
+                              className="flex-1 py-1 text-center text-xs font-semibold text-slate-400 bg-slate-100 rounded-lg border border-slate-200 cursor-not-allowed select-none flex items-center justify-center gap-1 opacity-70"
+                            >
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              <span>Chưa đến ngày</span>
+                            </button>
+                          ) : !(isLateOver3Hours && !isContactConfirmed) && (
                             <button
                               onClick={() => onStartCheckIn(apt)}
                               className="flex-1 py-1 text-center text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all cursor-pointer"
@@ -1642,7 +1678,7 @@ export default function CheckInQueue({
       apt.status !== 'cancelled'
     ) {
       return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-300">
+        <span className="inline-flex items-center gap-1 text-[13px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-300">
           <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
           Đã duyệt • Hiệu lực đến 23:59
         </span>
@@ -1652,7 +1688,7 @@ export default function CheckInQueue({
     // Nếu đơn hết hạn cọc 15 phút (chưa đặt cọc) -> "Hết hạn cọc • Đã hủy"
     if (apt.status === 'expired' && apt.depositStatus !== 'paid') {
       return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
           <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
           Hết hạn cọc • Đã hủy
         </span>
@@ -1666,22 +1702,22 @@ export default function CheckInQueue({
     ) {
       if (apt.managerApprovalStatus === 'pending') {
         return (
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">
-            <Clock className="w-3 h-3 text-amber-600 animate-spin" />
+          <span className="inline-flex items-center gap-1.5 text-[13px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">
+            <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" />
             Chờ Quản lý duyệt
           </span>
         );
       }
       if (apt.managerApprovalStatus === 'rejected') {
         return (
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-300">
-            <XCircle className="w-3 h-3 text-rose-600" />
+          <span className="inline-flex items-center gap-1.5 text-[13px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-300">
+            <XCircle className="w-3.5 h-3.5 text-rose-600" />
             Quản lý từ chối
           </span>
         );
       }
       return (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
           <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
           Đơn quá hạn
         </span>
@@ -1692,7 +1728,7 @@ export default function CheckInQueue({
     switch (status) {
       case 'pending':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="inline-flex items-center gap-1 text-[13px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             Chờ cọc
           </span>
@@ -1700,28 +1736,28 @@ export default function CheckInQueue({
       case 'confirmed':
       case 'arrived':
         return (
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="inline-flex items-center gap-1.5 text-[13px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
             Đã cọc • Chờ đón tiếp
           </span>
         );
       case 'in_progress':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <span className="inline-flex items-center gap-1 text-[13px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
             Đang xử lý tại chỗ
           </span>
         );
       case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="inline-flex items-center gap-1 text-[13px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
             Đã bàn giao
           </span>
         );
       case 'cancelled':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+          <span className="inline-flex items-center gap-1 text-[13px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
             Đã hủy
           </span>

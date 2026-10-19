@@ -514,7 +514,7 @@ export default function StaffPortalPage() {
   };
 
   // Action 2: [ Hoàn tất bàn giao ]
-  const handleCompleteHandover = async () => {
+  const handleCompleteHandover = async (photos?: string[]) => {
     const nowTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const finalUnit = selectedUnitCode || currentAppointment.assignedUnit;
 
@@ -526,6 +526,7 @@ export default function StaffPortalPage() {
           reservationId: currentAppointment.rawId,
           condition: handoverCondition,
           notes: handoverNotes,
+          photos: photos || [],
         });
 
         // Lấy mã PIN Smart Lock và mã hợp đồng từ Backend response
