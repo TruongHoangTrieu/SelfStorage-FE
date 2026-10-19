@@ -80,7 +80,7 @@ export default function HandoverProcess({
   onCompleteHandover,
   onOpenRentalPayment,
 }: HandoverProcessProps) {
-  // Stepper state: 1 -> 5
+  // Stepper state: 1 -> 4
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Tính toán tài chính
@@ -96,7 +96,6 @@ export default function HandoverProcess({
 
   // Trạng thái các bước
   const [isCccdVerified, setIsCccdVerified] = useState<boolean>(true);
-  const [isContractSigned, setIsContractSigned] = useState<boolean>(false);
   const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'cash'>('vietqr');
   const [isRentalPaidLocally, setIsRentalPaidLocally] = useState<boolean>(
     appointment.rentalStatus === 'paid'
@@ -159,7 +158,7 @@ export default function HandoverProcess({
 
   const activeUnit = selectedUnitCode || appointment.assignedUnit;
 
-  // Điều hướng giữa các bước
+  // Điều hướng tuần tự giữa các bước (chỉ cho phép tiến khi xong bước hiện tại)
   const handleNextStep = () => {
     if (currentStep === 1) {
       if (!isCccdVerified) {
@@ -170,13 +169,15 @@ export default function HandoverProcess({
     } else if (currentStep === 2) {
       setCurrentStep(3);
     } else if (currentStep === 3) {
-      if (!isContractSigned) {
-        alert('Vui lòng xác nhận khách hàng đã ký hợp đồng trước khi tiếp tục.');
-        return;
+      if (!isRentalPaidLocally && remainingAmount > 0) {
+        const confirmProceed = window.confirm(
+          `Khách hàng chưa thanh toán số tiền thuê còn lại (${formatVND(remainingAmount)}).\n\nNhấn 'OK' để tiếp tục cấp mã PIN (ghi nợ thu sau), hoặc 'Cancel' để quay lại xác nhận thu tiền.`
+        );
+        if (!confirmProceed) {
+          return;
+        }
       }
       setCurrentStep(4);
-    } else if (currentStep === 4) {
-      setCurrentStep(5);
     }
   };
 
@@ -194,19 +195,9 @@ export default function HandoverProcess({
       setCurrentStep(1);
       return;
     }
-    if (!isContractSigned) {
-      alert('Vui lòng xác nhận ký hợp đồng!');
-      setCurrentStep(3);
+    if (!customPin || customPin.trim().length < 4) {
+      alert('Vui lòng thiết lập mã PIN mở kho tối thiểu 4-6 số!');
       return;
-    }
-    if (!isRentalPaidLocally && remainingAmount > 0) {
-      const confirmProceed = window.confirm(
-        `Đơn này còn tiền thuê (${formatVND(remainingAmount)}) chưa xác nhận thu.\n\nNhấn 'OK' để hoàn tất cấp mã PIN ngay (ghi nợ thu sau), hoặc 'Cancel' để quay lại bước thu tiền.`
-      );
-      if (!confirmProceed) {
-        setCurrentStep(4);
-        return;
-      }
     }
     onCompleteHandover();
   };
@@ -218,82 +209,109 @@ export default function HandoverProcess({
   )}&accountName=${encodeURIComponent('SELFSTORAGE VN')}`;
 
   const steps = [
-    { number: 1, label: 'CCCD & Ô kho' },
-    { number: 2, label: 'Hiện trạng kho' },
-    { number: 3, label: 'Hợp đồng' },
-    { number: 4, label: 'Thu tiền thuê' },
-    { number: 5, label: 'Cấp mã PIN' },
+    { number: 1, label: 'CCCD & Ô kho', desc: 'Đối chiếu CCCD & chọn ô' },
+    { number: 2, label: 'Hiện trạng kho', desc: 'Kiểm tra ổ khóa & chụp ảnh' },
+    { number: 3, label: 'Thu tiền thuê', desc: 'Mã VietQR & Tiền mặt' },
+    { number: 4, label: 'Cấp mã PIN', desc: 'Mã mở cửa 24/7 & kích hoạt' },
   ];
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-5 animate-slide-up-fade">
+    <div className="w-full max-w-6xl xl:max-w-7xl mx-auto space-y-5 animate-slide-up-fade">
       {/* ─── Top Bar: Quay lại & Thông tin vắn tắt ─── */}
-      <div className="flex items-center justify-between bg-white px-5 py-3.5 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white px-5 py-4 rounded-2xl border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBackToQueue}
-            className="p-2 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
+            className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer"
             title="Quay lại danh sách"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-extrabold text-slate-900">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
                 Bàn Giao Kho: {appointment.customerName}
               </h2>
-              <span className="text-xs px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-200">
+              <span className="text-xs px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-200">
                 Ô #{activeUnit}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
-              Mã đơn: <strong className="text-slate-700">{appointment.id}</strong> • SĐT: {appointment.phone}
+            <p className="text-xs text-slate-500 mt-0.5">
+              Mã đơn: <strong className="text-slate-700 font-mono">{appointment.id}</strong> • SĐT: {appointment.phone} • Loại kho: {appointment.unitType}
             </p>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenPrintModal}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
-        >
-          <Printer className="w-4 h-4 text-blue-600" />
-          <span>In tài liệu</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={onOpenContractModal}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition cursor-pointer"
+          >
+            <FileText className="w-4 h-4 text-blue-600" />
+            <span className="hidden sm:inline">Xem Hợp Đồng</span>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenPrintModal}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
+          >
+            <Printer className="w-4 h-4 text-slate-600" />
+            <span className="hidden sm:inline">In tài liệu</span>
+          </button>
+        </div>
       </div>
 
-      {/* ─── Stepper Indicator (Chỉ hiện 5 bước rõ ràng) ─── */}
+      {/* ─── Stepper Indicator (4 bước tuần tự, không cho nhảy cóc) ─── */}
       <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs">
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {steps.map((st) => {
             const isCompleted = currentStep > st.number;
             const isActive = currentStep === st.number;
+            const isClickable = st.number <= currentStep;
             return (
               <button
                 key={st.number}
                 type="button"
-                onClick={() => setCurrentStep(st.number)}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-center transition-all cursor-pointer ${
+                disabled={!isClickable}
+                onClick={() => {
+                  if (isClickable) setCurrentStep(st.number);
+                }}
+                className={`flex items-center gap-2.5 py-2.5 px-3 rounded-xl text-left transition-all ${
                   isActive
-                    ? 'bg-blue-600 text-white font-bold shadow-sm'
+                    ? 'bg-blue-600 text-white font-bold shadow-sm cursor-default'
                     : isCompleted
-                    ? 'bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200'
-                    : 'bg-slate-50 text-slate-500 font-medium hover:bg-slate-100'
+                    ? 'bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200 hover:bg-emerald-100 cursor-pointer'
+                    : 'bg-slate-50 text-slate-400 font-medium cursor-not-allowed opacity-50'
                 }`}
+                title={
+                  !isClickable
+                    ? `Hoàn thành Bước ${currentStep} trước khi chuyển sang Bước ${st.number}`
+                    : undefined
+                }
               >
                 <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                     isActive
                       ? 'bg-white text-blue-600'
                       : isCompleted
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-200 text-slate-600'
+                      : 'bg-slate-200 text-slate-500'
                   }`}
                 >
-                  {isCompleted ? <Check className="w-3 h-3" /> : st.number}
+                  {isCompleted ? <Check className="w-3.5 h-3.5" /> : st.number}
                 </div>
-                <span className="text-xs truncate">{st.label}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold truncate leading-tight">{st.label}</div>
+                  <div
+                    className={`text-[10px] truncate ${
+                      isActive ? 'text-blue-100' : 'text-slate-400'
+                    }`}
+                  >
+                    {st.desc}
+                  </div>
+                </div>
               </button>
             );
           })}
@@ -301,7 +319,7 @@ export default function HandoverProcess({
       </div>
 
       {/* ─── NỘI DUNG TỪNG BƯỚC (CHỈ HIỂN THỊ BƯỚC ĐANG CHỌN) ─── */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs">
         {/* ================= BƯỚC 1: ĐỐI CHIẾU CCCD & Ô KHO ================= */}
         {currentStep === 1 && (
           <div className="space-y-6 animate-fade-in">
@@ -480,88 +498,14 @@ export default function HandoverProcess({
           </div>
         )}
 
-        {/* ================= BƯỚC 3: HỢP ĐỒNG THUÊ ================= */}
+        {/* ================= BƯỚC 3: THU TIỀN THUÊ KHO (CÓ QR TO RÕ NÉT) ================= */}
         {currentStep === 3 && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                Bước 3: Xem / In &amp; Ký Hợp Đồng Thuê Kho
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Cung cấp văn bản hợp đồng cho khách hàng đọc, xác nhận ký kết trước khi bàn giao mã PIN.
-              </p>
-            </div>
-
-            {/* Tóm tắt điều khoản */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-center">
-              <div>
-                <span className="text-slate-400 block mb-0.5">Kỳ hạn thuê:</span>
-                <span className="font-bold text-slate-900 text-sm">{durationMonths} tháng</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Ngày bắt đầu:</span>
-                <span className="font-bold text-slate-900 text-sm">{appointment.startDate || 'Hôm nay'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Giá thuê/tháng:</span>
-                <span className="font-bold text-blue-700 text-sm">{appointment.monthlyRent}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block mb-0.5">Tiền cọc ô kho:</span>
-                <span className="font-bold text-emerald-700 text-sm">{appointment.depositAmount}</span>
-              </div>
-            </div>
-
-            {/* 2 nút thao tác tài liệu */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={onOpenContractModal}
-                className="p-4 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100/70 text-blue-900 flex items-center justify-center gap-2.5 font-bold text-xs transition cursor-pointer"
-              >
-                <Eye className="w-4 h-4 text-blue-600" />
-                <span>Xem Toàn Văn Hợp Đồng Điện Tử</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenPrintModal}
-                className="p-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center gap-2.5 font-bold text-xs transition cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-slate-600" />
-                <span>In Hợp Đồng Giấy Cho Khách Ký</span>
-              </button>
-            </div>
-
-            {/* Checkbox bắt buộc: Xác nhận khách đã ký hợp đồng */}
-            <label className="flex items-center gap-3 p-4 rounded-xl border-2 border-emerald-300 bg-emerald-50/70 cursor-pointer hover:bg-emerald-50 transition">
-              <input
-                type="checkbox"
-                checked={isContractSigned}
-                onChange={(e) => setIsContractSigned(e.target.checked)}
-                className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-              />
-              <div className="text-xs">
-                <strong className="text-emerald-950 font-bold block text-sm">
-                  ✓ Xác nhận khách hàng {appointment.customerName} đã đọc và ký tên vào hợp đồng
-                </strong>
-                <span className="text-emerald-800">
-                  Hợp đồng có hiệu lực pháp lý và đã lưu trữ vào hồ sơ khách hàng.
-                </span>
-              </div>
-            </label>
-          </div>
-        )}
-
-        {/* ================= BƯỚC 4: THU TIỀN THUÊ KHO (CÓ QR TO RÕ NÉT) ================= */}
-        {currentStep === 4 && (
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
                   <Banknote className="w-5 h-5 text-blue-600" />
-                  Bước 4: Quyết Toán Tiền Thuê Kho
+                  Bước 3: Quyết Toán Tiền Thuê Kho
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Đưa mã VietQR cho khách quét chuyển khoản hoặc thu tiền mặt trực tiếp tại quầy.
@@ -581,30 +525,30 @@ export default function HandoverProcess({
 
             {/* Bảng số tiền cần thu */}
             <div className="grid grid-cols-3 gap-3 text-center text-xs">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                 <span className="text-slate-400 block mb-0.5">Tổng tiền thuê ({durationMonths}T):</span>
-                <span className="font-bold text-slate-800">{formatVND(totalRent)}</span>
+                <span className="font-bold text-slate-800 text-sm sm:text-base">{formatVND(totalRent)}</span>
               </div>
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
                 <span className="text-emerald-700 block mb-0.5">Đã nộp cọc:</span>
-                <span className="font-bold text-emerald-800">
+                <span className="font-bold text-emerald-800 text-sm sm:text-base">
                   {appointment.depositAmount || formatVND(depositNum)}
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-300">
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300">
                 <span className="text-amber-800 font-bold block mb-0.5">TIỀN THUÊ CẦN THU:</span>
-                <span className="font-black text-amber-950 text-base tabular-nums">
+                <span className="font-black text-amber-950 text-base sm:text-lg tabular-nums">
                   {formatVND(remainingAmount)}
                 </span>
               </div>
             </div>
 
             {/* Lựa chọn phương thức thu */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('vietqr')}
-                className={`p-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
+                className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
                   paymentMethod === 'vietqr'
                     ? 'bg-blue-50 border-blue-600 text-blue-900 ring-2 ring-blue-600/20'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -617,7 +561,7 @@ export default function HandoverProcess({
               <button
                 type="button"
                 onClick={() => setPaymentMethod('cash')}
-                className={`p-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
+                className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
                   paymentMethod === 'cash'
                     ? 'bg-emerald-50 border-emerald-600 text-emerald-900 ring-2 ring-emerald-600/20'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -628,15 +572,15 @@ export default function HandoverProcess({
               </button>
             </div>
 
-            {/* KHUNG HIỂN THỊ MÃ VIETQR TRỰC TIẾP (KHÔNG CẦN CHỜ POPUP) */}
+            {/* KHUNG HIỂN THỊ MÃ VIETQR TRỰC TIẾP */}
             {paymentMethod === 'vietqr' && (
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center gap-6">
+              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center gap-6">
                 {/* Ảnh QR Code */}
-                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0 text-center">
+                <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0 text-center">
                   <img
                     src={qrUrl}
                     alt="VietQR Code"
-                    className="w-48 h-48 object-contain mx-auto rounded-lg"
+                    className="w-52 h-52 object-contain mx-auto rounded-lg"
                     onError={(e) => {
                       const target = e.currentTarget;
                       const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
@@ -647,21 +591,21 @@ export default function HandoverProcess({
                       }
                     }}
                   />
-                  <span className="text-[10px] text-slate-400 block mt-1.5 font-medium">
+                  <span className="text-[10px] text-slate-400 block mt-2 font-medium">
                     Quét bằng mọi ứng dụng Ngân hàng
                   </span>
                 </div>
 
                 {/* Thông tin chuyển khoản */}
-                <div className="space-y-2.5 text-xs flex-1 w-full">
-                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                <div className="space-y-3 text-xs flex-1 w-full">
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
                     <div>
                       <span className="text-slate-400 text-[10px] block">Ngân hàng thụ hưởng:</span>
                       <strong className="text-slate-800 font-bold">MBBank (Quân Đội)</strong>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
                     <div>
                       <span className="text-slate-400 text-[10px] block">Số tài khoản:</span>
                       <strong className="text-blue-900 font-mono text-sm font-black">0900000000</strong>
@@ -669,20 +613,20 @@ export default function HandoverProcess({
                     <button
                       type="button"
                       onClick={() => handleCopy('0900000000', 'STK')}
-                      className="px-2.5 py-1 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition cursor-pointer"
+                      className="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition cursor-pointer"
                     >
                       {copiedField === 'STK' ? 'Đã chép!' : 'Sao chép'}
                     </button>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
                     <div>
                       <span className="text-slate-400 text-[10px] block">Chủ tài khoản:</span>
                       <strong className="text-slate-800 font-bold">SELFSTORAGE VN</strong>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
                     <div>
                       <span className="text-amber-800 text-[10px] font-bold block">Nội dung chuyển khoản:</span>
                       <strong className="text-amber-950 font-mono text-xs font-black">{paymentContent}</strong>
@@ -690,7 +634,7 @@ export default function HandoverProcess({
                     <button
                       type="button"
                       onClick={() => handleCopy(paymentContent, 'Nội dung')}
-                      className="px-2.5 py-1 text-[11px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-md transition cursor-pointer"
+                      className="px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-lg transition cursor-pointer"
                     >
                       {copiedField === 'Nội dung' ? 'Đã chép!' : 'Sao chép'}
                     </button>
@@ -701,16 +645,16 @@ export default function HandoverProcess({
 
             {/* TAB TIỀN MẶT */}
             {paymentMethod === 'cash' && (
-              <div className="p-6 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto">
-                  <Banknote className="w-6 h-6" />
+              <div className="p-8 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center space-y-3">
+                <div className="w-14 h-14 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-sm">
+                  <Banknote className="w-7 h-7" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-emerald-950 text-sm">Thu Tiền Mặt Trực Tiếp Tại Quầy</h4>
-                  <p className="text-xs text-emerald-700 mt-0.5">
+                  <h4 className="font-bold text-emerald-950 text-base">Thu Tiền Mặt Trực Tiếp Tại Quầy</h4>
+                  <p className="text-xs text-emerald-700 mt-1">
                     Số tiền cần nhận từ khách hàng {appointment.customerName}:
                   </p>
-                  <div className="text-2xl font-black text-emerald-900 mt-1">
+                  <div className="text-3xl font-black text-emerald-900 mt-2">
                     {formatVND(remainingAmount)}
                   </div>
                 </div>
@@ -718,13 +662,13 @@ export default function HandoverProcess({
             )}
 
             {/* Nút xác nhận đã thu tiền */}
-            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+            <div className="pt-2">
               <button
                 type="button"
                 onClick={() => setIsRentalPaidLocally(!isRentalPaidLocally)}
-                className={`flex-1 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+                className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer ${
                   isRentalPaidLocally
-                    ? 'bg-emerald-700 text-white hover:bg-emerald-800'
+                    ? 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm'
                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/20'
                 }`}
               >
@@ -740,41 +684,31 @@ export default function HandoverProcess({
                   </>
                 )}
               </button>
-
-              {onOpenRentalPayment && (
-                <button
-                  type="button"
-                  onClick={onOpenRentalPayment}
-                  className="py-3 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition cursor-pointer"
-                >
-                  Mở popup thu tiền nâng cao
-                </button>
-              )}
             </div>
           </div>
         )}
 
-        {/* ================= BƯỚC 5: CẤP MÃ PIN & KÍCH HOẠT KHO ================= */}
-        {currentStep === 5 && (
+        {/* ================= BƯỚC 4: CẤP MÃ PIN & KÍCH HOẠT KHO ================= */}
+        {currentStep === 4 && (
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
                   <Lock className="w-5 h-5 text-blue-600" />
-                  Bước 5: Cấp Mã PIN Smart Lock &amp; Hoàn Tất Bàn Giao
+                  Bước 4: Cấp Mã PIN Smart Lock &amp; Hoàn Tất Bàn Giao
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Thiết lập mã PIN mở cửa Smart Lock và kích hoạt ô kho #{activeUnit} cho khách hàng.
                 </p>
               </div>
-              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200">
                 Ô #{activeUnit}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
               {/* Nhập mã PIN */}
-              <div className="space-y-2">
+              <div className="space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-slate-800">Mã PIN Smart Lock (6 số):</label>
                   <button
@@ -792,12 +726,15 @@ export default function HandoverProcess({
                   value={customPin}
                   onChange={(e) => onChangeCustomPin(e.target.value)}
                   placeholder="VD: 891234"
-                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono font-black text-xl tracking-widest text-center rounded-xl py-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-black text-2xl tracking-widest text-center rounded-xl py-3.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
                 />
+                <span className="text-[10px] text-slate-500 block text-center">
+                  Mã này dùng để mở khóa điện tử 24/7 và đồng bộ vào App khách hàng
+                </span>
               </div>
 
               {/* Mã RFID phụ */}
-              <div className="space-y-2">
+              <div className="space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <label className="font-bold text-slate-800 block">
                   Mã thẻ từ RFID phụ (Nếu cấp thẻ vật lý):
                 </label>
@@ -806,8 +743,11 @@ export default function HandoverProcess({
                   value={customRfid}
                   onChange={(e) => onChangeCustomRfid(e.target.value)}
                   placeholder="Quẹt thẻ hoặc nhập mã RFID..."
-                  className="w-full bg-slate-50 border border-slate-300 text-slate-900 font-mono text-xs rounded-xl py-3.5 px-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono text-sm rounded-xl py-3.5 px-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
                 />
+                <span className="text-[10px] text-slate-500 block">
+                  Không bắt buộc nếu khách chỉ sử dụng mã PIN bàn phím số
+                </span>
               </div>
 
               {/* Ghi chú dặn dò */}
@@ -832,7 +772,7 @@ export default function HandoverProcess({
                   <Check className="w-4 h-4" /> CCCD đã đối chiếu
                 </div>
                 <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                  <Check className="w-4 h-4" /> Hợp đồng đã ký
+                  <Check className="w-4 h-4" /> Hiện trạng đã kiểm tra
                 </div>
                 <div
                   className={`flex items-center gap-1.5 font-bold ${
@@ -866,7 +806,7 @@ export default function HandoverProcess({
           Bước {currentStep} / {steps.length}
         </span>
 
-        {currentStep < 5 ? (
+        {currentStep < 4 ? (
           <button
             type="button"
             onClick={handleNextStep}
@@ -879,11 +819,9 @@ export default function HandoverProcess({
           <button
             type="button"
             onClick={handleAttemptComplete}
-            disabled={isSubmitting || !isContractSigned}
+            disabled={isSubmitting}
             className={`inline-flex items-center gap-2 px-7 py-3 text-sm font-extrabold text-white rounded-xl transition shadow-md active:scale-95 cursor-pointer ${
-              !isContractSigned
-                ? 'bg-slate-400 cursor-not-allowed opacity-75'
-                : isSubmitting
+              isSubmitting
                 ? 'bg-blue-600/70 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/25'
             }`}
