@@ -20,8 +20,11 @@ import {
   ShieldCheck,
   CheckCircle2,
   Calendar,
+  Bell,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { io } from 'socket.io-client';
+import { useNotifications } from '@/lib/useNotifications';
 
 // Import Types & Mock Data
 import { CheckInAppointment, AvailableUnit, StaffTab, FlowStep, StaffUser } from './types';
@@ -88,7 +91,13 @@ export default function StaffPortalPage() {
   // Modals & Feedback State
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = React.useRef<HTMLDivElement>(null);
   const [rentalPaymentApt, setRentalPaymentApt] = useState<CheckInAppointment | null>(null);
+
+  // Hook quản lý thông báo cho Staff
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications(currentUser?.id);
 
   // Cuộc hẹn đang được xử lý
   const currentAppointment = useMemo(() => {
@@ -234,6 +243,94 @@ export default function StaffPortalPage() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Tắt dropdown thông báo khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    if (isNotifOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isNotifOpen]);
+
+  // Âm thanh chuông báo Web Audio API (không cần tải file mp3)
+  const playNotificationChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1046.5, now); // C6
+      osc.frequency.exponentialRampToValueAtTime(1567.98, now + 0.12); // G6
+
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.5);
+    } catch {
+      // Bỏ qua lỗi audio policy
+    }
+  };
+
+  // Lắng nghe WebSocket thời gian thực (Đơn check-in mới, đặt cọc thành công, tự động làm mới hàng đợi)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('token') || localStorage.getItem('access_token')
+        : null;
+    const socket = io(`${SOCKET_URL}/notifications`, {
+      auth: { token },
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+    });
+
+    socket.on('connect', () => {
+      console.log('⚡ Staff connected to Real-Time WebSocket Gateway');
+      if (currentUser.facilityId) {
+        socket.emit('join_facility', String(currentUser.facilityId));
+      }
+    });
+
+    const handleQueueUpdate = (data: any) => {
+      console.log('⚡ Received real-time queue update event:', data);
+      playNotificationChime();
+      toast.info(data?.title || 'Hàng đợi Check-in vừa cập nhật!', {
+        description: data?.body || 'Dữ liệu hàng đợi đã được tự động làm mới.',
+        duration: 4500,
+      });
+      // Tự động reload danh sách hàng đợi thời gian thực mà không cần F5
+      loadBackendData(false, currentUser.facilityId);
+    };
+
+    socket.on('checkin_queue_updated', handleQueueUpdate);
+    socket.on('facility_event', handleQueueUpdate);
+    socket.on('notification', (notif: any) => {
+      playNotificationChime();
+      if (notif.type === 'RESERVATION' || notif.type === 'PAYMENT' || notif.type === 'HANDOVER') {
+        loadBackendData(false, currentUser.facilityId);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUser, loadBackendData]);
 
   // Đồng bộ ô kho & mã pin khi chọn một cuộc hẹn
   const handleSelectAppointment = (appointment: CheckInAppointment) => {
@@ -692,6 +789,82 @@ export default function StaffPortalPage() {
               <span>Về Hàng Đợi</span>
             </button>
           )}
+
+          {/* Notification Bell with Badge & Dropdown */}
+          <div className="relative" ref={notifRef}>
+            <button
+              type="button"
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className="relative p-2.5 rounded-full text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+              title="Thông báo vận hành"
+              aria-label="Thông báo vận hành"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-white animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {isNotifOpen && (
+              <div className="absolute right-0 mt-2.5 w-84 bg-white rounded-2xl shadow-xl border border-slate-200 p-3 z-50 animate-slide-up-fade">
+                <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
+                  <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Thông Báo Vận Hành ({unreadCount})</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllAsRead()}
+                      className="text-[10px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      Đã đọc tất cả
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 text-xs max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="py-6 text-center text-slate-400 text-xs">
+                      Chưa có thông báo nào
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => !notif.isRead && markAsRead(notif.id)}
+                        className={`p-2.5 rounded-xl border transition-colors cursor-pointer space-y-1 ${
+                          notif.isRead
+                            ? 'bg-slate-50/60 border-slate-100 opacity-75'
+                            : 'bg-blue-50/50 border-blue-200 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1.5 text-[11px]">
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                            {!notif.isRead && (
+                              <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                            )}
+                            {notif.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0">
+                            {new Date(notif.createdAt).toLocaleDateString('vi-VN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-relaxed">
+                          {notif.body}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Staff Auth Button / Avatar Pill */}
           {currentUser ? (

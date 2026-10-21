@@ -23,29 +23,8 @@ export default function ContractModal({
 }: ContractModalProps) {
   const printContentRef = useRef<HTMLDivElement>(null);
   const [isEditable, setIsEditable] = useState(false);
-  const [isRevealedCccd, setIsRevealedCccd] = useState(false);
 
   if (!isOpen || !appointment) return null;
-
-  const rawCccd = appointment.idCard || '079095012345';
-  const maskCccd = (val: string) => {
-    const clean = (val || '').replace(/\s+/g, '');
-    if (clean.length < 6) return clean;
-    return `${clean.slice(0, 3)}******${clean.slice(-3)}`;
-  };
-
-  const handleToggleRevealCccd = () => {
-    const nextState = !isRevealedCccd;
-    setIsRevealedCccd(nextState);
-    if (nextState) {
-      // Layer 3: Ghi Audit Log khi nhân viên bấm mở xem đầy đủ số CCCD
-      handoversApi.logCccdAccess({
-        reservationId: String(appointment.rawId || appointment.id),
-        action: 'VIEW_UNMASKED_CCCD',
-        customerName: appointment.customerName,
-      });
-    }
-  };
 
   const finalUnit = assignedUnit || appointment.assignedUnit;
   const contractNumber = appointment.contractCode || `SS-HĐ-${(appointment.id || '').replace(/[^a-zA-Z0-9]/g, '')}/2026`;
@@ -58,13 +37,6 @@ export default function ContractModal({
 
   // Hàm in / xuất file PDF chuẩn A4 văn bản pháp lý (dùng hidden iframe chống chặn pop-up)
   const handlePrintPdf = (asDownload: boolean = false) => {
-    // Layer 3: Ghi Audit Log khi nhân viên xuất in Hợp đồng chứa đầy đủ số CCCD
-    handoversApi.logCccdAccess({
-      reservationId: String(appointment.rawId || appointment.id),
-      action: 'PRINT_CONTRACT_WITH_CCCD',
-      customerName: appointment.customerName,
-    });
-
     const contentHtml = printContentRef.current?.innerHTML || '';
     if (!contentHtml) return;
 
@@ -131,9 +103,6 @@ export default function ContractModal({
               break-inside: avoid;
               page-break-inside: avoid;
             }
-            .print-only-full-cccd { display: inline !important; }
-            .screen-masked-cccd { display: none !important; }
-            .cccd-toggle-btn { display: none !important; }
             @media print {
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
@@ -308,20 +277,10 @@ export default function ContractModal({
                   <strong className="text-slate-950 text-sm">{appointment.customerName}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-500">Số CCCD / Định danh cá nhân: </span>
-                  <span className="screen-masked-cccd font-bold text-slate-900 font-mono tracking-wide">
-                    {isRevealedCccd ? rawCccd : maskCccd(rawCccd)}
+                  <span className="text-slate-500">Mã đặt chỗ / Định danh hồ sơ: </span>
+                  <span className="font-bold text-slate-900 font-mono tracking-wide">
+                    {appointment.reservationCode || appointment.id}
                   </span>
-                  <span className="print-only-full-cccd hidden font-bold text-slate-900 font-mono">
-                    {rawCccd}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleToggleRevealCccd}
-                    className="cccd-toggle-btn ml-2.5 px-2 py-0.5 rounded text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer"
-                  >
-                    {isRevealedCccd ? 'Ẩn số CCCD' : 'Hiện đầy đủ'}
-                  </button>
                 </div>
                 <div>
                   <span className="text-slate-500">Số điện thoại liên hệ: </span>

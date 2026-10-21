@@ -7,7 +7,8 @@ export interface CheckInAppointment {
   customerName: string;
   phone: string;
   email: string;
-  idCard: string;
+  idCard?: string;
+  reservationCode?: string;
   slotTime: string; // "08:30 SA", "09:00 SA", v.v.
   dateDisplay?: string; // "Hôm nay", "Ngày mai (05/10)", hoặc "05/10/2026"
   appointmentDateRaw?: string; // ISO date string from BE

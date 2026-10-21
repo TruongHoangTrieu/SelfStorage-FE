@@ -635,7 +635,7 @@ function BookingFlowContent() {
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 font-medium text-left mb-8 flex items-start gap-2.5">
               <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Lưu ý:</strong> Vui lòng mang theo CCCD/Hộ chiếu khi đến nhận kho. Bạn có thể mở khóa và quản lý kho bất kỳ lúc nào tại mục <strong>Kho Của Tôi</strong>.
+                <strong>Lưu ý:</strong> Vui lòng lưu lại <strong>Mã đặt chỗ</strong> và số điện thoại khi đến cơ sở nhận kho. Bạn có thể mở khóa và quản lý kho bất kỳ lúc nào tại mục <strong>Kho Của Tôi</strong>.
               </span>
             </div>
 

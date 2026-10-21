@@ -55,8 +55,14 @@ export function useNotifications(userId?: string | number | null) {
 
     fetchNotifications();
 
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('token') || localStorage.getItem('access_token')
+        : null;
+
     // Initialize socket connection
     const socket = io(`${SOCKET_URL}/notifications`, {
+      auth: { token },
       withCredentials: true,
       transports: ['websocket', 'polling'],
       autoConnect: true,

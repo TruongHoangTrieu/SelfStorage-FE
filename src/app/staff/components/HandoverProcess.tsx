@@ -97,7 +97,7 @@ export default function HandoverProcess({
   const remainingAmount = Math.max(0, totalRent - depositNum);
 
   // Trạng thái các bước
-  const [isCccdVerified, setIsCccdVerified] = useState<boolean>(true);
+  const [isCustomerVerified, setIsCustomerVerified] = useState<boolean>(true);
   const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'cash'>('vietqr');
   const [isRentalPaidLocally, setIsRentalPaidLocally] = useState<boolean>(
     appointment.rentalStatus === 'paid'
@@ -184,8 +184,8 @@ export default function HandoverProcess({
   // Điều hướng tuần tự giữa các bước (chỉ cho phép tiến khi xong bước hiện tại)
   const handleNextStep = () => {
     if (currentStep === 1) {
-      if (!isCccdVerified) {
-        alert('Vui lòng xác nhận đã đối chiếu CCCD/Hộ chiếu của khách trước khi tiếp tục.');
+      if (!isCustomerVerified) {
+        alert('Vui lòng xác nhận thông tin khách hàng trước khi tiếp tục.');
         return;
       }
       setCurrentStep(2);
@@ -213,8 +213,8 @@ export default function HandoverProcess({
   };
 
   const handleAttemptComplete = () => {
-    if (!isCccdVerified) {
-      alert('Vui lòng xác nhận đối chiếu CCCD!');
+    if (!isCustomerVerified) {
+      alert('Vui lòng xác nhận thông tin khách hàng!');
       setCurrentStep(1);
       return;
     }
@@ -232,7 +232,7 @@ export default function HandoverProcess({
   )}&accountName=${encodeURIComponent('SELFSTORAGE VN')}`;
 
   const steps = [
-    { number: 1, label: 'CCCD & Ô kho', desc: 'Đối chiếu CCCD & chọn ô' },
+    { number: 1, label: 'Khách & Ô kho', desc: 'Xác nhận khách & chọn ô' },
     { number: 2, label: 'Hiện trạng kho', desc: 'Kiểm tra ổ khóa & chụp ảnh' },
     { number: 3, label: 'Thu tiền thuê', desc: 'Mã VietQR & Tiền mặt' },
     { number: 4, label: 'Cấp mã PIN', desc: 'Mã mở cửa 24/7 & kích hoạt' },
@@ -343,16 +343,16 @@ export default function HandoverProcess({
 
       {/* ─── NỘI DUNG TỪNG BƯỚC (CHỈ HIỂN THỊ BƯỚC ĐANG CHỌN) ─── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-xs">
-        {/* ================= BƯỚC 1: ĐỐI CHIẾU CCCD & Ô KHO ================= */}
+        {/* ================= BƯỚC 1: XÁC NHẬN KHÁCH HÀNG & Ô KHO ================= */}
         {currentStep === 1 && (
           <div className="space-y-6 animate-fade-in">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-blue-600" />
-                Bước 1: Đối Chiếu CCCD &amp; Xác Nhận Ô Kho
+                Bước 1: Xác Nhận Khách Hàng &amp; Chọn Ô Kho
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Kiểm tra thông tin căn cước của khách hàng và đổi ô kho nếu khách có nhu cầu.
+                Kiểm tra thông tin nhận kho của khách hàng và đổi ô kho nếu khách có nhu cầu.
               </p>
             </div>
 
@@ -363,9 +363,9 @@ export default function HandoverProcess({
                 <span className="font-bold text-slate-900 text-sm">{appointment.customerName}</span>
               </div>
               <div>
-                <span className="text-slate-400 block mb-0.5">Số CCCD / Hộ chiếu:</span>
+                <span className="text-slate-400 block mb-0.5">Mã đặt chỗ / Hồ sơ:</span>
                 <span className="font-bold text-blue-700 text-sm font-mono">
-                  {appointment.idCard || '079095012345'}
+                  {appointment.reservationCode || appointment.id}
                 </span>
               </div>
               <div>
@@ -374,19 +374,19 @@ export default function HandoverProcess({
               </div>
             </div>
 
-            {/* Checkbox đối chiếu CCCD */}
+            {/* Checkbox xác nhận thông tin */}
             <label className="flex items-center gap-3 p-4 rounded-xl border border-blue-200 bg-blue-50/60 cursor-pointer hover:bg-blue-50 transition">
               <input
                 type="checkbox"
-                checked={isCccdVerified}
-                onChange={(e) => setIsCccdVerified(e.target.checked)}
+                checked={isCustomerVerified}
+                onChange={(e) => setIsCustomerVerified(e.target.checked)}
                 className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
               <div className="text-xs">
                 <strong className="text-blue-950 font-bold block">
-                  Đã đối chiếu thông tin với bản gốc CCCD/Hộ chiếu của khách hàng
+                  Đã xác thực thông tin khách hàng (Tên &amp; Số điện thoại)
                 </strong>
-                <span className="text-blue-700">Khách xuất trình giấy tờ hợp lệ, đúng thông tin đăng ký</span>
+                <span className="text-blue-700">Khách hàng đến nhận kho đúng theo thông tin đăng ký</span>
               </div>
             </label>
 
@@ -816,7 +816,7 @@ export default function HandoverProcess({
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                  <Check className="w-4 h-4" /> CCCD đã đối chiếu
+                  <Check className="w-4 h-4" /> Khách hàng đã xác nhận
                 </div>
                 <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
                   <Check className="w-4 h-4" /> Hiện trạng đã kiểm tra

@@ -134,7 +134,7 @@ export default function ContractSignModal({
               </span>
               <p className="font-bold text-slate-800">Khách hàng thuê ngăn kho</p>
               <p>Cơ sở phục vụ: {unit.facilityName}</p>
-              <p>Trạng thái tài khoản: Đã xác thực CCCD & Số điện thoại</p>
+              <p>Trạng thái tài khoản: Đã xác thực Số điện thoại &amp; Email</p>
             </div>
           </div>
 
