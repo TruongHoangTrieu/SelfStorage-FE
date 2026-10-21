@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useNotifications } from "@/lib/useNotifications";
 
 type UserType = {
   id?: number | string;
@@ -37,6 +38,9 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications(user?.id);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifMenuRef = useRef<HTMLDivElement>(null);
@@ -297,42 +301,68 @@ export default function Navbar() {
                   title="Thông báo tài khoản"
                 >
                   <Bell className="w-4 h-4" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-white animate-pulse" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* Notifications Dropdown */}
                 {notificationOpen && (
-                  <div className="absolute right-0 mt-2.5 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 p-3 z-50 animate-slide-up-fade">
+                  <div className="absolute right-0 mt-2.5 w-84 bg-white rounded-2xl shadow-xl border border-slate-100 p-3 z-50 animate-slide-up-fade">
                     <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
                       <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
                         <Bell className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Thông Báo Của Bạn</span>
+                        <span>Thông Báo Của Bạn ({unreadCount})</span>
                       </div>
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                        Hệ thống 24/7
-                      </span>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => markAllAsRead()}
+                          className="text-[10px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                        >
+                          Đã đọc tất cả
+                        </button>
+                      )}
                     </div>
 
-                    <div className="space-y-2 text-xs">
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                        <div className="font-bold text-slate-900 flex items-center gap-1.5 text-[11px]">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Smart Key đã sẵn sàng</span>
+                    <div className="space-y-2 text-xs max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="py-6 text-center text-slate-400 text-xs">
+                          Chưa có thông báo nào
                         </div>
-                        <p className="text-[11px] text-slate-500 leading-relaxed">
-                          Mã số PIN mở khóa cửa kho và cổng điện tử đã được kích hoạt trực tiếp trong mục Quản lý kho.
-                        </p>
-                      </div>
-
-                      <div className="p-2.5 rounded-xl bg-blue-50/50 border border-blue-100 space-y-1">
-                        <div className="font-bold text-blue-900 flex items-center gap-1.5 text-[11px]">
-                          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Hỗ trợ nhận đồ linh hoạt</span>
-                        </div>
-                        <p className="text-[11px] text-blue-700/80 leading-relaxed">
-                          Bạn có thể điều khiển hoặc chia sẻ mã PIN cho người thân qua mục Thẻ Khách (Guest Pass).
-                        </p>
-                      </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            onClick={() => !notif.isRead && markAsRead(notif.id)}
+                            className={`p-2.5 rounded-xl border transition-colors cursor-pointer space-y-1 ${
+                              notif.isRead
+                                ? 'bg-slate-50/60 border-slate-100 opacity-75'
+                                : 'bg-blue-50/40 border-blue-100/80 shadow-2xs'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1.5 text-[11px]">
+                              <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                                {!notif.isRead && (
+                                  <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                                )}
+                                {notif.title}
+                              </span>
+                              <span className="text-[10px] text-slate-400 shrink-0">
+                                {new Date(notif.createdAt).toLocaleDateString('vi-VN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 leading-relaxed">
+                              {notif.body}
+                            </p>
+                          </div>
+                        ))
+                      )}
                     </div>
 
                     <div className="mt-2.5 pt-2 border-t border-slate-100 text-center">
