@@ -611,7 +611,17 @@ export default function StaffPortalPage() {
   };
 
   // Action 2: [ Hoàn tất bàn giao ]
-  const handleCompleteHandover = async (photos?: string[]) => {
+  const handleCompleteHandover = async (
+    photos?: string[],
+    identityData?: {
+      identityNumber?: string;
+      identityType?: string;
+      isIdentityVerified?: boolean;
+      identityAddress?: string;
+      identityFrontUrl?: string;
+      identityBackUrl?: string;
+    },
+  ) => {
     const nowTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const finalUnit = selectedUnitCode || currentAppointment.assignedUnit;
 
@@ -624,6 +634,12 @@ export default function StaffPortalPage() {
           condition: handoverCondition,
           notes: handoverNotes,
           photos: photos || [],
+          identityNumber: identityData?.identityNumber,
+          identityType: identityData?.identityType,
+          identityAddress: identityData?.identityAddress,
+          identityFrontUrl: identityData?.identityFrontUrl,
+          identityBackUrl: identityData?.identityBackUrl,
+          isIdentityVerified: identityData?.isIdentityVerified,
         });
 
         // Lấy mã PIN Smart Lock và mã hợp đồng từ Backend response

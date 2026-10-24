@@ -244,7 +244,12 @@ export function normalizeReservation(item: any): CheckInAppointment {
     customerName: item.customer?.fullName || 'Khách hàng',
     phone: item.customer?.phone || '0900 000 000',
     email: item.customer?.email || 'customer@selfstorage.com',
-    idCard: item.customer?.idCard || '079095012345',
+    idCard: item.customer?.maskedIdentityNumber || item.customer?.identityNumber || item.customer?.idCard || '',
+    identityType: item.customer?.identityType || 'CCCD',
+    isIdentityVerified: item.customer?.isIdentityVerified || false,
+    identityAddress: item.customer?.identityAddress || '',
+    identityFrontUrl: item.customer?.identityFrontUrl || '',
+    identityBackUrl: item.customer?.identityBackUrl || '',
     slotTime,
     dateDisplay,
     appointmentDateRaw: item.appointmentDate,
@@ -467,6 +472,42 @@ export const handoversApi = {
   },
 
   /**
+   * Tải ảnh CCCD bảo mật (Private Authenticated Storage + Watermark chống lạm dụng)
+   */
+  async uploadCccdPhoto(
+    file: File,
+    side: 'front' | 'back',
+    reservationCode?: string,
+  ): Promise<{ url: string; signedUrl: string; public_id: string; expiresAt: number }> {
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('side', side);
+    if (reservationCode) formData.append('reservationCode', reservationCode);
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const res = await fetch('/api/handovers/upload-cccd', {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      // Fallback nếu route upload-cccd chưa được proxy thì dùng upload-photo
+      const fallback = await this.uploadHandoverPhoto(file);
+      return {
+        url: fallback.url,
+        signedUrl: fallback.url,
+        public_id: fallback.public_id,
+        expiresAt: Math.floor(Date.now() / 1000) + 300,
+      };
+    }
+
+    return await res.json();
+  },
+
+  /**
    * Perform Check-in and Handover (Trang B -> Trang C)
    */
   async performCheckIn(payload: {
@@ -474,14 +515,51 @@ export const handoversApi = {
     condition: string;
     notes?: string;
     photos?: string[];
+    identityNumber?: string;
+    identityType?: string;
+    identityAddress?: string;
+    identityFrontUrl?: string;
+    identityBackUrl?: string;
+    isIdentityVerified?: boolean;
   }): Promise<BackendCheckInResponse> {
-    const body = {
+    const body: any = {
       reservationId: String(payload.reservationId),
       condition: payload.condition || 'Kho sạch sẽ, khóa thông minh hoạt động tốt, đã bàn giao mã',
       notes: payload.notes || 'Đã bàn giao mã PIN và hướng dẫn khách sử dụng kho',
       photos: payload.photos || [],
     };
+    if (payload.identityNumber) body.identityNumber = payload.identityNumber;
+    if (payload.identityType) body.identityType = payload.identityType;
+    if (payload.identityAddress) body.identityAddress = payload.identityAddress;
+    if (payload.identityFrontUrl) body.identityFrontUrl = payload.identityFrontUrl;
+    if (payload.identityBackUrl) body.identityBackUrl = payload.identityBackUrl;
+    if (payload.isIdentityVerified !== undefined) body.isIdentityVerified = payload.isIdentityVerified;
+
     return await api.post<BackendCheckInResponse>('/handovers/check-in', body);
+  },
+
+  /**
+   * Mở xem số CCCD/Hộ chiếu đầy đủ và ghi nhận nhật ký hệ thống (Audit Log)
+   */
+  async revealCccd(reservationId: string | number, customerName?: string): Promise<{
+    success: boolean;
+    identityType?: string;
+    identityNumber?: string;
+    identityIssueDate?: string;
+    identityIssuePlace?: string;
+    identityAddress?: string;
+    identityFrontUrl?: string;
+    identityBackUrl?: string;
+  }> {
+    const rawId = typeof reservationId === 'string' && reservationId.startsWith('RSV-')
+      ? reservationId.replace('RSV-', '')
+      : reservationId;
+
+    return await api.post('/handovers/log-cccd-access', {
+      reservationId: String(rawId),
+      action: 'VIEW_UNMASKED_CCCD',
+      customerName,
+    });
   },
 
   /**

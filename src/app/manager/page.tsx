@@ -271,7 +271,17 @@ export default function ManagerPortalPage() {
   };
 
   // Action: Hoàn tất nhận kho
-  const handleCompleteHandover = async () => {
+  const handleCompleteHandover = async (
+    photos?: string[],
+    identityData?: {
+      identityNumber?: string;
+      identityType?: string;
+      isIdentityVerified?: boolean;
+      identityAddress?: string;
+      identityFrontUrl?: string;
+      identityBackUrl?: string;
+    },
+  ) => {
     if (!selectedUnitCode) {
       toast.error('Vui lòng chọn ô kho được cấp cho khách.');
       return;
@@ -291,6 +301,13 @@ export default function ManagerPortalPage() {
           reservationId: currentAppointment.rawId,
           condition: handoverCondition,
           notes: handoverNotes,
+          photos: photos || [],
+          identityNumber: identityData?.identityNumber,
+          identityType: identityData?.identityType,
+          identityAddress: identityData?.identityAddress,
+          identityFrontUrl: identityData?.identityFrontUrl,
+          identityBackUrl: identityData?.identityBackUrl,
+          isIdentityVerified: identityData?.isIdentityVerified,
         });
 
         const backendAccessCode = response.contractItems?.[0]?.accessCode || customPin;

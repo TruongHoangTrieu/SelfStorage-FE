@@ -16,12 +16,13 @@ import {
   Check,
   X,
   Upload,
-  Copy,
   Eye,
-  Building2,
-  Calendar,
-  Sparkles,
+  EyeOff,
   Loader2,
+  CreditCard,
+  AlertCircle,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { CheckInAppointment, AvailableUnit } from '../types';
 import { handoversApi } from '@/lib/api/handovers';
@@ -44,7 +45,17 @@ interface HandoverProcessProps {
   onBackToQueue: () => void;
   onOpenContractModal: () => void;
   onOpenPrintModal: () => void;
-  onCompleteHandover: (photos?: string[]) => void;
+  onCompleteHandover: (
+    photos?: string[],
+    identityData?: {
+      identityNumber?: string;
+      identityType?: string;
+      isIdentityVerified?: boolean;
+      identityAddress?: string;
+      identityFrontUrl?: string;
+      identityBackUrl?: string;
+    },
+  ) => void;
   onOpenRentalPayment?: () => void;
 }
 
@@ -103,6 +114,93 @@ export default function HandoverProcess({
     appointment.rentalStatus === 'paid'
   );
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Identity / CCCD Check states & Photos
+  const [isUnmasked, setIsUnmasked] = useState<boolean>(false);
+  const [unmaskedNumber, setUnmaskedNumber] = useState<string>('');
+  const [isRevealing, setIsRevealing] = useState<boolean>(false);
+  const [manualIdInput, setManualIdInput] = useState<string>('');
+  const [manualIdType, setManualIdType] = useState<string>(appointment.identityType || 'CCCD');
+  const [manualIdAddress, setManualIdAddress] = useState<string>(appointment.identityAddress || '');
+  const [identityFrontUrl, setIdentityFrontUrl] = useState<string>(appointment.identityFrontUrl || '');
+  const [identityBackUrl, setIdentityBackUrl] = useState<string>(appointment.identityBackUrl || '');
+  const [isUploadingFront, setIsUploadingFront] = useState<boolean>(false);
+  const [isUploadingBack, setIsUploadingBack] = useState<boolean>(false);
+  const frontInputRef = useRef<HTMLInputElement>(null);
+  const backInputRef = useRef<HTMLInputElement>(null);
+  const [isIdentityChecked, setIsIdentityChecked] = useState<boolean>(
+    Boolean(appointment.idCard || appointment.isIdentityVerified)
+  );
+
+  const handleUploadFrontPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingFront(true);
+    try {
+      const res = await handoversApi.uploadCccdPhoto(
+        file,
+        'front',
+        appointment.reservationCode || appointment.id,
+      );
+      setIdentityFrontUrl(res.signedUrl || res.url);
+    } catch (err: unknown) {
+      console.warn('Upload front CCCD failed, using fallback preview:', err);
+      setIdentityFrontUrl(URL.createObjectURL(file));
+    } finally {
+      setIsUploadingFront(false);
+      if (frontInputRef.current) frontInputRef.current.value = '';
+    }
+  };
+
+  const handleUploadBackPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingBack(true);
+    try {
+      const res = await handoversApi.uploadCccdPhoto(
+        file,
+        'back',
+        appointment.reservationCode || appointment.id,
+      );
+      setIdentityBackUrl(res.signedUrl || res.url);
+    } catch (err: unknown) {
+      console.warn('Upload back CCCD failed, using fallback preview:', err);
+      setIdentityBackUrl(URL.createObjectURL(file));
+    } finally {
+      setIsUploadingBack(false);
+      if (backInputRef.current) backInputRef.current.value = '';
+    }
+  };
+
+  const handleRevealCccd = async () => {
+    if (isUnmasked) {
+      setIsUnmasked(false);
+      return;
+    }
+    const confirmed = window.confirm(
+      'Hành động xem toàn bộ số CCCD sẽ được ghi lại trong Nhật ký Kiểm toán (Audit Log) theo Nghị định 13/2023/NĐ-CP. Bạn có muốn tiếp tục?'
+    );
+    if (!confirmed) return;
+
+    setIsRevealing(true);
+    try {
+      const res = await handoversApi.revealCccd(appointment.rawId || appointment.id, appointment.customerName);
+      if (res?.identityNumber) {
+        setUnmaskedNumber(res.identityNumber);
+        if (res.identityAddress) setManualIdAddress(res.identityAddress);
+        if (res.identityFrontUrl) setIdentityFrontUrl(res.identityFrontUrl);
+        if (res.identityBackUrl) setIdentityBackUrl(res.identityBackUrl);
+        setIsUnmasked(true);
+      } else {
+        alert('Không tìm thấy thông tin CCCD được lưu trữ của khách hàng');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Thất bại';
+      alert('Lỗi truy xuất CCCD: ' + message);
+    } finally {
+      setIsRevealing(false);
+    }
+  };
 
   // Danh sách ảnh hiện trạng ô kho
   const [photos, setPhotos] = useState([
@@ -222,7 +320,16 @@ export default function HandoverProcess({
       alert('Vui lòng thiết lập mã PIN mở kho tối thiểu 4-6 số!');
       return;
     }
-    onCompleteHandover(photos.map((p) => p.url));
+
+    const finalIdNumber = unmaskedNumber || manualIdInput.trim() || appointment.idCard;
+    onCompleteHandover(photos.map((p) => p.url), {
+      identityNumber: finalIdNumber || undefined,
+      identityType: manualIdType,
+      identityAddress: manualIdAddress.trim() || undefined,
+      identityFrontUrl: identityFrontUrl || undefined,
+      identityBackUrl: identityBackUrl || undefined,
+      isIdentityVerified: isIdentityChecked,
+    });
   };
 
   // Thông tin thanh toán QR chuẩn
@@ -372,6 +479,291 @@ export default function HandoverProcess({
                 <span className="text-slate-400 block mb-0.5">Số điện thoại:</span>
                 <span className="font-bold text-slate-800 text-sm">{appointment.phone}</span>
               </div>
+            </div>
+
+            {/* Khối Xác Thực Định Danh (CCCD / Hộ Chiếu) */}
+            <div className="p-4 rounded-xl bg-indigo-50/40 border border-indigo-200/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-indigo-700" />
+                  <span className="text-xs font-bold text-indigo-950">
+                    Giấy tờ định danh ({appointment.identityType || manualIdType}):
+                  </span>
+                  <span className="font-mono text-xs font-extrabold text-indigo-900 px-2 py-0.5 bg-white rounded border border-indigo-200">
+                    {isUnmasked
+                      ? unmaskedNumber
+                      : appointment.idCard || (manualIdInput ? manualIdInput : 'Chưa cập nhật')}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {appointment.idCard && (
+                    <button
+                      type="button"
+                      disabled={isRevealing}
+                      onClick={handleRevealCccd}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-100 border border-indigo-300 rounded-lg transition cursor-pointer"
+                    >
+                      {isRevealing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                      ) : isUnmasked ? (
+                        <EyeOff className="w-3.5 h-3.5 text-indigo-600" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                      )}
+                      <span>{isUnmasked ? 'Ẩn số CCCD' : 'Xem đầy đủ đối chiếu'}</span>
+                    </button>
+                  )}
+
+                  {appointment.isIdentityVerified ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      Đã xác thực
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      <AlertCircle className="w-3 h-3 text-amber-600" />
+                      Cần đối chiếu bản gốc
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Nhập số giấy tờ và địa chỉ nếu chưa có */}
+              <div className="pt-2 border-t border-indigo-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                    Loại giấy tờ định danh
+                  </label>
+                  <select
+                    value={manualIdType}
+                    onChange={(e) => setManualIdType(e.target.value)}
+                    className="w-full bg-white border border-indigo-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                  >
+                    <option value="CCCD">CCCD (12 số)</option>
+                    <option value="PASSPORT">Hộ chiếu (Passport)</option>
+                    <option value="BUSINESS_LICENSE">Mã số thuế / ĐKKD</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                    Số CCCD / Giấy tờ *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: 079095012345"
+                    value={isUnmasked ? unmaskedNumber : (manualIdInput || appointment.idCard || '')}
+                    onChange={(e) => {
+                      setManualIdInput(e.target.value);
+                      if (isUnmasked) setUnmaskedNumber(e.target.value);
+                    }}
+                    className="w-full bg-white border border-indigo-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-mono font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                    Địa chỉ thường trú theo giấy tờ
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Địa chỉ theo CCCD..."
+                    value={manualIdAddress}
+                    onChange={(e) => setManualIdAddress(e.target.value)}
+                    className="w-full bg-white border border-indigo-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* KHỐI CHỤP ẢNH CCCD 2 MẶT TẠI QUẦY CHECK-IN */}
+              <div className="pt-3 border-t border-indigo-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <Camera className="w-4 h-4 text-indigo-600" />
+                    Chụp / Tải ảnh CCCD 2 mặt của khách (Bắt buộc lập hồ sơ)
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Định dạng ảnh: JPG, PNG • Tự động mã hóa Cloudinary
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Mặt trước CCCD */}
+                  <div className="p-3 bg-white rounded-xl border border-indigo-200/90 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+                        Mặt trước CCCD
+                      </span>
+                      {identityFrontUrl && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          Đã có ảnh
+                        </span>
+                      )}
+                    </div>
+
+                    <input
+                      ref={frontInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleUploadFrontPhoto}
+                      className="hidden"
+                    />
+
+                    {identityFrontUrl ? (
+                      <div className="space-y-2">
+                        <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                          <img
+                            src={identityFrontUrl}
+                            alt="Mặt trước CCCD"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isUploadingFront}
+                            onClick={() => frontInputRef.current?.click()}
+                            className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>Chụp lại / Đổi ảnh</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIdentityFrontUrl('')}
+                            className="p-1.5 rounded-lg text-xs font-medium bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 transition cursor-pointer"
+                            title="Xóa ảnh mặt trước"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isUploadingFront}
+                        onClick={() => frontInputRef.current?.click()}
+                        className="w-full aspect-video rounded-lg border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/30 hover:bg-indigo-50/60 transition flex flex-col items-center justify-center gap-1.5 text-indigo-700 cursor-pointer p-3"
+                      >
+                        {isUploadingFront ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                            <span className="text-xs font-medium">Đang tải ảnh lên Cloudinary...</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-white shadow-xs border border-indigo-100 flex items-center justify-center text-indigo-600">
+                              <Camera className="w-4 h-4" />
+                            </div>
+                            <span className="text-xs font-bold">Chụp / Chọn ảnh mặt trước</span>
+                            <span className="text-[10px] text-slate-500">Chụp rõ số CCCD, hình chân dung</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Mặt sau CCCD */}
+                  <div className="p-3 bg-white rounded-xl border border-indigo-200/90 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+                        Mặt sau CCCD
+                      </span>
+                      {identityBackUrl && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          Đã có ảnh
+                        </span>
+                      )}
+                    </div>
+
+                    <input
+                      ref={backInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleUploadBackPhoto}
+                      className="hidden"
+                    />
+
+                    {identityBackUrl ? (
+                      <div className="space-y-2">
+                        <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                          <img
+                            src={identityBackUrl}
+                            alt="Mặt sau CCCD"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isUploadingBack}
+                            onClick={() => backInputRef.current?.click()}
+                            className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>Chụp lại / Đổi ảnh</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIdentityBackUrl('')}
+                            className="p-1.5 rounded-lg text-xs font-medium bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 transition cursor-pointer"
+                            title="Xóa ảnh mặt sau"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isUploadingBack}
+                        onClick={() => backInputRef.current?.click()}
+                        className="w-full aspect-video rounded-lg border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/30 hover:bg-indigo-50/60 transition flex flex-col items-center justify-center gap-1.5 text-indigo-700 cursor-pointer p-3"
+                      >
+                        {isUploadingBack ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                            <span className="text-xs font-medium">Đang tải ảnh lên Cloudinary...</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-white shadow-xs border border-indigo-100 flex items-center justify-center text-indigo-600">
+                              <Camera className="w-4 h-4" />
+                            </div>
+                            <span className="text-xs font-bold">Chụp / Chọn ảnh mặt sau</span>
+                            <span className="text-[10px] text-slate-500">Chụp rõ đặc điểm nhân dạng & chip</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Ảnh chụp CCCD 2 mặt và số giấy tờ được bảo mật nghiêm ngặt theo Nghị định 13/2023/NĐ-CP, mã hóa lưu trữ phục vụ đối chiếu hợp đồng thuê kho và quản lý an ninh cơ sở.
+                  </p>
+                </div>
+              </div>
+
+              {/* Checkbox đối chiếu giấy tờ định danh */}
+              <label className="flex items-center gap-2.5 pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isIdentityChecked}
+                  onChange={(e) => setIsIdentityChecked(e.target.checked)}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+                <span className="text-xs font-semibold text-indigo-950">
+                  Đã kiểm tra và đối chiếu giấy tờ định danh gốc, chụp đủ 2 mặt CCCD hợp lệ của khách hàng
+                </span>
+              </label>
             </div>
 
             {/* Checkbox xác nhận thông tin */}
@@ -722,7 +1114,7 @@ export default function HandoverProcess({
                 {isRentalPaidLocally ? (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>✓ Đã Thu Đủ {formatVND(remainingAmount)} (Nhấn nếu muốn đổi lại)</span>
+                    <span>Đã Thu Đủ {formatVND(remainingAmount)} (Nhấn nếu muốn đổi lại)</span>
                   </>
                 ) : (
                   <>

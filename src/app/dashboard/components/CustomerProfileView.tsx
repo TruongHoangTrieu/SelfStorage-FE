@@ -54,6 +54,8 @@ export default function CustomerProfileView({
   const [passError, setPassError] = useState<string | null>(null);
   const [passSuccess, setPassSuccess] = useState<string | null>(null);
 
+
+
   // Load fresh profile from GET /auth/me on mount
   useEffect(() => {
     const fetchFreshProfile = async () => {
@@ -64,6 +66,8 @@ export default function CustomerProfileView({
           setPhone(res.phone || '');
           setEmail(res.email || '');
           if (res.createdAt) setCreatedAt(res.createdAt);
+
+
 
           const mappedUser: CustomerUser = {
             id: res.id,
@@ -137,6 +141,8 @@ export default function CustomerProfileView({
       setIsSavingInfo(false);
     }
   };
+
+
 
   // Handle Change Password (PUT /auth/change-password)
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -527,7 +533,7 @@ export default function CustomerProfileView({
         </div>
       </div>
 
-      
+
     </div>
   );
 }
