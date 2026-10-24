@@ -265,6 +265,40 @@ export const customerUnitsApi = {
   },
 
   /**
+   * Fetch access history logs for a specific unit (GET /contracts/:contractId/units/:unitId/access-logs)
+   */
+  async getAccessLogs(contractId: number, unitId: number): Promise<any[]> {
+    try {
+      const res = await api.get(`/contracts/${contractId}/units/${unitId}/access-logs`);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      return list;
+    } catch (e) {
+      console.warn('Could not fetch access-logs from backend, returning empty array', e);
+      return [];
+    }
+  },
+
+  /**
+   * Record a new access log (POST /contracts/:contractId/units/:unitId/access-logs)
+   */
+  async recordAccessLog(
+    contractId: number,
+    unitId: number,
+    data: { accessMethod?: string; status?: string; notes?: string }
+  ): Promise<any> {
+    try {
+      return await api.post(`/contracts/${contractId}/units/${unitId}/access-logs`, {
+        accessMethod: data.accessMethod || 'REMOTE_APP',
+        status: data.status || 'SUCCESS',
+        notes: data.notes || 'Mở khóa từ xa qua Web Dashboard',
+      });
+    } catch (e) {
+      console.warn('Could not record access-log to backend', e);
+      return null;
+    }
+  },
+
+  /**
    * Fetch customer's payments history (GET /payments)
    */
   async fetchPayments(): Promise<PaymentRecord[]> {

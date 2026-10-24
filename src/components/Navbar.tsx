@@ -290,6 +290,22 @@ export default function Navbar() {
               <span className="tabular-nums">028 7770 0117</span>
             </a>
 
+            {/* AI Assistant Trigger Button */}
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-ai-chat"));
+              }}
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 border border-indigo-200 shadow-2xs hover:shadow-indigo-200/50 hover:scale-105 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              title="Nhấn để mở Trợ lý AI tư vấn kích thước kho & chính sách"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
+              <span>Trợ lý AI</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 text-white leading-none">
+                AI
+              </span>
+            </button>
+
             {/* Notification Bell (Visible when logged in) */}
             {hydrated && user && (
               <div className="relative" ref={notifMenuRef}>
@@ -782,6 +798,24 @@ export default function Navbar() {
               {link.label}
             </a>
           ))}
+
+          {/* AI Assistant Mobile Action */}
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              window.dispatchEvent(new CustomEvent("open-ai-chat"));
+            }}
+            className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 text-indigo-900 font-bold text-sm hover:from-blue-100 hover:to-indigo-100 transition shadow-2xs text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
+              <span>Trợ Lý AI Tư Vấn Kho</span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-600 text-white">
+              Gợi ý ngay
+            </span>
+          </button>
 
           {hydrated && isManager && (
             <Link

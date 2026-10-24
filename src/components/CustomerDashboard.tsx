@@ -15,7 +15,8 @@ import {
   LogOut,
   ChevronRight,
   ChevronLeft,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 
 const SIDEBAR_LINKS = [
@@ -312,9 +313,28 @@ export default function CustomerDashboard() {
                       {/* 1. Extend Lease Duration */}
                       <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200 flex flex-col justify-between">
                         <div>
-                          <div className="flex items-center mb-4">
-                            <Clock className="w-5 h-5 text-[#7E22CE] mr-3" />
-                            <h3 className="text-xl font-black text-[#1e1b4b]">Extend Lease</h3>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center">
+                              <Clock className="w-5 h-5 text-[#7E22CE] mr-3" />
+                              <h3 className="text-xl font-black text-[#1e1b4b]">Extend Lease</h3>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                window.dispatchEvent(
+                                  new CustomEvent("open-ai-chat", {
+                                    detail: {
+                                      prompt: `Hợp đồng phòng kho #${selectedUnit?.unit?.unitNumber} của tôi sắp hết hạn, tôi nên gia hạn gói thuê 1, 3, 6 hay 12 tháng để có ưu đãi tốt nhất?`,
+                                    },
+                                  })
+                                )
+                              }
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 transition-all cursor-pointer shadow-2xs"
+                              title="Hỏi Trợ lý AI để gợi ý gói thuê tối ưu bằng Machine Learning"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
+                              <span>AI Gợi Ý Gói</span>
+                            </button>
                           </div>
                           <p className="text-slate-500 text-sm font-medium mb-6">Guaranteed rate lock with immediate digital signature confirmation.</p>
                           

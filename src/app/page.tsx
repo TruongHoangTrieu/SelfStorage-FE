@@ -42,7 +42,9 @@ import {
   Settings,
   AlertCircle,
   TrendingUp,
-  LifeBuoy
+  LifeBuoy,
+  Bot,
+  RotateCcw
 } from "lucide-react";
 
 // Facility API Interface
@@ -240,6 +242,14 @@ export default function LandingPage() {
                     <ArrowRight className="w-5 h-5" />
                   </Link>
                 )}
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-sm sm:text-base font-bold text-indigo-200 hover:text-white bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/40 backdrop-blur shadow-lg shadow-indigo-950/40 transition-all text-center whitespace-nowrap cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  <Sparkles className="w-5 h-5 text-indigo-300 animate-pulse" />
+                  <span>Trợ Lý AI Tư Vấn Kho</span>
+                </button>
                 <a
                   href="tel:02877700117"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-sm sm:text-base font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur transition-all text-center whitespace-nowrap"
@@ -310,6 +320,130 @@ export default function LandingPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* AI ASSISTANT SHOWCASE: 3 SKILLS & ML MODELS */}
+      <section className="py-16 sm:py-20 bg-gradient-to-b from-slate-900 to-slate-950 text-white relative overflow-hidden border-b border-slate-800">
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#6366f1_1px,transparent_1px)] [background-size:20px_20px]" />
+        
+        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                <span>Công Nghệ AI &amp; Machine Learning Độc Quyền</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                Trợ Lý Ảo AI – Tự Động Hóa Toàn Diện Cho Người Thuê Kho
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base max-w-2xl leading-relaxed">
+                Tích hợp 3 kỹ năng chuyên biệt: Tính toán thể tích đồ đạc, hỏi đáp chính sách trích nguồn RAG, và mô hình Machine Learning gợi ý gói thuê tối ưu.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-xs sm:text-sm font-extrabold bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all cursor-pointer shrink-0 self-start md:self-auto hover:scale-105 active:scale-95"
+            >
+              <Bot className="w-4 h-4" />
+              <span>Mở Trợ Lý AI Ngay</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Skill 1 Card */}
+            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-white/[0.07] transition-all flex flex-col justify-between group">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold border border-blue-400/20 group-hover:scale-110 transition-transform">
+                  <Box className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Kỹ Năng 01</span>
+                  <h3 className="text-lg font-bold text-white mt-1">Tư Vấn Cỡ Kho Tự Động</h3>
+                  <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed">
+                    Khách chỉ cần liệt kê đồ (tủ lạnh, nệm, thùng carton...). Hệ thống phân tích qua 120+ đồ mẫu, tự động tính thể tích kèm diện tích lối đi (+18%) và lọc ngay ngăn kho trống.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("open-ai-chat", {
+                      detail: { prompt: "Tôi có 1 tủ lạnh, 20 thùng carton và 1 xe máy, nên thuê kho cỡ nào?" },
+                    })
+                  )
+                }
+                className="mt-5 pt-3 border-t border-white/10 text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>Thử tính thể tích đồ mẫu</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Skill 2 Card */}
+            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-indigo-500/50 hover:bg-white/[0.07] transition-all flex flex-col justify-between group">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold border border-indigo-400/20 group-hover:scale-110 transition-transform">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">Kỹ Năng 02</span>
+                  <h3 className="text-lg font-bold text-white mt-1">Hỏi Đáp Chính Sách (RAG)</h3>
+                  <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed">
+                    Giải đáp chính xác quy định đồ cấm, biểu phí quá hạn, thủ tục hoàn cọc và Smart Key. Trả lời đúng tài liệu nội bộ và trích nguồn rõ ràng, tự động từ chối nội dung ngoài lề.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("open-ai-chat", {
+                      detail: { prompt: "Phí phạt quá hạn hợp đồng và quy định khóa mã PIN được tính thế nào?" },
+                    })
+                  )
+                }
+                className="mt-5 pt-3 border-t border-white/10 text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>Tra cứu biểu phí phạt quá hạn</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Skill 3 Card */}
+            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-500/50 hover:bg-white/[0.07] transition-all flex flex-col justify-between group">
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold border border-emerald-400/20 group-hover:scale-110 transition-transform">
+                  <RotateCcw className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Kỹ Năng 03 (ML Models)</span>
+                  <h3 className="text-lg font-bold text-white mt-1">Gợi Ý Gói Gia Hạn Tối Ưu</h3>
+                  <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed">
+                    Sử dụng 2 mô hình Machine Learning riêng biệt (XGBoost &amp; Random Forest) để dự đoán nhu cầu gia hạn và đề xuất gói thuê 1/3/6/12 tháng có mức chiết khấu tốt nhất.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("open-ai-chat", {
+                      detail: { prompt: "Hợp đồng của tôi sắp hết hạn, tôi nên gia hạn gói thuê mấy tháng?" },
+                    })
+                  )
+                }
+                className="mt-5 pt-3 border-t border-white/10 text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <span>Tư vấn kỳ hạn gia hạn hợp đồng</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>

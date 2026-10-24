@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Calendar,
   Clock,
@@ -18,7 +18,12 @@ import {
   Key,
   ShieldAlert,
   UserCheck,
+  Sparkles,
+  Loader2,
+  Bot,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { aiApi } from '@/lib/api/ai';
 import { ManagerTab } from '../types';
 
 interface ManagerOverviewDashboardProps {
@@ -40,6 +45,23 @@ export default function ManagerOverviewDashboard({
   pendingCheckInsCount,
   pendingRenewalsCount,
 }: ManagerOverviewDashboardProps) {
+  const [isRunningAi, setIsRunningAi] = useState(false);
+
+  const handleRunAiPrediction = async () => {
+    try {
+      setIsRunningAi(true);
+      toast.info("Đang khởi chạy mô hình AI (Model A: XGBoost, Model B: RandomForest)...");
+      const res = await aiApi.predictRenewals(14);
+      toast.success(
+        `Hoàn tất quét AI: Đã phân tích ${res.total_processed} hợp đồng, lưu ${res.saved_to_db} bản ghi dự đoán vào hệ thống!`
+      );
+    } catch (err: any) {
+      toast.error(`Không thể chạy dự đoán AI: ${err.message || 'Lỗi kết nối máy chủ AI'}`);
+    } finally {
+      setIsRunningAi(false);
+    }
+  };
+
   const displayRole = managerRole === 'BUSINESS_OPERATIONS_MANAGER'
     ? 'Quản Lý Chuỗi Vận Hành'
     : 'Quản Lý Chi Nhánh';
@@ -66,6 +88,20 @@ export default function ManagerOverviewDashboard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              disabled={isRunningAi}
+              onClick={handleRunAiPrediction}
+              className="px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl shadow-md shadow-purple-600/30 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              title="Kích hoạt quét hợp đồng sắp hết hạn và chấm điểm gia hạn bằng AI Model A & B"
+            >
+              {isRunningAi ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+              )}
+              <span>{isRunningAi ? "AI Đang Quét..." : "AI Dự Đoán Gia Hạn"}</span>
+            </button>
             <button
               type="button"
               onClick={() => onNavigateTab('facility')}

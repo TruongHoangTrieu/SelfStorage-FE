@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Boxes,
   Plus,
+  PlusCircle,
   Pencil,
   Trash2,
   Building2,
@@ -98,7 +99,7 @@ export default function UnitTypesPricingManager({
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal State
+  // Modal State (Create / Edit Unit Type)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<UnitTypeItem | null>(null);
   const [formData, setFormData] = useState({
@@ -110,8 +111,17 @@ export default function UnitTypesPricingManager({
     price: 1500000,
     depositAmount: 1500000,
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
+    initialUnitsCount: 0,
+    initialUnitsFloor: '1',
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Modal State (Add Units Modal - Tăng số lượng ô kho trống)
+  const [addUnitsItem, setAddUnitsItem] = useState<UnitTypeItem | null>(null);
+  const [addUnitsCount, setAddUnitsCount] = useState<number>(2);
+  const [addUnitsFloor, setAddUnitsFloor] = useState<string>('1');
+  const [addUnitsPrefix, setAddUnitsPrefix] = useState<string>('');
+  const [isSubmittingUnits, setIsSubmittingUnits] = useState<boolean>(false);
 
   // Delete Confirm Modal
   const [deletingItem, setDeletingItem] = useState<UnitTypeItem | null>(null);
@@ -200,6 +210,8 @@ export default function UnitTypesPricingManager({
       price: 1600000,
       depositAmount: 1500000,
       status: 'ACTIVE',
+      initialUnitsCount: 2, // Gợi ý khởi tạo sẵn 2 ô trống khi tạo loại kho mới
+      initialUnitsFloor: '1',
     });
     setIsModalOpen(true);
   };
@@ -231,8 +243,90 @@ export default function UnitTypesPricingManager({
       price: Number(item.price || item.depositAmount),
       depositAmount: Number(item.depositAmount),
       status: item.status,
+      initialUnitsCount: 0,
+      initialUnitsFloor: '1',
     });
     setIsModalOpen(true);
+  };
+
+  // Mở modal tăng số lượng ô kho trống cho một loại kho
+  const openAddUnitsModal = (item: UnitTypeItem) => {
+    if (!canEditPricing) {
+      toast.error('Chỉ có vai trò Quản lý cơ sở hoặc Admin mới có quyền tăng số lượng ô kho.');
+      return;
+    }
+    setAddUnitsItem(item);
+    setAddUnitsCount(2);
+    setAddUnitsFloor('1');
+    const cleanPrefix = (item.code || '').replace(/^TYPE_/i, '').trim();
+    setAddUnitsPrefix(cleanPrefix || item.code || 'UNIT');
+  };
+
+  // Thực thi tạo thêm ô kho trống qua API /storage-units
+  const handleCreateUnitsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addUnitsItem) return;
+    if (addUnitsCount <= 0) {
+      toast.error('Số lượng ô kho cần tạo phải lớn hơn 0');
+      return;
+    }
+
+    const targetFacilityId = addUnitsItem.facilityId || selectedFacilityId;
+    if (!targetFacilityId) {
+      toast.error('Không tìm thấy cơ sở phân công để thêm ô kho.');
+      return;
+    }
+
+    setIsSubmittingUnits(true);
+    let successCount = 0;
+    const prefix = (addUnitsPrefix.trim() || addUnitsItem.code || 'UNIT').toUpperCase();
+    const startIndex = (addUnitsItem.totalUnits || 0) + 1;
+
+    try {
+      for (let i = 0; i < addUnitsCount; i++) {
+        const numIndex = startIndex + i;
+        const unitNumber = `${prefix}-${String(numIndex).padStart(2, '0')}`;
+
+        try {
+          await api.post('/storage-units', {
+            facilityId: String(targetFacilityId),
+            unitTypeId: String(addUnitsItem.id),
+            unitNumber,
+            floor: addUnitsFloor.trim() || '1',
+            status: 'AVAILABLE',
+            condition: 'Mới 100%, sạch sẽ, sẵn sàng bàn giao',
+          });
+          successCount++;
+        } catch (err: any) {
+          console.warn(`Lỗi tạo ô ${unitNumber}:`, err);
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(
+          `Đã tạo thành công ${successCount} ô kho trống mới cho loại kho "${addUnitsItem.name}"!`,
+        );
+        // Cập nhật ngay trên bảng (Optimistic)
+        setUnitTypes((prev) =>
+          prev.map((u) => {
+            if (String(u.id) === String(addUnitsItem.id)) {
+              return {
+                ...u,
+                availableUnits: (u.availableUnits || 0) + successCount,
+                totalUnits: (u.totalUnits || 0) + successCount,
+              };
+            }
+            return u;
+          }),
+        );
+        loadUnitTypes();
+        setAddUnitsItem(null);
+      } else {
+        toast.error('Không thể tạo ô kho mới. Vui lòng kiểm tra lại quyền hạn hoặc mã phòng.');
+      }
+    } finally {
+      setIsSubmittingUnits(false);
+    }
   };
 
   const handleSubmitForm = async (e: React.FormEvent) => {
@@ -259,6 +353,8 @@ export default function UnitTypesPricingManager({
 
     setSubmitting(true);
     try {
+      let unitTypeId = editingItem ? editingItem.id : null;
+
       if (editingItem) {
         // UPDATE PATCH
         await api.patch(`/storage-unit-types/${editingItem.id}`, {
@@ -274,7 +370,7 @@ export default function UnitTypesPricingManager({
         toast.success(`Đã cập nhật bảng giá loại kho "${formData.name}" thành công!`);
       } else {
         // CREATE POST
-        await api.post('/storage-unit-types', {
+        const createRes = await api.post('/storage-unit-types', {
           facilityId: targetFacilityId,
           name: formData.name.trim(),
           code: formData.code.trim().toUpperCase(),
@@ -285,7 +381,36 @@ export default function UnitTypesPricingManager({
           depositAmount: Number(formData.depositAmount),
           status: formData.status,
         });
+        unitTypeId = createRes?.id || createRes?.data?.id;
         toast.success(`Đã tạo loại ngăn kho mới "${formData.name}" thành công!`);
+      }
+
+      // Khởi tạo thêm các ô kho trống nếu người dùng có nhập initialUnitsCount > 0
+      if (unitTypeId && formData.initialUnitsCount > 0) {
+        const count = Number(formData.initialUnitsCount);
+        const prefix = (formData.code.trim() || 'UNIT').toUpperCase();
+        const floor = formData.initialUnitsFloor.trim() || '1';
+        let createdUnits = 0;
+
+        for (let i = 1; i <= count; i++) {
+          const unitNumber = `${prefix}-${String(i).padStart(2, '0')}`;
+          try {
+            await api.post('/storage-units', {
+              facilityId: String(targetFacilityId),
+              unitTypeId: String(unitTypeId),
+              unitNumber,
+              floor,
+              status: 'AVAILABLE',
+              condition: 'Mới 100%, sẵn sàng cho thuê',
+            });
+            createdUnits++;
+          } catch (unitErr) {
+            console.warn(`Lỗi tạo ô ${unitNumber}:`, unitErr);
+          }
+        }
+        if (createdUnits > 0) {
+          toast.success(`Đã khởi tạo ${createdUnits} ô kho trống sẵn sàng cho thuê!`);
+        }
       }
 
       setIsModalOpen(false);
@@ -495,26 +620,31 @@ export default function UnitTypesPricingManager({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[1080px] text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-500">
-                  <th className="py-4 px-6">Loại Ngăn Kho &amp; Mã</th>
-                  <th className="py-4 px-4">Quy Cách (Diện Tích)</th>
-                  <th className="py-4 px-4">
-                    <div className="flex items-center gap-1.5 text-blue-600">
-                      <Coins className="w-3.5 h-3.5" />
+                <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="py-4 px-6 min-w-[320px]">Loại Ngăn Kho &amp; Mã</th>
+                  <th className="py-4 px-4 whitespace-nowrap">Quy Cách</th>
+                  <th className="py-4 px-5 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 text-slate-600 font-bold">
+                      <Coins className="w-3.5 h-3.5 text-blue-500" />
                       <span>Giá Thuê / Tháng</span>
                     </div>
                   </th>
-                  <th className="py-4 px-4">
-                    <div className="flex items-center gap-1.5 text-amber-600">
-                      <ShieldCheck className="w-3.5 h-3.5" />
+                  <th className="py-4 px-5 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 text-slate-600 font-bold">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
                       <span>Tiền Cọc Tiêu Chuẩn</span>
                     </div>
                   </th>
-                  <th className="py-4 px-4">Ô Kho (Trống / Tổng)</th>
-                  <th className="py-4 px-4">Trạng Thái</th>
-                  <th className="py-4 px-6 text-right">Thao Tác</th>
+                  <th className="py-4 px-5 whitespace-nowrap min-w-[240px]">
+                    <div className="flex items-center gap-1.5 text-slate-600 font-bold">
+                      <Boxes className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Ô Kho (Trống / Tổng)</span>
+                    </div>
+                  </th>
+                  <th className="py-4 px-4 whitespace-nowrap text-center">Trạng Thái</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -526,20 +656,20 @@ export default function UnitTypesPricingManager({
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-slate-50/70 transition-colors"
+                      className="hover:bg-slate-50/70 transition-colors group"
                     >
                       {/* Name & Code */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100 shrink-0">
-                            <Boxes className="w-4 h-4 text-orange-600" />
+                      <td className="py-4 px-6 min-w-[320px]">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200/60 shrink-0 shadow-2xs">
+                            <Boxes className="w-5 h-5 text-amber-600" />
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-900 text-sm leading-snug">
                                 {item.name}
                               </span>
-                              <span className="px-2 py-0.5 text-[10px] font-black rounded-md bg-slate-100 text-slate-600 uppercase border border-slate-200">
+                              <span className="px-2 py-0.5 text-[10px] font-bold font-mono rounded-md bg-slate-100 text-slate-600 uppercase border border-slate-200 shrink-0">
                                 {item.code}
                               </span>
                             </div>
@@ -553,62 +683,91 @@ export default function UnitTypesPricingManager({
                       </td>
 
                       {/* Size */}
-                      <td className="py-4 px-4 font-semibold text-slate-700">
-                        <span className="inline-flex items-center gap-1">
+                      <td className="py-4 px-4 font-semibold text-slate-700 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/80 border border-slate-200/80 text-xs text-slate-700">
                           <Tag className="w-3 h-3 text-slate-400" />
-                          <span>{item.size} {item.sizeUnit}</span>
+                          <span>
+                            {item.size} {item.sizeUnit === 'm2' ? 'm²' : item.sizeUnit === 'm3' ? 'm³' : item.sizeUnit}
+                          </span>
                         </span>
                       </td>
 
                       {/* Rental Price */}
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-5 whitespace-nowrap">
                         <div className="font-black text-blue-600 tabular-nums text-sm sm:text-base">
-                          {rentalPrice.toLocaleString('vi-VN')} đ
+                          {rentalPrice.toLocaleString('vi-VN')} ₫
                         </div>
-                        <div className="text-[10px] text-slate-400 font-semibold">
+                        <div className="text-[10px] text-slate-400 font-medium">
                           / tháng
                         </div>
                       </td>
 
                       {/* Deposit Amount */}
-                      <td className="py-4 px-4">
-                        <div className="font-bold text-amber-700 tabular-nums">
-                          {deposit.toLocaleString('vi-VN')} đ
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <div className="font-bold text-slate-800 tabular-nums text-sm sm:text-base">
+                          {deposit.toLocaleString('vi-VN')} ₫
                         </div>
-                        {isPriceDifferent && (
-                          <div className="text-[10px] text-emerald-600 font-semibold">
-                            Khác giá thuê
+                        {isPriceDifferent ? (
+                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 mt-0.5">
+                            <span>Khác giá thuê</span>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                            Bằng giá thuê
                           </div>
                         )}
                       </td>
 
-                      {/* Availability Count */}
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`font-black tabular-nums ${
-                              item.availableUnits > 0
-                                ? 'text-emerald-600'
-                                : 'text-rose-500'
-                            }`}
-                          >
-                            {item.availableUnits}
-                          </span>
-                          <span className="text-slate-400 text-xs">
-                            / {item.totalUnits} ô
-                          </span>
+                      {/* Availability Count (Refined Pill Layout with Progress Bar) */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <div className="inline-flex items-center gap-3">
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/90 shadow-2xs">
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${
+                                item.availableUnits > 0
+                                  ? 'bg-emerald-500 ring-4 ring-emerald-500/20'
+                                  : 'bg-rose-500 ring-4 ring-rose-500/20'
+                              }`}
+                            />
+                            <div className="flex items-baseline gap-1 whitespace-nowrap">
+                              <span
+                                className={`font-black tabular-nums text-sm ${
+                                  item.availableUnits > 0
+                                    ? 'text-emerald-600'
+                                    : 'text-rose-500'
+                                }`}
+                              >
+                                {item.availableUnits}
+                              </span>
+                              <span className="text-slate-400 font-medium text-xs">
+                                /{item.totalUnits} ô trống
+                              </span>
+                            </div>
+                          </div>
+
+                          {canEditPricing && (
+                            <button
+                              type="button"
+                              onClick={() => openAddUnitsModal(item)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-300/80 rounded-xl shadow-2xs transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
+                              title="Tăng số lượng ô kho trống"
+                            >
+                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                              <span>Thêm ô</span>
+                            </button>
+                          )}
                         </div>
                       </td>
 
                       {/* Status */}
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 whitespace-nowrap text-center">
                         {item.status === 'ACTIVE' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Đang hoạt động
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                             Tạm ngưng
                           </span>
@@ -616,13 +775,13 @@ export default function UnitTypesPricingManager({
                       </td>
 
                       {/* Actions */}
-                      <td className="py-4 px-6 text-right">
+                      <td className="py-4 px-6 text-right whitespace-nowrap">
                         {canEditPricing ? (
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="inline-flex items-center justify-end gap-1.5">
                             <button
                               type="button"
                               onClick={() => openEditModal(item)}
-                              className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                              className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition shadow-2xs cursor-pointer"
                               title="Chỉnh sửa loại kho & bảng giá"
                             >
                               <Pencil className="w-4 h-4" />
@@ -630,14 +789,14 @@ export default function UnitTypesPricingManager({
                             <button
                               type="button"
                               onClick={() => setDeletingItem(item)}
-                              className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition shadow-2xs cursor-pointer"
                               title="Xóa loại kho"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-semibold px-2 py-1 rounded bg-slate-100 border border-slate-200">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-semibold px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">
                             <Lock className="w-3 h-3 text-slate-400" />
                             <span>Chỉ xem</span>
                           </span>
@@ -875,6 +1034,83 @@ export default function UnitTypesPricingManager({
                 </div>
               </div>
 
+              {/* KHỞI TẠO / TĂNG SỐ LƯỢNG Ô KHO TRỐNG VẬT LÝ */}
+              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                    <Boxes className="w-4 h-4 text-emerald-600" />
+                    <span>
+                      {editingItem
+                        ? 'Tạo thêm ô kho trống mới ngay (Tùy chọn)'
+                        : 'Khởi tạo số lượng ô kho trống ban đầu'}
+                    </span>
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                    Trạng thái: AVAILABLE (Sẵn sàng)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[11px] font-semibold text-slate-600 block mb-1">
+                      Số lượng ô kho muốn tạo:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formData.initialUnitsCount}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            initialUnitsCount: Math.max(0, parseInt(e.target.value) || 0),
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-black text-emerald-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <div className="flex gap-1 shrink-0">
+                        {[1, 2, 5].map((num) => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                initialUnitsCount: prev.initialUnitsCount + num,
+                              }))
+                            }
+                            className="px-2 py-1.5 bg-white hover:bg-emerald-100 border border-emerald-300 rounded-lg text-xs font-bold text-emerald-800 transition cursor-pointer"
+                          >
+                            +{num}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      {formData.initialUnitsCount > 0
+                        ? `Sẽ tự động tạo ${formData.initialUnitsCount} ô kho dạng [${formData.code || 'MÃ'}-01, ...] ngay sau khi lưu`
+                        : 'Để 0 nếu chưa muốn tạo thêm ô kho vật lý'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[11px] font-semibold text-slate-600 block mb-1">
+                      Vị trí Tầng (Floor):
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="VD: 1, 2, Tầng Trệt..."
+                      value={formData.initialUnitsFloor}
+                      onChange={(e) =>
+                        setFormData({ ...formData, initialUnitsFloor: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Modal Buttons */}
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button
@@ -945,6 +1181,202 @@ export default function UnitTypesPricingManager({
                 <span>Xóa Loại Kho Này</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: TĂNG SỐ LƯỢNG Ô KHO TRỐNG VẬT LÝ CHO LOẠI KHO */}
+      {/* ========================================================================= */}
+      {addUnitsItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-slide-up-fade">
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shrink-0">
+                  <Boxes className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black tracking-tight">
+                    Tăng Số Lượng Ô Kho Trống
+                  </h3>
+                  <p className="text-xs text-emerald-100 mt-0.5">
+                    Cho loại: <strong className="text-white">{addUnitsItem.name}</strong> ({addUnitsItem.code})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddUnitsItem(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleCreateUnitsSubmit} className="p-6 space-y-4 text-xs sm:text-sm">
+              {/* Thẻ tóm tắt thông tin loại kho */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-xs">
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Cơ sở phân công:</span>
+                  <span className="font-bold text-slate-800">
+                    {facilities.find((f) => String(f.id) === String(addUnitsItem.facilityId || selectedFacilityId))?.name || 'Cơ sở hiện tại'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600 pt-1.5 border-t border-slate-200/60">
+                  <span>Hiện có trong cơ sở:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-black text-rose-500 tabular-nums">
+                      {addUnitsItem.availableUnits} ô trống
+                    </span>
+                    <span className="text-slate-400">/ {addUnitsItem.totalUnits} tổng ô</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center text-slate-600 pt-1.5 border-t border-slate-200/60">
+                  <span>Kích thước quy cách:</span>
+                  <span className="font-semibold text-slate-800">
+                    {addUnitsItem.size} {addUnitsItem.sizeUnit}
+                  </span>
+                </div>
+              </div>
+
+              {/* 1. Số lượng ô kho cần tạo thêm */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  Số lượng ô kho muốn tạo thêm: <span className="text-rose-500">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddUnitsCount((prev) => Math.max(1, prev - 1))}
+                    className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-base text-slate-700 flex items-center justify-center transition cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    required
+                    value={addUnitsCount}
+                    onChange={(e) => setAddUnitsCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="flex-1 text-center py-2 bg-slate-50 border border-slate-300 rounded-xl text-base font-black text-emerald-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAddUnitsCount((prev) => Math.min(100, prev + 1))}
+                    className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-base text-slate-700 flex items-center justify-center transition cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Nút chọn nhanh */}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="text-[11px] text-slate-400 font-medium mr-1">Chọn nhanh:</span>
+                  {[1, 2, 5, 10, 20].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setAddUnitsCount(num)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                        addUnitsCount === num
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      +{num} ô
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Cấu hình tiền tố mã ô và Tầng */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Tiền tố mã ô kho:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={addUnitsPrefix}
+                    onChange={(e) => setAddUnitsPrefix(e.target.value.toUpperCase())}
+                    placeholder="VD: F035, MINI..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono uppercase text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Vị trí Tầng (Floor):
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={addUnitsFloor}
+                    onChange={(e) => setAddUnitsFloor(e.target.value)}
+                    placeholder="VD: 1, 2, Tầng Trệt..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* 3. Live Preview danh sách các mã ô kho sẽ sinh tự động */}
+              <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
+                  <span>Xem trước danh sách ô kho sẽ tạo ({addUnitsCount} ô):</span>
+                  <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">
+                    Trạng thái: AVAILABLE
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pt-1">
+                  {Array.from({ length: Math.min(addUnitsCount, 12) }).map((_, idx) => {
+                    const numIndex = (addUnitsItem.totalUnits || 0) + 1 + idx;
+                    const code = `${(addUnitsPrefix || 'UNIT').trim()}-${String(numIndex).padStart(2, '0')}`;
+                    return (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 bg-white border border-emerald-300 rounded-lg text-xs font-mono font-bold text-emerald-800 shadow-2xs"
+                      >
+                        {code}
+                      </span>
+                    );
+                  })}
+                  {addUnitsCount > 12 && (
+                    <span className="px-2 py-1 text-xs font-bold text-emerald-600 self-center">
+                      ... và thêm {addUnitsCount - 12} ô nữa
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-emerald-700 mt-1">
+                  ✓ Các ô kho sau khi tạo sẽ lập tức xuất hiện trên sơ đồ mặt bằng và sẵn sàng cho khách hàng thuê 24/7.
+                </p>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAddUnitsItem(null)}
+                  disabled={isSubmittingUnits}
+                  className="px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingUnits}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/25 transition cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingUnits && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>+ Xác Nhận Tạo {addUnitsCount} Ô Kho Trống</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

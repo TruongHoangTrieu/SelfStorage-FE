@@ -358,11 +358,13 @@ export default function CustomerAccessView({
                     <p className="font-semibold text-slate-800">{log.notes || 'Mở cửa thành công'}</p>
                     <p className="text-[11px] text-slate-400">
                       Phương thức:{' '}
-                      {log.accessMethod === 'PIN_CODE'
-                        ? 'Bàn phím PIN'
-                        : log.accessMethod === 'RFID_CARD'
+                      {String(log.accessMethod || '').toUpperCase().includes('APP') ||
+                      String(log.accessMethod || '').toUpperCase().includes('REMOTE') ||
+                      String(log.accessMethod || '').toUpperCase().includes('WEB')
+                        ? 'Mở từ xa (App)'
+                        : String(log.accessMethod || '').toUpperCase().includes('RFID')
                         ? 'Thẻ từ RFID'
-                        : 'Remote App'}
+                        : 'Bàn phím PIN'}
                     </p>
                   </div>
                 </div>

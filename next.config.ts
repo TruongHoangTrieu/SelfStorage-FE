@@ -10,7 +10,7 @@ import type { NextConfig } from "next";
  * removes CORS from the equation entirely. If you would rather call the backend
  * directly, set NEXT_PUBLIC_API_URL to its full URL in .env.local instead.
  */
-const API_PROXY_TARGET = process.env.API_PROXY_TARGET || "http://localhost:5000";
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET || "http://127.0.0.1:5000";
 
 const nextConfig: NextConfig = {
   async rewrites() {

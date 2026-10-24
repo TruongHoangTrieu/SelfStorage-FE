@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { customerUnitsApi } from '../../../lib/api/customerUnits';
 import {
@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Sliders,
   CheckCircle2,
+  XCircle,
   Lock,
   DoorOpen,
   Send,
@@ -28,8 +29,11 @@ import {
   Check,
   Boxes,
   History,
+  Filter,
+  Smartphone,
+  Radio,
 } from 'lucide-react';
-import { CustomerUnit } from '../types';
+import { CustomerUnit, AccessLog } from '../types';
 import StoredItemsTab from './StoredItemsTab';
 import ContractSignModal from './ContractSignModal';
 
@@ -50,8 +54,8 @@ export default function UnitDetailsView({
   onOpenUpgradeUnit,
   onOpenReportIncident,
 }: UnitDetailsViewProps) {
-  // Tabs: 'overview' (Tab 1), 'items' (Tab 2 - Flow 3), 'access' (Tab 3), 'history' (Tab 4)
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'items' | 'access' | 'history'>('overview');
+  // Tabs: 'overview' | 'items' | 'access' | 'logs' | 'history' (Flow 3)
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'items' | 'access' | 'logs' | 'history'>('overview');
   const [isContractSignOpen, setIsContractSignOpen] = useState(false);
   const [unlockStatus, setUnlockStatus] = useState<'idle' | 'unlocking' | 'unlocked'>('idle');
   const [fetchedPin, setFetchedPin] = useState<string>(unit.mainPin || '682914');
@@ -59,6 +63,81 @@ export default function UnitDetailsView({
   const [newPin, setNewPin] = useState('');
   const [isChangingPin, setIsChangingPin] = useState(false);
   const [pinMessage, setPinMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Access Logs State (Flow 3)
+  const [logs, setLogs] = useState<AccessLog[]>(unit.accessLogs || []);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [methodFilter, setMethodFilter] = useState<'ALL' | 'PIN_CODE' | 'RFID_CARD' | 'REMOTE_APP'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'SUCCESS' | 'DENIED'>('ALL');
+
+  // Helper kiểm tra phương thức ra vào linh hoạt (hỗ trợ cả tiếng Anh lẫn tiếng Việt)
+  const matchesMethod = useCallback(
+    (accessMethod: string = '', filter: 'ALL' | 'PIN_CODE' | 'RFID_CARD' | 'REMOTE_APP'): boolean => {
+      if (filter === 'ALL') return true;
+      const m = String(accessMethod || '').toUpperCase();
+      if (filter === 'REMOTE_APP') {
+        return (
+          m.includes('APP') ||
+          m.includes('REMOTE') ||
+          m.includes('SMART') ||
+          m.includes('WEB') ||
+          m.includes('TỪ XA') ||
+          m.includes('TU XA') ||
+          m.includes('ỨNG DỤNG') ||
+          m.includes('UNG DUNG')
+        );
+      }
+      if (filter === 'RFID_CARD') {
+        return (
+          m.includes('RFID') ||
+          m.includes('THẺ') ||
+          m.includes('THE') ||
+          m.includes('QUẸT') ||
+          m.includes('QUET')
+        );
+      }
+      if (filter === 'PIN_CODE') {
+        return (
+          m.includes('PIN') ||
+          m.includes('MÃ SỐ') ||
+          m.includes('MA SO') ||
+          m.includes('BÀN PHÍM') ||
+          m.includes('BAN PHIM') ||
+          m.includes('MÃ')
+        );
+      }
+      return true;
+    },
+    []
+  );
+
+  const loadAccessLogs = useCallback(async () => {
+    if (!unit.rawContractId || !unit.rawUnitId) return;
+    setLoadingLogs(true);
+    try {
+      const data = await customerUnitsApi.getAccessLogs(unit.rawContractId, unit.rawUnitId);
+      if (Array.isArray(data) && data.length > 0) {
+        setLogs((prev) => {
+          // Gộp các log vừa tạo local (nếu BE chưa kịp đồng bộ)
+          const merged = [...data];
+          for (const p of prev) {
+            if (!merged.some((m) => m.id === p.id)) {
+              merged.push(p);
+            }
+          }
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to load logs', err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }, [unit.rawContractId, unit.rawUnitId]);
+
+  useEffect(() => {
+    loadAccessLogs();
+  }, [loadAccessLogs]);
 
   useEffect(() => {
     async function fetchSmartLock() {
@@ -111,17 +190,59 @@ export default function UnitDetailsView({
   const handleRemoteUnlock = async () => {
     if (unlockStatus === 'unlocking') return;
     setUnlockStatus('unlocking');
+
+    // 1. Tạo bản ghi nhật ký mới ngay lập tức (Optimistic Update)
+    const newLogRecord: AccessLog = {
+      id: Date.now(),
+      contractItemId: unit.rawContractItemId || 1,
+      accessMethod: 'REMOTE_APP',
+      status: 'SUCCESS',
+      notes: `Mở khóa từ xa cho ${unit.unitNumber} qua ứng dụng thành công`,
+      accessedAt: new Date().toISOString(),
+    };
+
+    // Đưa ngay vào state và mảng accessLogs của unit
+    setLogs((prev) => [newLogRecord, ...prev]);
+    if (!unit.accessLogs) unit.accessLogs = [];
+    unit.accessLogs = [newLogRecord, ...unit.accessLogs];
+
     try {
-      // Simulate or send signal to smart lock
-      await new Promise(r => setTimeout(r, 1200));
+      if (unit.rawContractId && unit.rawUnitId) {
+        await customerUnitsApi.recordAccessLog(unit.rawContractId, unit.rawUnitId, {
+          accessMethod: 'REMOTE_APP',
+          status: 'SUCCESS',
+          notes: 'Mở khóa từ xa qua Web Portal thành công',
+        });
+        await loadAccessLogs();
+      } else {
+        await new Promise((r) => setTimeout(r, 800));
+      }
+
       setUnlockStatus('unlocked');
       setTimeout(() => setUnlockStatus('idle'), 5000);
+      toast.success(`Đã mở khóa ô ${unit.unitNumber} từ xa thành công! Lịch sử ra vào đã được cập nhật.`);
     } catch (e) {
       console.error('Unlock failed', e);
       setUnlockStatus('idle');
       toast.error('Không thể kết nối đến Smart Lock. Vui lòng thử lại sau.');
     }
   };
+
+  // Filtered access logs
+  const filteredLogs = logs.filter((log) => {
+    if (!matchesMethod(log.accessMethod, methodFilter)) {
+      return false;
+    }
+    if (statusFilter !== 'ALL') {
+      const status = String(log.status || '').toUpperCase();
+      if (status !== statusFilter) return false;
+    }
+    return true;
+  });
+
+  const countPin = logs.filter((l) => matchesMethod(l.accessMethod, 'PIN_CODE')).length;
+  const countRfid = logs.filter((l) => matchesMethod(l.accessMethod, 'RFID_CARD')).length;
+  const countRemote = logs.filter((l) => matchesMethod(l.accessMethod, 'REMOTE_APP')).length;
 
   return (
     <div className="w-full max-w-[1800px] mx-auto space-y-6 animate-slide-up-fade">
@@ -237,7 +358,24 @@ export default function UnitDetailsView({
           }`}
         >
           <KeyRound className="w-4 h-4" />
-          <span>Khóa Smart Lock & Ra vào</span>
+          <span>Khóa & Mã PIN</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('logs')}
+          className={`pb-3 px-4 text-xs font-semibold transition-all relative whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+            activeSubTab === 'logs'
+              ? 'text-blue-600 border-b-2 border-blue-600 font-bold'
+              : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <History className="w-4 h-4" />
+          <span>Lịch sử ra vào</span>
+          {logs.length > 0 && (
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full">
+              {logs.length}
+            </span>
+          )}
         </button>
 
         <button
@@ -541,53 +679,283 @@ export default function UnitDetailsView({
             )}
           </div>
 
-          {/* Lịch Sử Ra Vào Ô Kho (Access Logs - Flow 3) */}
+          {/* Lịch Sử Ra Vào Gần Nhất (Quick Preview) */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <History className="w-4 h-4 text-blue-600" />
-                  Nhật Ký & Lịch Sử Ra Vào Ô Kho (Access Logs)
+                  Nhật Ký Ra Vào Gần Nhất
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Ghi nhận tự động từng lần mở cửa bằng mã PIN, thẻ từ RFID hoặc điều khiển từ xa qua ứng dụng.
+                  Tự động lưu vết mỗi lần mở cửa khóa thông minh 24/7.
                 </p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-                IoT Realtime Log
-              </span>
+              <button
+                type="button"
+                onClick={() => setActiveSubTab('logs')}
+                className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>Xem toàn bộ lịch sử ({logs.length})</span>
+                <span>→</span>
+              </button>
             </div>
 
-            {(!unit.accessLogs || unit.accessLogs.length === 0) ? (
+            {logs.length === 0 ? (
               <div className="text-center py-6 text-slate-400 text-xs">
                 Chưa có nhật ký ra vào nào được ghi nhận cho ô kho này.
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {unit.accessLogs.map((log) => (
-                  <div key={log.id} className="py-3.5 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
-                        <KeyRound className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-xs text-slate-900 flex items-center gap-2">
-                          <span>{log.accessMethod}</span>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                            {log.status === 'SUCCESS' ? 'Mở cửa thành công' : 'Từ chối'}
-                          </span>
+                {logs.slice(0, 3).map((log) => {
+                  const isSuccess = String(log.status).toUpperCase() === 'SUCCESS';
+                  return (
+                    <div key={log.id} className="py-3 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                          isSuccess ? 'bg-blue-50 text-blue-600' : 'bg-rose-50 text-rose-600'
+                        }`}>
+                          <KeyRound className="w-4 h-4" />
                         </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          {log.notes || 'Khách hàng thao tác trực tiếp tại ổ khóa'}
+                        <div>
+                          <div className="font-bold text-xs text-slate-900 flex items-center gap-2">
+                            <span>{log.accessMethod}</span>
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                isSuccess ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                              }`}
+                            >
+                              {isSuccess ? 'Mở cửa thành công' : 'Từ chối'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            {log.notes || 'Khách hàng thao tác tại ổ khóa'}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="text-right text-[11px] text-slate-400 tabular-nums">
-                      {new Date(log.accessedAt).toLocaleString('vi-VN')}
+                      <div className="text-right text-[11px] text-slate-400 tabular-nums">
+                        {new Date(log.accessedAt).toLocaleString('vi-VN')}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: LỊCH SỬ RA VÀO KHO (FLOW 3 - ACCESS LOGS) */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'logs' && (
+        <div className="space-y-6">
+          {/* Header & Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Tổng Lượt Truy Cập</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">{logs.length}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Ghi nhận từ IoT Hub</div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Mở Khóa Thành Công</span>
+              <div className="text-xl sm:text-2xl font-black text-emerald-600 tabular-nums">
+                {logs.filter((l) => String(l.status).toUpperCase() === 'SUCCESS').length}
+              </div>
+              <div className="text-[11px] text-emerald-600/80 mt-0.5">Hợp lệ & an toàn</div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Mã PIN & Thẻ RFID</span>
+              <div className="text-xl sm:text-2xl font-black text-blue-600 tabular-nums">
+                {countPin + countRfid}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Tại cửa ngăn kho</div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1">Mở Từ Xa (Web/App)</span>
+              <div className="text-xl sm:text-2xl font-black text-indigo-600 tabular-nums">
+                {countRemote}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Lệnh số bảo mật</div>
+            </div>
+          </div>
+
+          {/* Main Logs Table / Card List */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            {/* Toolbar: Filters & Refresh */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mr-1">
+                  <Filter className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Lọc phương thức:</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setMethodFilter('ALL')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer ${
+                    methodFilter === 'ALL'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  Tất cả ({logs.length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMethodFilter('PIN_CODE')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer ${
+                    methodFilter === 'PIN_CODE'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  Mã PIN ({countPin})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMethodFilter('RFID_CARD')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer ${
+                    methodFilter === 'RFID_CARD'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  Thẻ từ RFID ({countRfid})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMethodFilter('REMOTE_APP')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer ${
+                    methodFilter === 'REMOTE_APP'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  Từ xa (App) ({countRemote})
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  aria-label="Lọc theo trạng thái mở khóa"
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="ALL">Tất cả trạng thái</option>
+                  <option value="SUCCESS">Thành công</option>
+                  <option value="DENIED">Từ chối / Sai mã</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={loadAccessLogs}
+                  disabled={loadingLogs}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Làm mới lịch sử từ IoT Hub"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingLogs ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                  <span className="hidden sm:inline">Làm mới</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Logs List Content */}
+            {filteredLogs.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 text-xs">
+                <History className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="font-semibold text-slate-600">Không có nhật ký ra vào phù hợp bộ lọc.</p>
+                <p className="text-slate-400 mt-1">Mọi thao tác mở cửa ô kho thông minh sẽ được ghi nhận tự động tại đây.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {filteredLogs.map((log) => {
+                  const isSuccess = String(log.status).toUpperCase() === 'SUCCESS';
+                  const methodStr = String(log.accessMethod || '').toUpperCase();
+                  
+                  return (
+                    <div
+                      key={log.id}
+                      className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div
+                          className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold shrink-0 shadow-2xs ${
+                            isSuccess
+                              ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                              : 'bg-rose-50 text-rose-600 border border-rose-100'
+                          }`}
+                        >
+                          {methodStr.includes('RFID') ? (
+                            <Radio className="w-5 h-5" />
+                          ) : methodStr.includes('APP') || methodStr.includes('REMOTE') ? (
+                            <Smartphone className="w-5 h-5" />
+                          ) : (
+                            <KeyRound className="w-5 h-5" />
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs sm:text-sm text-slate-900">
+                              {methodStr.includes('APP') || methodStr.includes('REMOTE') || methodStr.includes('WEB') || methodStr.includes('TỪ XA')
+                                ? 'Mở từ xa qua Ứng dụng (App)'
+                                : methodStr.includes('RFID')
+                                ? 'Thẻ từ RFID cảm ứng'
+                                : 'Bàn phím mã PIN cá nhân'}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                isSuccess
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}
+                            >
+                              {isSuccess ? (
+                                <>
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>Thành công</span>
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="w-3 h-3 text-rose-600" />
+                                  <span>Bị từ chối</span>
+                                </>
+                              )}
+                            </span>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span>{log.notes || 'Thao tác trực tiếp tại ổ khóa thông minh'}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-slate-400 font-medium">{unit.unitNumber} ({unit.facilityName})</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-bold text-slate-900 tabular-nums">
+                          {new Date(log.accessedAt).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                          })}
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5 tabular-nums">
+                          {new Date(log.accessedAt).toLocaleDateString('vi-VN')}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
