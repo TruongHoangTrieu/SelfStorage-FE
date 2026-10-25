@@ -91,7 +91,7 @@ export default function StorageUnitScene({
 
     // Up arrows and text
     ctx.fillStyle = '#6b4423';
-    ctx.font = 'bold 16px sans-serif';
+    ctx.font = 'bold 16px Inter, "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillText('STORAGE', 16, 75);
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -442,15 +442,20 @@ export default function StorageUnitScene({
       if (!mount) return;
       const newW = mount.clientWidth;
       const newH = mount.clientHeight;
-      camera.aspect = newW / newH;
-      camera.updateProjectionMatrix();
-      renderer.setSize(newW, newH);
+      if (newW > 0 && newH > 0) {
+        camera.aspect = newW / newH;
+        camera.updateProjectionMatrix();
+        renderer.setSize(newW, newH);
+      }
     };
     window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(() => handleResize());
+    resizeObserver.observe(mount);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       renderer.dispose();
       controls.dispose();
       if (mount) mount.innerHTML = '';
@@ -551,8 +556,8 @@ function createDimensionLabelSprite(text: string, accentColor = '#2563eb'): THRE
   ctx.fill();
   ctx.stroke();
 
-  // Crisp Dark Slate Typography (NO EMOJIS)
-  ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  // Crisp Dark Slate Typography with Project Inter Font
+  ctx.font = 'bold 38px Inter, "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#0f172a';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

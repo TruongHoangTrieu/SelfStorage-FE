@@ -179,7 +179,7 @@ export default function LandingPage() {
       <Navbar />
 
       {/* 1. HERO SECTION */}
-      <section className="relative pt-28 sm:pt-36 pb-20 sm:pb-28 overflow-hidden bg-gradient-to-b from-slate-900 via-blue-950 to-slate-900 text-white">
+      <section className="relative pt-28 sm:pt-36 pb-16 sm:pb-20 overflow-hidden bg-gradient-to-b from-slate-900 via-blue-950 to-slate-900 text-white">
         {/* Decorative Background Grid */}
         <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:28px_28px] pointer-events-none"></div>
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-blue-500/20 rounded-full blur-[180px] pointer-events-none"></div>
@@ -326,21 +326,21 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* AI ASSISTANT SHOWCASE: 3 SKILLS & ML MODELS */}
-      <section className="py-16 sm:py-20 bg-gradient-to-b from-slate-900 to-slate-950 text-white relative overflow-hidden border-b border-slate-800">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#6366f1_1px,transparent_1px)] [background-size:20px_20px]" />
+      {/* AI ASSISTANT SHOWCASE: 3 SKILLS & ML MODELS (CLEAN WHITE THEME) */}
+      <section className="py-16 sm:py-20 bg-white relative overflow-hidden border-b border-slate-200/80">
+        <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]" />
         
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16 relative z-10">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 sm:mb-12 gap-6">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
                 <span>Công Nghệ AI &amp; Machine Learning Độc Quyền</span>
               </div>
-              <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
                 Trợ Lý Ảo AI – Tự Động Hóa Toàn Diện Cho Người Thuê Kho
               </h2>
-              <p className="text-slate-400 text-sm sm:text-base max-w-2xl leading-relaxed">
+              <p className="text-slate-600 text-sm sm:text-base max-w-2xl leading-relaxed font-medium">
                 Tích hợp 3 kỹ năng chuyên biệt: Tính toán thể tích đồ đạc, hỏi đáp chính sách trích nguồn RAG, và mô hình Machine Learning gợi ý gói thuê tối ưu.
               </p>
             </div>
@@ -348,7 +348,7 @@ export default function LandingPage() {
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent("open-ai-chat"))}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-xs sm:text-sm font-extrabold bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all cursor-pointer shrink-0 self-start md:self-auto hover:scale-105 active:scale-95"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-xs sm:text-sm font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all cursor-pointer shrink-0 self-start md:self-auto hover:scale-105 active:scale-95"
             >
               <Bot className="w-4 h-4" />
               <span>Mở Trợ Lý AI Ngay</span>
@@ -358,15 +358,15 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-3 gap-6">
             {/* Skill 1 Card */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-white/[0.07] transition-all flex flex-col justify-between group">
+            <div className="p-6 rounded-2xl bg-slate-50/80 hover:bg-white border border-slate-200/80 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-500/5 transition-all flex flex-col justify-between group">
               <div className="space-y-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold border border-blue-400/20 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold border border-blue-200 group-hover:scale-110 transition-transform shadow-2xs">
                   <Box className="w-6 h-6" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Kỹ Năng 01</span>
-                  <h3 className="text-lg font-bold text-white mt-1">Tư Vấn Cỡ Kho Tự Động</h3>
-                  <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed">
+                  
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors mt-1">Tư Vấn Cỡ Kho Tự Động</h3>
+                  <p className="mt-2 text-slate-600 text-xs sm:text-sm leading-relaxed">
                     Khách chỉ cần liệt kê đồ (tủ lạnh, nệm, thùng carton...). Hệ thống phân tích qua 120+ đồ mẫu, tự động tính thể tích kèm diện tích lối đi (+18%) và lọc ngay ngăn kho trống.
                   </p>
                 </div>
@@ -380,7 +380,7 @@ export default function LandingPage() {
                     })
                   )
                 }
-                className="mt-5 pt-3 border-t border-white/10 text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center justify-between transition-colors cursor-pointer"
+                className="mt-5 pt-3 border-t border-slate-200 text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center justify-between transition-colors cursor-pointer"
               >
                 <span>Thử tính thể tích đồ mẫu</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -388,15 +388,15 @@ export default function LandingPage() {
             </div>
 
             {/* Skill 2 Card */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-indigo-500/50 hover:bg-white/[0.07] transition-all flex flex-col justify-between group">
+            <div className="p-6 rounded-2xl bg-slate-50/80 hover:bg-white border border-slate-200/80 hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-500/5 transition-all flex flex-col justify-between group">
               <div className="space-y-4">
-                <div className="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold border border-indigo-400/20 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold border border-indigo-200 group-hover:scale-110 transition-transform shadow-2xs">
                   <FileText className="w-6 h-6" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">Kỹ Năng 02</span>
-                  <h3 className="text-lg font-bold text-white mt-1">Hỏi Đáp Chính Sách (RAG)</h3>
-                  <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed">
+              
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors mt-1">Hỏi Đáp Chính Sách (RAG)</h3>
+                  <p className="mt-2 text-slate-600 text-xs sm:text-sm leading-relaxed">
                     Giải đáp chính xác quy định đồ cấm, biểu phí quá hạn, thủ tục hoàn cọc và Smart Key. Trả lời đúng tài liệu nội bộ và trích nguồn rõ ràng, tự động từ chối nội dung ngoài lề.
                   </p>
                 </div>
@@ -410,7 +410,7 @@ export default function LandingPage() {
                     })
                   )
                 }
-                className="mt-5 pt-3 border-t border-white/10 text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center justify-between transition-colors cursor-pointer"
+                className="mt-5 pt-3 border-t border-slate-200 text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center justify-between transition-colors cursor-pointer"
               >
                 <span>Tra cứu biểu phí phạt quá hạn</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -418,15 +418,15 @@ export default function LandingPage() {
             </div>
 
             {/* Skill 3 Card */}
-            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-500/50 hover:bg-white/[0.07] transition-all flex flex-col justify-between group">
+            <div className="p-6 rounded-2xl bg-slate-50/80 hover:bg-white border border-slate-200/80 hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-500/5 transition-all flex flex-col justify-between group">
               <div className="space-y-4">
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold border border-emerald-400/20 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold border border-emerald-200 group-hover:scale-110 transition-transform shadow-2xs">
                   <RotateCcw className="w-6 h-6" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Kỹ Năng 03 (ML Models)</span>
-                  <h3 className="text-lg font-bold text-white mt-1">Gợi Ý Gói Gia Hạn Tối Ưu</h3>
-                  <p className="mt-2 text-slate-300 text-xs sm:text-sm leading-relaxed">
+      
+                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors mt-1">Gợi Ý Gói Gia Hạn Tối Ưu</h3>
+                  <p className="mt-2 text-slate-600 text-xs sm:text-sm leading-relaxed">
                     Sử dụng 2 mô hình Machine Learning riêng biệt (XGBoost &amp; Random Forest) để dự đoán nhu cầu gia hạn và đề xuất gói thuê 1/3/6/12 tháng có mức chiết khấu tốt nhất.
                   </p>
                 </div>
@@ -440,7 +440,7 @@ export default function LandingPage() {
                     })
                   )
                 }
-                className="mt-5 pt-3 border-t border-white/10 text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center justify-between transition-colors cursor-pointer"
+                className="mt-5 pt-3 border-t border-slate-200 text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center justify-between transition-colors cursor-pointer"
               >
                 <span>Tư vấn kỳ hạn gia hạn hợp đồng</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -454,9 +454,9 @@ export default function LandingPage() {
       <Storage3DShowcaseSection />
 
       {/* 2. CUSTOMER JOURNEY: 6-STEP SELF-STORAGE FLOW */}
-      <section id="services" className="py-20 sm:py-28 bg-white border-b border-slate-200">
+      <section id="services" className="py-16 sm:py-20 bg-white border-b border-slate-200">
         <div id="how-it-works" className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
-          <div className="w-full mb-12 sm:mb-16">
+          <div className="w-full mb-10 sm:mb-12">
             
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Quy Trình  Thuê Kho Tự Quản 100% Khép Kín &amp; Tự Động
@@ -578,10 +578,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 4. DYNAMIC FACILITY LOCATIONS FROM API */}
-      <section id="locations" className="py-20 sm:py-28 bg-white border-b border-slate-200">
+      {/* 4. DYNAMIC FACILITY LOCATIONS FROM API (XÁM) */}
+      <section id="locations" className="py-16 sm:py-20 bg-slate-50/70 border-b border-slate-200/80">
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
-          <div className="w-full mb-12 sm:mb-16">
+          <div className="w-full mb-10 sm:mb-12">
             
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Hệ Thống Cơ Sở Kho Tự Quản
@@ -593,12 +593,12 @@ export default function LandingPage() {
 
           {/* Dynamic API Rendering */}
           {facilitiesLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-slate-50 rounded-3xl border border-slate-200">
+            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-3xl border border-slate-200/90 shadow-sm">
               <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
               <p className="text-slate-600 font-semibold text-sm">Đang tải danh sách cơ sở kho từ hệ thống...</p>
             </div>
           ) : facilitiesError ? (
-            <div className="p-8 text-center bg-slate-50 rounded-3xl border border-rose-200 text-slate-700">
+            <div className="p-8 text-center bg-white rounded-3xl border border-rose-200 shadow-sm text-slate-700">
               <p className="text-rose-600 font-bold mb-3">{facilitiesError}</p>
               <button
                 onClick={loadFacilities}
@@ -608,7 +608,7 @@ export default function LandingPage() {
               </button>
             </div>
           ) : facilities.length === 0 ? (
-            <div className="p-12 text-center bg-slate-50 rounded-3xl border border-slate-200">
+            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/90 shadow-sm">
               <p className="text-slate-600 font-semibold">Chưa có cơ sở kho nào được ghi nhận trên hệ thống.</p>
             </div>
           ) : (
@@ -616,7 +616,7 @@ export default function LandingPage() {
               {facilities.map((fac, idx) => (
                 <div
                   key={fac.id}
-                  className="p-7 rounded-3xl bg-slate-50 border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all flex flex-col justify-between group"
+                  className="p-7 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all flex flex-col justify-between group"
                 >
                   <div>
                     {/* Top status bar */}
@@ -629,7 +629,7 @@ export default function LandingPage() {
                     {/* Facility Image preview */}
                     <Link
                       href={`/locations/${fac.id}`}
-                      className="block relative aspect-[16/9] w-full rounded-2xl overflow-hidden mb-5 bg-slate-200 cursor-pointer"
+                      className="block relative aspect-[16/9] w-full rounded-2xl overflow-hidden mb-5 bg-slate-100 cursor-pointer"
                     >
                       <img
                         src={(fac.images && fac.images.length > 0 ? fac.images[0] : null) || facilityImages[idx % facilityImages.length]}
@@ -652,13 +652,13 @@ export default function LandingPage() {
                     </p>
 
                     {fac.description && (
-                      <p className="mt-3 text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-200/60">
+                      <p className="mt-3 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/70">
                         {fac.description}
                       </p>
                     )}
 
                     {/* Quick Stats from API */}
-                    <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
                       {fac.availableUnits !== undefined && (
                         <div className="flex items-center gap-1.5">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
@@ -674,7 +674,7 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between">
+                  <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
                     <Link
                       href={`/locations/${fac.id}`}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700"
@@ -709,9 +709,9 @@ export default function LandingPage() {
 
 
       {/* 6. STORAGE USE CASES & B2B */}
-      <section id="b2b" className="py-20 sm:py-28 bg-white border-b border-slate-200">
+      <section id="b2b" className="py-16 sm:py-20 bg-white border-b border-slate-200">
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
-          <div className="w-full mb-12 sm:mb-16">
+          <div className="w-full mb-10 sm:mb-12">
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Tôi Có Thể Lưu Trữ Những Gì Trong Kho Tự Quản?
             </h2>
@@ -832,28 +832,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 7. GOOGLE REVIEWS & SOCIAL PROOF */}
-      <section id="reviews" className="py-20 sm:py-28 bg-slate-900 text-white relative">
+      {/* 6. GOOGLE REVIEWS & SOCIAL PROOF (XÁM) */}
+      <section id="reviews" className="py-16 sm:py-20 bg-slate-50/70 border-b border-slate-200/80 relative font-sans">
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
           {/* Main Quote Highlight */}
-          <div className="text-center w-full mx-auto mb-16">
+          <div className="text-center w-full mx-auto mb-10 sm:mb-12">
             <div className="flex justify-center gap-1 text-amber-400 mb-4">
               {[...Array(5)].map((_, i) => (
                 <Star key={i} className="w-6 h-6 fill-amber-400 text-amber-400" />
               ))}
             </div>
-            <blockquote className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-snug text-white">
+            <blockquote className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-snug text-slate-900 max-w-5xl mx-auto">
               “Quy trình đặt kho và check-in tự động rất chuyên nghiệp. Kho sạch sẽ, bảo mật cao và quản lý hạn thuê trên điện thoại cực kỳ tiện lợi!”
             </blockquote>
-            <p className="mt-6 text-xs sm:text-sm uppercase tracking-widest font-bold text-orange-400">
+            <p className="mt-6 text-xs sm:text-sm uppercase tracking-widest font-extrabold text-orange-600">
               Trương Huỳnh Hiếu · Khách hàng thực tế
             </p>
           </div>
 
           <div className="text-center w-full mx-auto mb-12">
-            <h3 className="text-2xl sm:text-3xl font-bold">Hàng Ngàn Khách Hàng Đã Tin Tưởng &amp; Hài Lòng</h3>
-            <p className="mt-2 text-slate-400 text-sm sm:text-base">
-              Đánh giá <strong className="text-white">4.9 / 5.0 ⭐ EXCELLENT</strong> dựa trên hơn <strong>675+</strong> nhận xét từ khách hàng thực tế.
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Hàng Ngàn Khách Hàng Đã Tin Tưởng &amp; Hài Lòng</h3>
+            <p className="mt-2 text-slate-600 text-sm sm:text-base font-medium">
+              Đánh giá <strong className="text-slate-900 font-black">4.9 / 5.0 ⭐ EXCELLENT</strong> dựa trên hơn <strong>675+</strong> nhận xét từ khách hàng thực tế.
             </p>
           </div>
 
@@ -862,25 +862,25 @@ export default function LandingPage() {
             {REVIEWS.map((rev, idx) => (
               <div
                 key={idx}
-                className="p-6 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between hover:border-orange-400/50 transition-all"
+                className="p-7 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-orange-400/60 transition-all flex flex-col justify-between group"
               >
                 <div>
-                  <div className="flex items-center gap-1 text-amber-400 mb-3">
+                  <div className="flex items-center gap-1 text-amber-400 mb-3.5">
                     {[...Array(rev.rating)].map((_, i) => (
                       <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <p className="text-slate-300 text-sm leading-relaxed italic">
+                  <p className="text-slate-700 text-sm sm:text-[15px] leading-relaxed italic">
                     "{rev.comment}"
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-white/10 flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full ${rev.avatarBg} text-white flex items-center justify-center font-bold text-xs`}>
+                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full ${rev.avatarBg} text-white flex items-center justify-center font-bold text-xs shadow-2xs`}>
                     {rev.name.charAt(0)}
                   </div>
                   <div>
-                    <div className="font-bold text-white text-sm">{rev.name}</div>
-                    <div className="text-slate-400 text-xs">{rev.role}</div>
+                    <div className="font-bold text-slate-900 text-sm">{rev.name}</div>
+                    <div className="text-slate-500 text-xs">{rev.role}</div>
                   </div>
                 </div>
               </div>
@@ -889,15 +889,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 9. FAQ ACCORDION SECTION */}
-      <section id="faq" className="py-20 sm:py-28 bg-slate-50 border-b border-slate-200">
+      {/* 7. FAQ ACCORDION SECTION (TRẮNG) */}
+      <section id="faq" className="py-16 sm:py-20 bg-white border-b border-slate-200/80 font-sans">
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
-          <div className="text-center w-full mx-auto mb-16">
+          <div className="text-center w-full mx-auto mb-10 sm:mb-12">
             
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
               Những Câu Hỏi Thường Gặp Về Kho Tự Quản
             </h2>
-            <p className="mt-3 text-slate-600 text-base sm:text-lg">
+            <p className="mt-3 text-slate-600 text-base sm:text-lg font-medium">
               Giải đáp mọi thắc mắc về quy định ra vào 24/7, chính sách đặt cọc, thanh toán và bảng giá thuê kho tự quản tại SelfStorage.
             </p>
           </div>
@@ -906,14 +906,14 @@ export default function LandingPage() {
             {FAQS.map((faq, idx) => (
               <div
                 key={idx}
-                className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm transition"
+                className="rounded-2xl border border-slate-200/80 bg-slate-50/80 hover:bg-slate-50 overflow-hidden transition"
               >
                 <button
                   onClick={() => setOpenFaqIndex(openFaqIndex === idx ? null : idx)}
-                  className="w-full p-5 sm:p-6 text-left font-bold text-slate-900 text-base sm:text-lg flex items-center justify-between gap-4 hover:text-blue-600 transition"
+                  className="w-full p-5 sm:p-6 text-left font-bold text-slate-900 text-base sm:text-lg flex items-center justify-between gap-4 hover:text-blue-600 transition cursor-pointer"
                 >
                   <span>{faq.q}</span>
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-slate-600 shrink-0">
                     <ChevronDown
                       className={`w-4 h-4 transition-transform duration-300 ${
                         openFaqIndex === idx ? "rotate-180 text-blue-600" : ""
@@ -922,7 +922,7 @@ export default function LandingPage() {
                   </div>
                 </button>
                 {openFaqIndex === idx && (
-                  <div className="px-5 sm:px-6 pb-6 text-slate-600 text-sm sm:text-base leading-relaxed border-t border-slate-100 pt-4 animate-slide-up-fade">
+                  <div className="px-5 sm:px-6 pb-6 text-slate-600 text-sm sm:text-base leading-relaxed border-t border-slate-200/60 pt-4 bg-white/60 animate-slide-up-fade">
                     {faq.a}
                   </div>
                 )}
