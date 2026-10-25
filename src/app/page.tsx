@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import Storage3DShowcaseSection from "@/components/3d/Storage3DShowcaseSection";
 import { api } from "@/lib/api";
 import {
   ShieldCheck,
@@ -448,6 +449,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* 3D INTERACTIVE STORAGE UNIT EXPLORER */}
+      <Storage3DShowcaseSection />
 
       {/* 2. CUSTOMER JOURNEY: 6-STEP SELF-STORAGE FLOW */}
       <section id="services" className="py-20 sm:py-28 bg-white border-b border-slate-200">

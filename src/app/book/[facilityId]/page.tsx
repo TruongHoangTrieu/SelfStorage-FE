@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import StorageUnit3DModal from "@/components/3d/StorageUnit3DModal";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import {
@@ -21,6 +22,7 @@ import {
   PartyPopper,
   Building2,
   Boxes,
+  Box,
   QrCode,
   MapPin,
   Tag,
@@ -103,6 +105,7 @@ function BookingFlowContent() {
   const [loadingData, setLoadingData] = useState(true);
   const [step, setStep] = useState<"unit" | "schedule" | "processing" | "payment_qr" | "success" | "failed">("unit");
   const [selectedUnitType, setSelectedUnitType] = useState<any>(null);
+  const [modal3dUnit, setModal3dUnit] = useState<any | null>(null);
   const [moveInDate, setMoveInDate] = useState("");
   const [timeSlots, setTimeSlots] = useState<TimeSlotOption[]>([]);
   const [timeSlot, setTimeSlot] = useState<TimeSlotOption | null>(null);
@@ -958,6 +961,19 @@ function BookingFlowContent() {
                                 </span>
                               </div>
 
+                              {/* 3D Model Preview Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setModal3dUnit(ut);
+                                }}
+                                className="mt-3 w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl font-bold text-xs text-blue-600 bg-blue-50/70 hover:bg-blue-100/90 border border-blue-200/60 transition-colors cursor-pointer"
+                              >
+                                <Box className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Xem Phòng Kho 3D</span>
+                              </button>
+
                               {!isAvailable && (
                                 <div className="mt-3 py-1.5 px-3 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold text-center border border-amber-200/60">
                                   Tạm hết phòng trống
@@ -1644,6 +1660,15 @@ function BookingFlowContent() {
 
         </div>
       </main>
+
+      {/* 3D Unit Preview Modal */}
+      <StorageUnit3DModal
+        isOpen={Boolean(modal3dUnit)}
+        onClose={() => setModal3dUnit(null)}
+        unit={modal3dUnit}
+        facilityName={facility?.name}
+        facilityId={facilityId}
+      />
 
       <Footer />
     </div>

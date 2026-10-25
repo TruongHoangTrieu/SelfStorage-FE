@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import StorageUnit3DModal from "@/components/3d/StorageUnit3DModal";
 import { api } from "@/lib/api";
 import { THEME } from "@/lib/theme";
 import {
@@ -150,6 +151,9 @@ export default function FacilityDetailPage({
 
   // Lightbox modal state
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+
+  // 3D Unit preview modal state
+  const [modal3dUnit, setModal3dUnit] = useState<any | null>(null);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -694,6 +698,16 @@ export default function FacilityDetailPage({
                             </div>
                           </div>
 
+                          {/* 3D Model Preview Button */}
+                          <button
+                            type="button"
+                            onClick={() => setModal3dUnit(unit)}
+                            className="w-full mb-2.5 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/80 transition-all cursor-pointer hover:shadow-xs group/btn"
+                          >
+                            <Box className="w-3.5 h-3.5 text-blue-600 group-hover/btn:scale-110 transition-transform" />
+                            <span>Xem Mô Hình Phòng Kho 3D</span>
+                          </button>
+
                           {/* Dynamic Action Button */}
                           {!isAvailable ? (
                             <button
@@ -941,6 +955,15 @@ export default function FacilityDetailPage({
 
         </main>
       )}
+
+      {/* 3D Unit Preview Modal */}
+      <StorageUnit3DModal
+        isOpen={Boolean(modal3dUnit)}
+        onClose={() => setModal3dUnit(null)}
+        unit={modal3dUnit}
+        facilityName={facility?.name}
+        facilityId={facility?.id}
+      />
 
       {/* FOOTER */}
       <Footer />
