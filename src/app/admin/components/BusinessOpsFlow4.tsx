@@ -36,6 +36,7 @@ import {
   DiscountItem,
   PaymentItem,
 } from '@/lib/api/operations';
+import MultiBranchRevenueAnalytics from './MultiBranchRevenueAnalytics';
 
 type OpsSubTab = 'policies' | 'fees' | 'discounts' | 'revenue';
 
@@ -704,55 +705,12 @@ export default function BusinessOpsFlow4() {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 4: SỔ CÁI THANH TOÁN & DOANH THU (REVENUE MONITORING) */}
+      {/* TAB 4: SỔ CÁI THANH TOÁN & DOANH THU (REVENUE MONITORING & ANALYTICS) */}
       {/* ========================================================================= */}
       {activeTab === 'revenue' && (
         <div className="space-y-6">
-          {/* Revenue KPI Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Tổng Thu Toàn Hệ Thống (Gross)
-              </span>
-              <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
-                {new Intl.NumberFormat('vi-VN').format(totalRevenue)} <span className="text-xs font-normal text-slate-400">đ</span>
-              </div>
-              <div className="text-xs text-emerald-600 font-semibold flex items-center gap-1 mt-2">
-                <ArrowUpRight className="w-3.5 h-3.5" />
-                <span>+14.8% so với kỳ trước</span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Doanh Thu Tiền Thuê Kho (Rentals)
-              </span>
-              <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
-                {new Intl.NumberFormat('vi-VN').format(rentalIncome)} <span className="text-xs font-normal text-slate-400">đ</span>
-              </div>
-              <div className="text-xs text-slate-500 mt-2">Dòng tiền thuê cố định hàng tháng</div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Quỹ Đặt Cọc Bảo Đảm (Deposits)
-              </span>
-              <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
-                {new Intl.NumberFormat('vi-VN').format(depositVault)} <span className="text-xs font-normal text-slate-400">đ</span>
-              </div>
-              <div className="text-xs text-slate-500 mt-2">Tiền cọc giữ chỗ và cọc hoàn lại</div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Phụ Phí &amp; Phạt Phát Sinh (Extra)
-              </span>
-              <div className="text-2xl font-bold text-slate-900 mt-1 tabular-nums">
-                {new Intl.NumberFormat('vi-VN').format(extraChargeIncome)} <span className="text-xs font-normal text-slate-400">đ</span>
-              </div>
-              <div className="text-xs text-slate-500 mt-2">Vệ sinh kho, quá giờ, bốc xếp</div>
-            </div>
-          </div>
+          {/* Hệ Thống Biểu Đồ & Dòng Tiền Toàn Chuỗi Đa Chi Nhánh */}
+          <MultiBranchRevenueAnalytics />
 
           {/* Payment Gateways Integration Status */}
           <div className="bg-slate-900 rounded-2xl p-5 text-white shadow-xs border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">

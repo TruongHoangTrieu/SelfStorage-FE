@@ -37,6 +37,7 @@ import GuestPassModal from './components/GuestPassModal';
 import ExtendLeaseModal from './components/ExtendLeaseModal';
 import UpgradeModal from './components/UpgradeModal';
 import IncidentReportModal from './components/IncidentReportModal';
+import ReturnUnitModal from './components/ReturnUnitModal';
 import CustomerLoginModal from './components/CustomerLoginModal';
 import CustomerProfileView from './components/CustomerProfileView';
 import CustomerSupportView from './components/CustomerSupportView';
@@ -78,6 +79,7 @@ export default function CustomerDashboardPage() {
   const [isExtendLeaseModalOpen, setIsExtendLeaseModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [isReturnUnitModalOpen, setIsReturnUnitModalOpen] = useState(false);
   const [cancelReservationId, setCancelReservationId] = useState<number | null>(null);
   const [isCancellingReservation, setIsCancellingReservation] = useState(false);
 
@@ -359,6 +361,34 @@ export default function CustomerDashboardPage() {
     triggerToast(`Đã gửi phiếu hỗ trợ #${newTicket.id} cho ${targetModalUnit?.unitNumber}!`);
   };
 
+  // Handler: Mở Modal Trả kho & Thanh lý hợp đồng
+  const handleOpenReturnUnit = (unit: CustomerUnit) => {
+    setActiveModalUnit(unit);
+    setIsReturnUnitModalOpen(true);
+  };
+
+  // Callback: Xác nhận gửi yêu cầu trả kho
+  const handleConfirmCheckout = async (payload: any) => {
+    try {
+      await customerUnitsApi.requestCheckout(payload);
+      triggerToast(`Đã gửi yêu cầu trả kho cho ${payload.unitNumber}! Nhân viên cơ sở sẽ kiểm tra và liên hệ nghiệm thu.`);
+      await loadContractsData(false);
+    } catch (err: any) {
+      toast.error(err?.message || 'Không thể gửi yêu cầu trả kho. Vui lòng thử lại.');
+    }
+  };
+
+  // Callback: Hủy yêu cầu trả kho
+  const handleCancelCheckoutRequest = async (unit: CustomerUnit) => {
+    try {
+      await customerUnitsApi.cancelCheckout(unit.rawContractId || unit.contractId);
+      triggerToast(`Đã hủy yêu cầu trả kho cho ${unit.unitNumber}. Hợp đồng tiếp tục hoạt động bình thường.`);
+      await loadContractsData(false);
+    } catch (err: any) {
+      toast.error(err?.message || 'Không thể hủy yêu cầu trả kho.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/70 text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-600/20 selection:text-blue-600">
       {/* Toast Notification */}
@@ -507,6 +537,8 @@ export default function CustomerDashboardPage() {
                   onOpenGuestPass={handleOpenGuestPass}
                   onOpenExtendLease={handleOpenExtendLease}
                   onOpenReportIncident={handleOpenReportIncident}
+                  onOpenReturnUnit={handleOpenReturnUnit}
+                  onCancelCheckoutRequest={handleCancelCheckoutRequest}
                   onCancelReservation={handleCancelReservation}
                 />
               )}
@@ -520,6 +552,8 @@ export default function CustomerDashboardPage() {
                   onOpenExtendLease={handleOpenExtendLease}
                   onOpenUpgradeUnit={handleOpenUpgrade}
                   onOpenReportIncident={handleOpenReportIncident}
+                  onOpenReturnUnit={handleOpenReturnUnit}
+                  onCancelCheckoutRequest={handleCancelCheckoutRequest}
                 />
               )}
             </>
@@ -605,6 +639,15 @@ export default function CustomerDashboardPage() {
             onClose={() => setIsIncidentModalOpen(false)}
             unit={targetModalUnit}
             onSubmitTicket={handleSubmittedTicket}
+          />
+
+          {/* 5. Modal [ Trả kho & Thanh lý hợp đồng ] */}
+          <ReturnUnitModal
+            isOpen={isReturnUnitModalOpen}
+            onClose={() => setIsReturnUnitModalOpen(false)}
+            unit={targetModalUnit}
+            onConfirmCheckout={handleConfirmCheckout}
+            onCancelCheckout={handleCancelCheckoutRequest}
           />
         </>
       )}

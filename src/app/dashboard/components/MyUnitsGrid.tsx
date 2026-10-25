@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   CalendarCheck,
   Trash2,
+  DoorClosed,
 } from 'lucide-react';
 import { CustomerUnit, CustomerUser } from '../types';
 
@@ -28,6 +29,8 @@ interface MyUnitsGridProps {
   onOpenGuestPass: (unit: CustomerUnit) => void;
   onOpenExtendLease: (unit: CustomerUnit) => void;
   onOpenReportIncident: (unit: CustomerUnit) => void;
+  onOpenReturnUnit: (unit: CustomerUnit) => void;
+  onCancelCheckoutRequest?: (unit: CustomerUnit) => void;
   onCancelReservation?: (reservationId: number) => void | Promise<void>;
 }
 
@@ -39,6 +42,8 @@ export default function MyUnitsGrid({
   onOpenGuestPass,
   onOpenExtendLease,
   onOpenReportIncident,
+  onOpenReturnUnit,
+  onCancelCheckoutRequest,
   onCancelReservation,
 }: MyUnitsGridProps) {
   // State ẩn/hiện mã PIN trực tiếp trên từng thẻ
@@ -331,27 +336,63 @@ export default function MyUnitsGrid({
 
                     {/* 4. Thao tác nhanh ở cuối thẻ */}
                     <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        {/* [ Tạo mã cho khách tạm thời ] */}
-                        <button
-                          type="button"
-                          onClick={() => onOpenGuestPass(unit)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-98"
-                        >
-                          <UserPlus className="w-3.5 h-3.5" />
-                          <span>Mã khách</span>
-                        </button>
+                      {unit.status === 'checkout_pending' ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onOpenReturnUnit(unit)}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-98"
+                          >
+                            <DoorClosed className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Xem tiến độ trả kho</span>
+                          </button>
+                          {onCancelCheckoutRequest && (
+                            <button
+                              type="button"
+                              onClick={() => onCancelCheckoutRequest(unit)}
+                              className="px-3 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-800 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+                              title="Hủy yêu cầu trả kho"
+                            >
+                              Hủy
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {/* [ Tạo mã cho khách tạm thời ] */}
+                          <button
+                            type="button"
+                            onClick={() => onOpenGuestPass(unit)}
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-98"
+                            title="Tạo mã khách tạm thời"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>Mã khách</span>
+                          </button>
 
-                        {/* [ Gia hạn hợp đồng ] */}
-                        <button
-                          type="button"
-                          onClick={() => onOpenExtendLease(unit)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-98"
-                        >
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>Gia hạn</span>
-                        </button>
-                      </div>
+                          {/* [ Gia hạn hợp đồng ] */}
+                          <button
+                            type="button"
+                            onClick={() => onOpenExtendLease(unit)}
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-98"
+                            title="Gia hạn thời gian thuê kho"
+                          >
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Gia hạn</span>
+                          </button>
+
+                          {/* [ Trả kho ] */}
+                          <button
+                            type="button"
+                            onClick={() => onOpenReturnUnit(unit)}
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-98"
+                            title="Làm thủ tục trả kho và nhận hoàn tiền cọc"
+                          >
+                            <DoorClosed className="w-3.5 h-3.5" />
+                            <span>Trả kho</span>
+                          </button>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-2">
                         {/* [ Báo cáo sự cố ] */}
@@ -554,6 +595,25 @@ export default function MyUnitsGrid({
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-300 shadow-2xs">
             <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
+            {label}
+          </span>
+        );
+      case 'checkout_pending':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+            {label || 'Đang xử lý trả kho'}
+          </span>
+        );
+      case 'terminated':
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shadow-2xs">
+            Đã thanh lý
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
             {label}
           </span>
         );

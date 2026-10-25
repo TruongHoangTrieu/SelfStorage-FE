@@ -13,6 +13,7 @@ import {
   Building2,
   Calendar,
   Lock,
+  DoorClosed,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CustomerUnit } from '../types';
@@ -101,6 +102,11 @@ export default function CustomerDocumentsView({
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                             <Clock className="w-3 h-3" /> Chờ ký số
+                          </span>
+                        )}
+                        {u.status === 'checkout_pending' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            <DoorClosed className="w-3 h-3 text-rose-600" /> Đang thanh lý / Trả kho
                           </span>
                         )}
                       </div>

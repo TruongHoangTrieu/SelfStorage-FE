@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner';
 import { aiApi } from '@/lib/api/ai';
 import { ManagerTab } from '../types';
+import FacilityRevenueAnalytics from './FacilityRevenueAnalytics';
 
 interface ManagerOverviewDashboardProps {
   facilityName?: string;
@@ -51,13 +52,13 @@ export default function ManagerOverviewDashboard({
   const handleRunAiPrediction = async () => {
     try {
       setIsRunningAi(true);
-      toast.info("Đang khởi chạy mô hình AI (Model A: XGBoost, Model B: RandomForest)...");
+      toast.info("Đang quét dữ liệu và dự báo tỷ lệ gia hạn hợp đồng...");
       const res = await aiApi.predictRenewals(14);
       toast.success(
-        `Hoàn tất quét AI: Đã phân tích ${res.total_processed} hợp đồng, lưu ${res.saved_to_db} bản ghi dự đoán vào hệ thống!`
+        `Hoàn tất phân tích: Đã kiểm tra ${res.total_processed} hợp đồng, cập nhật ${res.saved_to_db} hồ sơ gia hạn tiềm năng.`
       );
     } catch (err: any) {
-      toast.error(`Không thể chạy dự đoán AI: ${err.message || 'Lỗi kết nối máy chủ AI'}`);
+      toast.error(`Không thể hoàn tất dự báo: ${err.message || 'Lỗi kết nối máy chủ phân tích'}`);
     } finally {
       setIsRunningAi(false);
     }
@@ -70,21 +71,18 @@ export default function ManagerOverviewDashboard({
   return (
     <div className="space-y-6 w-full max-w-[1800px] mx-auto">
       {/* 1. Header & Welcome Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden border border-indigo-900/40">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 w-64 h-64 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
-
+      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-7 shadow-sm border border-slate-800 relative overflow-hidden">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold tracking-wide uppercase">
-              <Building2 className="w-3.5 h-3.5" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-indigo-300 border border-slate-700 text-xs font-semibold tracking-wide">
+              <Building2 className="w-3.5 h-3.5 text-indigo-400" />
               <span>{displayRole} • {facilityName}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Bảng Điều Khiển Quản Lý Cơ Sở
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Bảng Điều Khiển Cơ Sở
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Xin chào <strong>{managerName}</strong>. Giám sát tổng thể hoạt động chi nhánh: phân công nhân sự, phê duyệt bảng giá kho, kiểm soát hạn hợp đồng và chất lượng dịch vụ khách hàng.
+              Xin chào <strong>{managerName}</strong>. Giám sát tổng thể hoạt động chi nhánh: phân công ca trực nhân sự, phê duyệt bảng giá kho, theo dõi hạn hợp đồng và quản lý doanh số.
             </p>
           </div>
 
@@ -93,39 +91,39 @@ export default function ManagerOverviewDashboard({
               type="button"
               disabled={isRunningAi}
               onClick={handleRunAiPrediction}
-              className="px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl shadow-md shadow-purple-600/30 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              title="Kích hoạt quét hợp đồng sắp hết hạn và chấm điểm gia hạn bằng AI Model A & B"
+              className="px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              title="Kích hoạt phân tích hợp đồng sắp hết hạn và dự báo nhu cầu gia hạn"
             >
               {isRunningAi ? (
                 <Loader2 className="w-4 h-4 animate-spin text-white" />
               ) : (
-                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                <TrendingUp className="w-4 h-4 text-indigo-200" />
               )}
-              <span>{isRunningAi ? "AI Đang Quét..." : "AI Dự Đoán Gia Hạn"}</span>
+              <span>{isRunningAi ? "Đang Phân Tích..." : "Dự Báo Gia Hạn"}</span>
             </button>
             <button
               type="button"
               onClick={() => onNavigateTab('facility')}
-              className="px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-600/30 transition flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition flex items-center gap-2 cursor-pointer"
             >
-              <Users className="w-4 h-4" />
-              <span>Phân Công Nhân Sự</span>
+              <Users className="w-4 h-4 text-slate-300" />
+              <span>Phân Công Ca Trực</span>
             </button>
             <button
               type="button"
               onClick={() => onNavigateTab('facility_photos')}
-              className="px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md shadow-emerald-600/30 transition flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition flex items-center gap-2 cursor-pointer"
             >
-              <Camera className="w-4 h-4 text-emerald-100" />
-              <span>Đổi Ảnh Cơ Sở</span>
+              <Camera className="w-4 h-4 text-slate-300" />
+              <span>Hình Ảnh Cơ Sở</span>
             </button>
             <button
               type="button"
               onClick={() => onNavigateTab('unit_types')}
-              className="px-4 py-2.5 text-xs font-bold text-slate-200 hover:text-white bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 text-xs font-bold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition flex items-center gap-2 cursor-pointer"
             >
               <Boxes className="w-4 h-4 text-slate-300" />
-              <span>Cấu Hình Bảng Giá</span>
+              <span>Bảng Giá Kho</span>
             </button>
           </div>
         </div>
@@ -195,6 +193,9 @@ export default function ManagerOverviewDashboard({
           <p className="text-[11px] text-rose-600 font-semibold mt-1">Bảo đảm an toàn ổ khóa &amp; cửa kho</p>
         </div>
       </div>
+
+      {/* 2.5. Phân Hệ Giám Sát Doanh Số & Dòng Tiền Cơ Sở (Facility Revenue Analytics & Charts) */}
+      <FacilityRevenueAnalytics facilityName={facilityName} />
 
       {/* 3. Phân Hệ Quản Trị Dành Riêng Cho Quản Lý */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

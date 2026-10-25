@@ -5,10 +5,12 @@ import {
   Map, Calendar, ClipboardCheck, AlertTriangle, 
   Wallet, Key, Database, ChevronDown, Check,
   Search, ArrowUpRight, ArrowDownRight, Clock,
-  FileText, Activity, Lock, LogOut
+  FileText, Activity, Lock, LogOut, Layers
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import BusinessOpsFlow4 from './components/BusinessOpsFlow4';
+import FacilityRevenueAnalytics from '../manager/components/FacilityRevenueAnalytics';
+import MultiBranchRevenueAnalytics from './components/MultiBranchRevenueAnalytics';
 import FacilityLayoutView from '../staff/components/FacilityLayoutView';
 import StaffRenewalsOverdueView from '../staff/components/StaffRenewalsOverdueView';
 import StaffSupportTicketsView from '../staff/components/StaffSupportTicketsView';
@@ -73,6 +75,7 @@ export default function AdminPortal() {
       case 'ADMIN':
         return [
           { label: 'Access Control', icon: Shield },
+          { label: 'Doanh Thu Toàn Hệ Thống', icon: BarChart3 },
           { label: 'Gia Hạn & Cron Scan', icon: Wallet },
           { label: 'Audit Stream', icon: ClipboardCheck },
         ];
@@ -278,8 +281,13 @@ export default function AdminPortal() {
           {role === 'ADMIN' && (
             <>
               {activeNavIndex === 0 && <SystemAdminView />}
-              {activeNavIndex === 1 && <StaffRenewalsOverdueView />}
-              {activeNavIndex >= 2 && <SystemAdminView />}
+              {activeNavIndex === 1 && (
+                <div className="max-w-[1600px] mx-auto animate-in fade-in duration-200">
+                  <MultiBranchRevenueAnalytics />
+                </div>
+              )}
+              {activeNavIndex === 2 && <StaffRenewalsOverdueView />}
+              {activeNavIndex >= 3 && <SystemAdminView />}
             </>
           )}
         </main>
@@ -403,27 +411,71 @@ const MOCK_UNITS = [
 ];
 
 function FacilityManagerView() {
+  const [managerSubTab, setManagerSubTab] = useState<'financial' | 'telemetry'>('financial');
   const [selectedUnit, setSelectedUnit] = useState(MOCK_UNITS[0]);
 
   return (
-    <div className="animate-in fade-in duration-300 max-w-[1400px] mx-auto">
-      
-      {/* Header & Ribbon */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+    <div className="animate-in fade-in duration-300 max-w-[1500px] mx-auto space-y-6">
+      {/* Top Facility Manager Switcher Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
         <div>
-          <h1 className="text-3xl font-black text-[#1e1b4b] tracking-tight">Facility Unit Grid</h1>
-          <p className="text-slate-500 font-medium mt-1">Real-Time Telemetry • Cầu Giấy Branch, Hà Nội</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" placeholder="Jump to Unit, PIN..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" />
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-200 uppercase tracking-wider mb-1">
+            <span>Chi Nhánh Cầu Giấy • Hà Nội</span>
           </div>
-          <button className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-md hover:bg-slate-800 transition-colors flex items-center">
-            <Lock className="w-4 h-4 mr-2 text-orange-400" /> Bulk Overlock
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+            Khu Vực Quản Lý Chi Nhánh (Facility Manager)
+          </h2>
+        </div>
+
+        {/* View Mode Toggle Pill */}
+        <div className="inline-flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setManagerSubTab('financial')}
+            className={`px-3.5 py-2 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+              managerSubTab === 'financial'
+                ? 'bg-indigo-600 text-white shadow-xs font-black'
+                : 'hover:text-slate-900'
+            }`}
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            <span>Doanh Thu &amp; Sơ Đồ Tiền</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setManagerSubTab('telemetry')}
+            className={`px-3.5 py-2 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+              managerSubTab === 'telemetry'
+                ? 'bg-indigo-600 text-white shadow-xs font-black'
+                : 'hover:text-slate-900'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Sơ Đồ Lưới Trạng Thái Ô Kho</span>
           </button>
         </div>
       </div>
+
+      {managerSubTab === 'financial' ? (
+        <FacilityRevenueAnalytics facilityName="Chi nhánh Cầu Giấy, Hà Nội" facilityCode="FAC-CG01" />
+      ) : (
+        <div className="space-y-6">
+          {/* Header & Ribbon */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-[#1e1b4b] tracking-tight">Facility Unit Grid</h1>
+              <p className="text-slate-500 font-medium mt-1">Real-Time Telemetry • Cầu Giấy Branch, Hà Nội</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="text" placeholder="Jump to Unit, PIN..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500" />
+              </div>
+              <button className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-md hover:bg-slate-800 transition-colors flex items-center">
+                <Lock className="w-4 h-4 mr-2 text-orange-400" /> Bulk Overlock
+              </button>
+            </div>
+          </div>
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
@@ -653,9 +705,10 @@ function FacilityManagerView() {
           </table>
         </div>
       </div>
-      
     </div>
-  );
+  )}
+</div>
+);
 }
 
 // ----------------------------------------------------------------------

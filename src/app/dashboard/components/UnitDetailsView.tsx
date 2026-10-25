@@ -32,6 +32,8 @@ import {
   Filter,
   Smartphone,
   Radio,
+  DoorClosed,
+  RotateCcw,
 } from 'lucide-react';
 import { CustomerUnit, AccessLog } from '../types';
 import StoredItemsTab from './StoredItemsTab';
@@ -44,6 +46,8 @@ interface UnitDetailsViewProps {
   onOpenExtendLease: (unit: CustomerUnit) => void;
   onOpenUpgradeUnit: (unit: CustomerUnit) => void;
   onOpenReportIncident: (unit: CustomerUnit) => void;
+  onOpenReturnUnit: (unit: CustomerUnit) => void;
+  onCancelCheckoutRequest?: (unit: CustomerUnit) => void;
 }
 
 export default function UnitDetailsView({
@@ -53,6 +57,8 @@ export default function UnitDetailsView({
   onOpenExtendLease,
   onOpenUpgradeUnit,
   onOpenReportIncident,
+  onOpenReturnUnit,
+  onCancelCheckoutRequest,
 }: UnitDetailsViewProps) {
   // Tabs: 'overview' | 'items' | 'access' | 'logs' | 'history' (Flow 3)
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'items' | 'access' | 'logs' | 'history'>('overview');
@@ -276,6 +282,12 @@ export default function UnitDetailsView({
                   Quá hạn thanh toán
                 </span>
               )}
+              {unit.status === 'checkout_pending' && (
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1.5 shadow-2xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  Đang xử lý trả kho
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {unit.size} • {unit.floor}, {unit.zone} • {unit.facilityName}
@@ -315,6 +327,26 @@ export default function UnitDetailsView({
             <Clock className="w-3.5 h-3.5" />
             <span>Gia hạn hợp đồng</span>
           </button>
+
+          {/* [ Nút Trả kho / Tiến độ trả kho ] */}
+          {unit.status === 'checkout_pending' ? (
+            <button
+              onClick={() => onOpenReturnUnit(unit)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <DoorClosed className="w-3.5 h-3.5 text-rose-600" />
+              <span>Tiến độ trả kho</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => onOpenReturnUnit(unit)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl transition-all active:scale-95 cursor-pointer"
+              title="Làm thủ tục trả lại ô kho và nhận lại tiền đặt cọc"
+            >
+              <DoorClosed className="w-3.5 h-3.5" />
+              <span>Trả kho</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -396,6 +428,95 @@ export default function UnitDetailsView({
       {/* ========================================================================= */}
       {activeSubTab === 'overview' && (
         <div className="space-y-6">
+          {/* BANNER TIẾN ĐỘ TRẢ KHO NẾU ĐANG CHỜ NGHIỆM THU */}
+          {unit.status === 'checkout_pending' && (
+            <div className="bg-gradient-to-r from-rose-50 via-white to-amber-50/40 rounded-3xl border border-rose-200/80 p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                    <DoorClosed className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        Hồ Sơ Yêu Cầu Trả Kho Đang Chờ Nghiệm Thu
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800">
+                        Đang xử lý
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Ngày dự kiến trả kho: <strong className="text-slate-800">{unit.checkoutRequest?.requestedMoveOutDate || 'Đang cập nhật'}</strong> • Tiền hoàn cọc dự kiến: <strong className="text-emerald-600">{new Intl.NumberFormat('vi-VN').format(unit.checkoutRequest?.estimatedRefund || unit.depositAmount || unit.monthlyRentNum)} đ</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  {onCancelCheckoutRequest && (
+                    <button
+                      type="button"
+                      onClick={() => onCancelCheckoutRequest(unit)}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Hủy yêu cầu</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onOpenReturnUnit(unit)}
+                    className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition cursor-pointer shadow-xs"
+                  >
+                    Xem chi tiết tiến độ
+                  </button>
+                </div>
+              </div>
+
+              {/* Stepper Progress Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-rose-100/70 text-xs">
+                <div className="p-3 rounded-2xl bg-white/80 border border-emerald-200/80 flex items-center gap-2.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0">
+                    ✓
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-800">1. Gửi yêu cầu</div>
+                    <div className="text-[10px] text-emerald-600 font-semibold">Đã tiếp nhận</div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-white/80 border border-amber-300 flex items-center gap-2.5 shadow-2xs ring-2 ring-amber-400/20">
+                  <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 animate-pulse">
+                    2
+                  </div>
+                  <div>
+                    <div className="font-bold text-amber-900">2. Nghiệm thu kho</div>
+                    <div className="text-[10px] text-amber-700 font-semibold">Chờ kiểm tra kho trống</div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-white/60 border border-slate-200/80 flex items-center gap-2.5 opacity-75">
+                  <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-[11px] shrink-0">
+                    3
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-700">3. Quyết toán cọc</div>
+                    <div className="text-[10px] text-slate-400">Chuyển khoản qua STK</div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-white/60 border border-slate-200/80 flex items-center gap-2.5 opacity-75">
+                  <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-[11px] shrink-0">
+                    4
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-700">4. Hoàn tất</div>
+                    <div className="text-[10px] text-slate-400">Khóa quyền truy cập</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 1. Hợp đồng & Tài chính */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">

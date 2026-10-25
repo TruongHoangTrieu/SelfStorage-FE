@@ -608,4 +608,140 @@ export const handoversApi = {
     };
     return await api.post('/payments/sepay/webhook', webhookPayload);
   },
+
+  // ==================== CHECK-OUT / TRẢ KHO & BÀN GIAO ====================
+
+  /**
+   * Tra cứu thông tin hợp đồng để chuẩn bị Check-out / Trả kho và đối soát hiện trạng
+   * GET /handovers/contracts/:contractId/check-out
+   */
+  async getContractForCheckOut(contractId: string | number): Promise<HandoverCheckOutContract> {
+    const rawId = typeof contractId === 'string' && (contractId.startsWith('CON-') || contractId.startsWith('HĐ-'))
+      ? contractId
+      : String(contractId);
+    return await api.get<HandoverCheckOutContract>(`/handovers/contracts/${rawId}/check-out`);
+  },
+
+  /**
+   * Thực hiện Check-out & Bàn giao hoàn trả kho (Lập biên bản trả kho, thu hồi mã PIN, giải phóng kho và hoàn trả cọc)
+   * POST /handovers/check-out
+   */
+  async checkOut(payload: CheckOutPayload): Promise<CheckOutResponse> {
+    const body: CheckOutPayload = {
+      contractId: String(payload.contractId),
+      condition: payload.condition || 'Kho đã dọn sạch, tường và sàn nguyên vẹn không trầy xước',
+      notes: payload.notes || 'Khách hàng bàn giao hoàn trả kho',
+      photos: payload.photos || [],
+      damageFee: payload.damageFee ?? 0,
+      cleaningFee: payload.cleaningFee ?? 0,
+      refundDeposit: payload.refundDeposit ?? true,
+      refundAmount: payload.refundAmount,
+      unitCondition: payload.unitCondition || 'AVAILABLE',
+    };
+    return await api.post<CheckOutResponse>('/handovers/check-out', body);
+  },
 };
+
+export interface HandoverCheckOutContract {
+  contract: {
+    id: string;
+    contractCode: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    signedAt?: string;
+  };
+  facility: {
+    id: string;
+    name: string;
+    code: string;
+    address: string;
+  };
+  customer: {
+    id: string;
+    fullName: string;
+    email: string;
+    phone?: string;
+    identityNumberMasked?: string;
+  };
+  financialSummary: {
+    totalDepositAmount: number;
+    unpaidExtraChargesAmount: number;
+    estimatedRefundAmount: number;
+    pendingExtraCharges: any[];
+  };
+  units: Array<{
+    contractItemId: string;
+    unitId: string;
+    unitNumber: string;
+    floor?: string;
+    unitStatus: string;
+    storedItemsCount: number;
+    checkInInspection?: {
+      condition: string;
+      notes?: string;
+      photos?: string[];
+    };
+  }>;
+  canCheckOut: boolean;
+}
+
+export interface CheckOutPayload {
+  contractId: string;
+  condition: string;
+  notes?: string;
+  photos?: any[];
+  damageFee?: number;
+  cleaningFee?: number;
+  refundDeposit?: boolean;
+  refundAmount?: number;
+  unitCondition?: 'AVAILABLE' | 'UNDER_MAINTENANCE';
+}
+
+export interface CheckOutResponse {
+  message: string;
+  contract: {
+    id: string;
+    contractCode: string;
+    status: string;
+  };
+  customer: {
+    id: string;
+    fullName: string;
+    email: string;
+  };
+  facility: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  handoverRecords: Array<{
+    id: string;
+    contractItemId: string;
+    type: 'CHECK_OUT';
+    condition: string;
+    notes?: string;
+    inspectionDate: string;
+  }>;
+  unitsReturned: Array<{
+    contractItemId: string;
+    unitId: string;
+    unitNumber: string;
+    unitStatus: string;
+    itemStatus: string;
+    accessCodeStatus: string;
+  }>;
+  financialSettlement: {
+    totalDeposit: number;
+    damageFee: number;
+    cleaningFee: number;
+    unpaidExtraCharges: number;
+    refundDepositAmount: number;
+    refundPayment?: {
+      id: string;
+      paymentCode: string;
+      amount: number;
+      status: string;
+    };
+  };
+}

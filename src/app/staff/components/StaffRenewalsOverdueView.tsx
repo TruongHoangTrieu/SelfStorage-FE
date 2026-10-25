@@ -16,6 +16,8 @@ import {
   DollarSign,
   Search,
   Filter,
+  DoorClosed,
+  FileCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -23,8 +25,14 @@ import {
   RenewalRecord,
   OverdueRecord,
 } from '@/lib/api/renewals';
+import {
+  handoversApi,
+  HandoverCheckOutContract,
+  CheckOutPayload,
+  CheckOutResponse,
+} from '@/lib/api/handovers';
 
-type SubTab = 'renewals' | 'overdue';
+type SubTab = 'renewals' | 'overdue' | 'checkout';
 
 interface StaffRenewalsOverdueViewProps {
   facilityId?: string | number;
@@ -49,6 +57,19 @@ export default function StaffRenewalsOverdueView({
   // Reject modal state
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+
+  // Check-Out Handover State (Flow 5: Trả kho & Bàn giao)
+  const [searchContractId, setSearchContractId] = useState('');
+  const [isSearchingContract, setIsSearchingContract] = useState(false);
+  const [contractCheckoutData, setContractCheckoutData] = useState<HandoverCheckOutContract | null>(null);
+  const [checkOutCondition, setCheckOutCondition] = useState('Kho đã dọn sạch, tường và sàn nguyên vẹn không trầy xước');
+  const [checkOutNotes, setCheckOutNotes] = useState('Khách hàng bàn giao đúng hạn, đã kiểm tra đầy đủ');
+  const [damageFee, setDamageFee] = useState<number>(0);
+  const [cleaningFee, setCleaningFee] = useState<number>(0);
+  const [refundDeposit, setRefundDeposit] = useState<boolean>(true);
+  const [unitCondition, setUnitCondition] = useState<'AVAILABLE' | 'UNDER_MAINTENANCE'>('AVAILABLE');
+  const [isSubmittingCheckOut, setIsSubmittingCheckOut] = useState(false);
+  const [checkOutResult, setCheckOutResult] = useState<CheckOutResponse | null>(null);
 
   // Helper format ngày
   const formatDateDisplay = (dateStr?: string) => {
@@ -277,6 +298,55 @@ export default function StaffRenewalsOverdueView({
     }
   };
 
+  // Handler: Tra cứu hợp đồng để Check-out (GET /handovers/contracts/:contractId/check-out)
+  const handleLookupContractForCheckOut = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchContractId.trim()) {
+      toast.error('Vui lòng nhập ID hoặc Mã hợp đồng cần tra cứu');
+      return;
+    }
+    setIsSearchingContract(true);
+    setCheckOutResult(null);
+    try {
+      const data = await handoversApi.getContractForCheckOut(searchContractId.trim());
+      setContractCheckoutData(data);
+      toast.success('Đã tải thông tin đối soát hợp đồng để trả kho');
+    } catch (err: any) {
+      console.warn('Lookup contract error', err);
+      toast.error(err?.message || 'Không tìm thấy thông tin hợp đồng hoặc bạn không thuộc cơ sở này');
+    } finally {
+      setIsSearchingContract(false);
+    }
+  };
+
+  // Handler: Thực hiện Check-out & Hoàn cọc (POST /handovers/check-out)
+  const handleSubmitCheckOut = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contractCheckoutData?.contract?.id) {
+      toast.error('Vui lòng tra cứu hợp đồng trước khi thực hiện trả kho');
+      return;
+    }
+    setIsSubmittingCheckOut(true);
+    try {
+      const res = await handoversApi.checkOut({
+        contractId: contractCheckoutData.contract.id,
+        condition: checkOutCondition,
+        notes: checkOutNotes,
+        damageFee,
+        cleaningFee,
+        refundDeposit,
+        unitCondition,
+      });
+      setCheckOutResult(res);
+      toast.success('Check-out & Bàn giao trả kho thành công! Đã thu hồi mã PIN và giải phóng kho.');
+    } catch (err: any) {
+      console.error('Check-out failed', err);
+      toast.error(err?.message || 'Không thể thực hiện Check-out');
+    } finally {
+      setIsSubmittingCheckOut(false);
+    }
+  };
+
   return (
     <div className="space-y-6 w-full max-w-[1800px] mx-auto">
       {/* Top Banner & Tab Switcher */}
@@ -288,17 +358,17 @@ export default function StaffRenewalsOverdueView({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                Gia Hạn Hợp Đồng & Xử Lý Quá Hạn
+                Gia Hạn Hợp Đồng, Quá Hạn &amp; Bàn Giao Trả Kho
               </h2>
               <p className="text-xs text-slate-500">
-                Xét duyệt gia hạn hợp đồng, tự động quét hạn Cron Job, tính phí phạt và quản lý khóa truy cập.
+                Xét duyệt gia hạn hợp đồng, xử lý quá hạn và lập biên bản Check-out hoàn trả ô kho tại quầy.
               </p>
             </div>
           </div>
         </div>
 
         {/* Sub-tabs buttons */}
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl self-start md:self-auto">
+        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl self-start md:self-auto flex-wrap">
           <button
             type="button"
             onClick={() => setActiveTab('renewals')}
@@ -322,7 +392,20 @@ export default function StaffRenewalsOverdueView({
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-            <span>Xử Lý Quá Hạn & Khóa PIN</span>
+            <span>Xử Lý Quá Hạn &amp; Khóa PIN</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('checkout')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'checkout'
+                ? 'bg-white text-slate-900 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <DoorClosed className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Thủ Tục Trả Kho (Bàn Giao Check-out)</span>
           </button>
         </div>
       </div>
@@ -578,6 +661,314 @@ export default function StaffRenewalsOverdueView({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ================= TAB 3: CHECK-OUT & BÀN GIAO TRẢ KHO ================= */}
+      {activeTab === 'checkout' && (
+        <div className="space-y-6">
+          {/* Card Tra cứu hợp đồng */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 mb-1 flex items-center gap-2">
+              <Search className="w-4 h-4 text-emerald-600" />
+              Tra Cứu Hợp Đồng Để Lập Biên Bản Trả Kho
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Nhập ID hoặc Mã hợp đồng để đối soát hiện trạng Check-in ban đầu, kiểm tra đồ đạc và quyết toán tiền cọc.
+            </p>
+
+            <form onSubmit={handleLookupContractForCheckOut} className="flex gap-2 max-w-xl">
+              <input
+                type="text"
+                placeholder="Nhập ID hợp đồng (ví dụ: 671234567890abcdef123456 hoặc CON-...)"
+                value={searchContractId}
+                onChange={(e) => setSearchContractId(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono"
+              />
+              <button
+                type="submit"
+                disabled={isSearchingContract}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 shrink-0"
+              >
+                {isSearchingContract ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang tra cứu...</span>
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Tra Cứu Bàn Giao</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* Kết quả Check-out thành công */}
+          {checkOutResult && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 shadow-xs space-y-4 animate-slide-up-fade">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-bold">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-emerald-950">
+                    {checkOutResult.message || 'Thủ tục trả kho và bàn giao hoàn tất thành công!'}
+                  </h4>
+                  <p className="text-xs text-emerald-800">
+                    Hợp đồng #{checkOutResult.contract?.contractCode || checkOutResult.contract?.id} đã chuyển trạng thái COMPLETED.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-white/80 p-4 rounded-2xl border border-emerald-200/60">
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Khách hàng:</span>
+                  <span className="font-bold text-slate-800">{checkOutResult.customer?.fullName}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Trạng thái ô kho &amp; Khóa:</span>
+                  <span className="font-bold text-emerald-700">AVAILABLE (Mã PIN: REVOKED)</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Tiền cọc đã hoàn trả:</span>
+                  <span className="font-extrabold text-emerald-600">
+                    {new Intl.NumberFormat('vi-VN').format(checkOutResult.financialSettlement?.refundDepositAmount || 0)} đ
+                  </span>
+                  {checkOutResult.financialSettlement?.refundPayment?.paymentCode && (
+                    <span className="text-[10px] text-slate-500 block">
+                      Mã GD: {checkOutResult.financialSettlement.refundPayment.paymentCode}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCheckOutResult(null);
+                    setContractCheckoutData(null);
+                    setSearchContractId('');
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-xl transition cursor-pointer"
+                >
+                  Tiếp Tục Bàn Giao Hợp Đồng Khác
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Dữ liệu Hợp đồng đối soát & Form Check-out */}
+          {contractCheckoutData && !checkOutResult && (
+            <div className="space-y-6 animate-slide-up-fade">
+              {/* Thông tin hợp đồng & khách hàng */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Hợp đồng thuê
+                  </span>
+                  <div className="text-base font-bold text-slate-900">
+                    {contractCheckoutData.contract?.contractCode || contractCheckoutData.contract?.id}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    Cơ sở: <strong>{contractCheckoutData.facility?.name}</strong>
+                  </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Khách hàng bàn giao
+                  </span>
+                  <div className="text-base font-bold text-slate-900">
+                    {contractCheckoutData.customer?.fullName}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    SĐT: {contractCheckoutData.customer?.phone || '-'} • CCCD: {contractCheckoutData.customer?.identityNumberMasked || '-'}
+                  </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Tiền cọc &amp; Phụ phí nợ
+                  </span>
+                  <div className="text-base font-extrabold text-emerald-600">
+                    Cọc: {new Intl.NumberFormat('vi-VN').format(contractCheckoutData.financialSummary?.totalDepositAmount || 0)} đ
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    Nợ phụ phí: <strong className={contractCheckoutData.financialSummary?.unpaidExtraChargesAmount > 0 ? 'text-rose-600' : 'text-slate-700'}>
+                      {new Intl.NumberFormat('vi-VN').format(contractCheckoutData.financialSummary?.unpaidExtraChargesAmount || 0)} đ
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Đối chiếu biên bản Check-in ban đầu */}
+              {contractCheckoutData.units && contractCheckoutData.units.length > 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-blue-600" />
+                    Hiện trạng ô kho &amp; Đối chiếu biên bản Check-in ban đầu
+                  </h4>
+
+                  <div className="space-y-3">
+                    {contractCheckoutData.units.map((u, idx) => (
+                      <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-slate-900 text-sm">
+                            Ô {u.unitNumber} ({u.floor || 'Tầng 1'})
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                            {u.storedItemsCount > 0 ? `Đang có ${u.storedItemsCount} món đồ lưu trữ` : 'Kho trống'}
+                          </span>
+                        </div>
+
+                        {u.checkInInspection && (
+                          <div className="pt-2 border-t border-slate-200 text-slate-600 space-y-1">
+                            <div>
+                              <strong>Hiện trạng lúc Check-in:</strong> {u.checkInInspection.condition}
+                            </div>
+                            {u.checkInInspection.notes && (
+                              <div>
+                                <strong>Ghi chú Check-in:</strong> {u.checkInInspection.notes}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Form thực hiện Check-out */}
+              <form onSubmit={handleSubmitCheckOut} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <DoorClosed className="w-4 h-4 text-emerald-600" />
+                  Biên Bản Nghiệm Thu Trả Kho &amp; Quyết Toán Cọc
+                </h4>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-800 block mb-1">
+                    Hiện trạng kho lúc hoàn trả:
+                  </label>
+                  <input
+                    type="text"
+                    value={checkOutCondition}
+                    onChange={(e) => setCheckOutCondition(e.target.value)}
+                    placeholder="Ví dụ: Kho đã dọn sạch, tường và sàn nguyên vẹn không trầy xước..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-800 block mb-1">
+                    Ghi chú bàn giao:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={checkOutNotes}
+                    onChange={(e) => setCheckOutNotes(e.target.value)}
+                    placeholder="Ghi chú thêm về thủ tục bàn giao, xác nhận của khách hàng..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 block mb-1">
+                      Phí bồi thường hư hại (VND):
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={damageFee}
+                      onChange={(e) => setDamageFee(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 block mb-1">
+                      Phí vệ sinh rác thừa (VND):
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={cleaningFee}
+                      onChange={(e) => setCleaningFee(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 block mb-1">
+                      Trạng thái kho sau khi trả:
+                    </label>
+                    <select
+                      value={unitCondition}
+                      onChange={(e) => setUnitCondition(e.target.value as any)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    >
+                      <option value="AVAILABLE">AVAILABLE (Sẵn sàng cho thuê tiếp)</option>
+                      <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE (Cần bảo trì / sửa chữa)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Box Tính toán cọc thực tế hoàn trả */}
+                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-bold text-emerald-950">Số tiền cọc thực tế hoàn trả cho khách:</div>
+                    <div className="text-[11px] text-emerald-800">
+                      = Tiền cọc ({contractCheckoutData.financialSummary?.totalDepositAmount || 0} đ) - Phí phạt ({damageFee} đ) - Phí vệ sinh ({cleaningFee} đ) - Phụ phí nợ ({contractCheckoutData.financialSummary?.unpaidExtraChargesAmount || 0} đ)
+                    </div>
+                  </div>
+                  <div className="text-base font-black text-emerald-600 shrink-0">
+                    {new Intl.NumberFormat('vi-VN').format(
+                      Math.max(
+                        0,
+                        (contractCheckoutData.financialSummary?.totalDepositAmount || 0) -
+                          damageFee -
+                          cleaningFee -
+                          (contractCheckoutData.financialSummary?.unpaidExtraChargesAmount || 0)
+                      )
+                    )} đ
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setContractCheckoutData(null)}
+                    className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 transition cursor-pointer"
+                  >
+                    Hủy Bỏ
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingCheckOut}
+                    className="px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 rounded-xl transition cursor-pointer shadow-sm flex items-center gap-2"
+                  >
+                    {isSubmittingCheckOut ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Đang xử lý Check-out...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Xác Nhận Check-out &amp; Thu Hồi Khóa</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       )}
 

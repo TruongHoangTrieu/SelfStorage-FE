@@ -50,6 +50,32 @@ export interface AccessLog {
   accessedAt: string;
 }
 
+export interface CheckoutRequest {
+  id?: number;
+  contractId: number | string;
+  contractCode?: string;
+  unitId?: number | string;
+  unitNumber?: string;
+  requestedMoveOutDate: string; // YYYY-MM-DD
+  reason: string;
+  feedbackNotes?: string;
+  unitClearanceConfirmed: boolean;
+  lockIntactConfirmed: boolean;
+  photos?: string[];
+  bankInfo: {
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+  };
+  depositAmount: number;
+  estimatedRefund: number;
+  actualRefundAmount?: number;
+  status: 'PENDING' | 'INSPECTING' | 'REFUNDING' | 'COMPLETED' | 'CANCELLED';
+  statusLabel?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface CustomerUnit {
   id: string;
   unitNumber: string; // ví dụ: "Ô A-104"
@@ -61,12 +87,13 @@ export interface CustomerUnit {
   facilityAddress: string;
   zone: string; // "Khu A"
   floor: string; // "Tầng 1"
-  status: 'active' | 'expiring' | 'overdue';
+  status: 'active' | 'expiring' | 'overdue' | 'checkout_pending' | 'terminated';
   statusLabel: string;
   daysRemaining: number;
   nextBillingDate: string;
   monthlyRent: string;
   monthlyRentNum: number;
+  depositAmount?: number;
   contractStartDate: string;
   contractEndDate: string;
   contractId: string;
@@ -82,7 +109,7 @@ export interface CustomerUnit {
   supportTickets: SupportTicket[];
   storedItems?: StoredItem[];
   accessLogs?: AccessLog[];
-  contractStatus?: 'ACTIVE' | 'PENDING_SIGN' | 'TERMINATED' | 'EXPIRED';
+  contractStatus?: 'ACTIVE' | 'PENDING_SIGN' | 'TERMINATED' | 'EXPIRED' | 'CHECKOUT_REQUESTED';
   isSigned?: boolean;
   terms?: string;
   smartLockStatus?: string;
@@ -90,6 +117,7 @@ export interface CustomerUnit {
   rawContractId?: number;
   rawContractItemId?: number;
   rawUnitId?: number;
+  checkoutRequest?: CheckoutRequest;
 }
 
 export interface CustomerUser {

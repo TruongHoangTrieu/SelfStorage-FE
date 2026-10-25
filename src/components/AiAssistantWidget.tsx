@@ -187,7 +187,7 @@ export default function AiAssistantWidget() {
           {/* Subtle Attention Tooltip */}
           <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/95 text-white text-xs font-medium shadow-xl border border-slate-700/60 backdrop-blur-md animate-bounce">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Trợ lý AI tư vấn kho</span>
+            <span>Trợ lý tư vấn kho 24/7</span>
           </div>
 
           <button
@@ -195,13 +195,12 @@ export default function AiAssistantWidget() {
               setIsOpen(true);
               setIsMinimized(false);
             }}
-            className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-400 text-white shadow-2xl shadow-blue-500/35 hover:shadow-blue-500/60 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-400/40"
-            aria-label="Mở Trợ lý AI"
+            className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-200 focus:outline-none"
+            aria-label="Mở Trợ lý tư vấn kho"
           >
-            <Sparkles className="w-6 h-6 animate-pulse group-hover:rotate-12 transition-transform" />
-            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-white" />
+            <Bot className="w-6 h-6 text-white" />
+            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-white" />
             </span>
           </button>
         </div>
@@ -218,25 +217,25 @@ export default function AiAssistantWidget() {
           style={{ boxShadow: "0 20px 50px -10px rgba(15, 23, 42, 0.25)" }}
         >
           {/* HEADER */}
-          <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white shrink-0 border-b border-slate-700/60">
+          <div className="flex items-center justify-between px-5 py-4 bg-slate-900 text-white shrink-0 border-b border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 text-white shadow-md shadow-blue-500/20">
+              <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 text-white shadow-sm">
                 <Bot className="w-5 h-5" />
-                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-900" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-900" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-sm tracking-wide text-white">
-                    SelfStorage AI
+                  <h3 className="font-bold text-sm tracking-wide text-white">
+                    Trợ Lý Tư Vấn Kho
                   </h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                    ML Models
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                    Trực Tuyến
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   {aiHealth?.status === "ok"
-                    ? "Tư vấn kích cỡ & Chính sách 24/7"
+                    ? "Tư vấn kích cỡ, báo giá & chính sách kho"
                     : "Hỗ trợ khách hàng trực tuyến"}
                 </p>
               </div>
