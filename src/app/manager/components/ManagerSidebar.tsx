@@ -19,6 +19,7 @@ import {
   Clock,
   Shield,
   Users,
+  Camera,
 } from 'lucide-react';
 import { ManagerTab, StaffUser } from '../types';
 
@@ -70,6 +71,7 @@ export default function ManagerSidebar({
   const coreManagementItems = [
     { id: 'dashboard' as ManagerTab, label: 'Bảng điều khiển cơ sở', icon: LayoutDashboard },
     { id: 'facility' as ManagerTab, label: 'Sơ đồ & Phân công NV', icon: MapPin },
+    { id: 'facility_photos' as ManagerTab, label: 'Hình ảnh cơ sở', icon: Camera },
     { id: 'unit_types' as ManagerTab, label: 'Loại kho & Bảng giá', icon: Boxes },
     {
       id: 'checkout' as ManagerTab,

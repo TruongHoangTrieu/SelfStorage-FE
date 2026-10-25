@@ -196,7 +196,11 @@ export default function CustomerDashboardPage() {
     };
     checkTabQuery();
     window.addEventListener('popstate', checkTabQuery);
-    return () => window.removeEventListener('popstate', checkTabQuery);
+    window.addEventListener('custom-tab-change', checkTabQuery);
+    return () => {
+      window.removeEventListener('popstate', checkTabQuery);
+      window.removeEventListener('custom-tab-change', checkTabQuery);
+    };
   }, [loadContractsData]);
 
   // Handle Login success

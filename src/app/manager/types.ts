@@ -3,6 +3,7 @@ import { CheckInAppointment, AvailableUnit, StaffUser, FlowStep } from '../staff
 export type ManagerTab = 
   | 'dashboard'
   | 'facility'
+  | 'facility_photos'
   | 'unit_types'
   | 'checkout'
   | 'queue'

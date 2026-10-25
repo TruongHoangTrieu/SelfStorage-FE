@@ -99,6 +99,95 @@ export default function StaffPortalPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } =
     useNotifications(currentUser?.id);
 
+  // Sync tab with URL query parameter (?tab=support, etc.)
+  const syncTabFromUrl = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab') as StaffTab | null;
+    if (tabParam) {
+      const validTabs: StaffTab[] = [
+        'queue',
+        'dashboard',
+        'checkout',
+        'facility',
+        'support',
+        'settings',
+        'profile',
+        'unit_types',
+      ];
+      if (validTabs.includes(tabParam)) {
+        setActiveTab(tabParam);
+        if (tabParam === 'queue') setFlowStep('queue');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    syncTabFromUrl();
+    window.addEventListener('popstate', syncTabFromUrl);
+    window.addEventListener('manager-tab-change', syncTabFromUrl);
+    window.addEventListener('custom-tab-change', syncTabFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncTabFromUrl);
+      window.removeEventListener('manager-tab-change', syncTabFromUrl);
+      window.removeEventListener('custom-tab-change', syncTabFromUrl);
+    };
+  }, [syncTabFromUrl]);
+
+  const handleNotificationClick = (notif: any) => {
+    if (!notif.isRead) {
+      markAsRead(notif.id);
+    }
+    setIsNotifOpen(false);
+
+    const notifType = String(notif.type || '').toUpperCase();
+    const entityType = String(notif.entityType || '').toUpperCase();
+    const entityId = notif.entityId;
+    const text = `${notif.title || ''} ${notif.body || ''}`.toLowerCase();
+
+    let targetTab: StaffTab = 'dashboard';
+    let extraQuery = '';
+
+    if (
+      notifType === 'SUPPORT' ||
+      entityType === 'SUPPORT_REQUEST' ||
+      text.includes('hỗ trợ') ||
+      text.includes('sự cố') ||
+      text.includes('khiếu nại')
+    ) {
+      targetTab = 'support';
+      if (entityId) extraQuery = `&ticketId=${entityId}`;
+    } else if (
+      notifType === 'RENEWAL' ||
+      notifType === 'OVERDUE' ||
+      text.includes('gia hạn') ||
+      text.includes('quá hạn')
+    ) {
+      targetTab = 'checkout';
+    } else if (
+      notifType === 'RESERVATION' ||
+      notifType === 'HANDOVER' ||
+      text.includes('nhận kho') ||
+      text.includes('bàn giao') ||
+      text.includes('đặt chỗ')
+    ) {
+      targetTab = 'queue';
+      setFlowStep('queue');
+    } else if (notifType === 'FACILITY' || text.includes('cơ sở') || text.includes('mặt bằng')) {
+      targetTab = 'facility';
+    } else {
+      targetTab = 'queue';
+      setFlowStep('queue');
+    }
+
+    setActiveTab(targetTab);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', `/staff?tab=${targetTab}${extraQuery}`);
+      window.dispatchEvent(new Event('manager-tab-change'));
+      window.dispatchEvent(new Event('custom-tab-change'));
+    }
+  };
+
   // Cuộc hẹn đang được xử lý
   const currentAppointment = useMemo(() => {
     return appointments.find((a) => a.id === selectedAppointmentId) || appointments[0];
@@ -850,15 +939,15 @@ export default function StaffPortalPage() {
                     notifications.map((notif) => (
                       <div
                         key={notif.id}
-                        onClick={() => !notif.isRead && markAsRead(notif.id)}
-                        className={`p-2.5 rounded-xl border transition-colors cursor-pointer space-y-1 ${
+                        onClick={() => handleNotificationClick(notif)}
+                        className={`p-2.5 rounded-xl border transition-all cursor-pointer space-y-1 hover:border-blue-300 hover:shadow-xs group ${
                           notif.isRead
                             ? 'bg-slate-50/60 border-slate-100 opacity-75'
                             : 'bg-blue-50/50 border-blue-200 shadow-2xs'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1.5 text-[11px]">
-                          <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
                             {!notif.isRead && (
                               <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
                             )}
@@ -871,9 +960,15 @@ export default function StaffPortalPage() {
                             })}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-600 leading-relaxed">
+                        <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
                           {notif.body}
                         </p>
+                        <div className="flex items-center justify-end pt-0.5">
+                          <span className="text-[10px] font-semibold text-blue-600 group-hover:underline flex items-center gap-0.5">
+                            <span>Xem chi tiết</span>
+                            <span>&rarr;</span>
+                          </span>
+                        </div>
                       </div>
                     ))
                   )}

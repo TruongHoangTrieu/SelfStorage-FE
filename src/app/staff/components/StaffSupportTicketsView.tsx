@@ -60,7 +60,16 @@ export default function StaffSupportTicketsView({
       });
       const items = Array.isArray(res) ? res : res?.data || [];
       setTickets(items);
-      if (items.length > 0 && !selectedTicket) {
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const targetTicketId = searchParams?.get('ticketId');
+      if (targetTicketId) {
+        const found = items.find((t: any) => String(t.id) === String(targetTicketId) || String(t.requestCode) === String(targetTicketId));
+        if (found) {
+          setSelectedTicket(found);
+        } else if (items.length > 0 && !selectedTicket) {
+          setSelectedTicket(items[0]);
+        }
+      } else if (items.length > 0 && !selectedTicket) {
         setSelectedTicket(items[0]);
       }
     } catch (e) {
@@ -121,7 +130,18 @@ export default function StaffSupportTicketsView({
         },
       ];
       setTickets(mockTickets);
-      setSelectedTicket(mockTickets[0]);
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const targetTicketId = searchParams?.get('ticketId');
+      if (targetTicketId) {
+        const found = mockTickets.find((t: any) => String(t.id) === String(targetTicketId) || String(t.requestCode) === String(targetTicketId));
+        if (found) {
+          setSelectedTicket(found);
+        } else {
+          setSelectedTicket(mockTickets[0]);
+        }
+      } else {
+        setSelectedTicket(mockTickets[0]);
+      }
     } finally {
       setLoading(false);
     }
@@ -130,6 +150,31 @@ export default function StaffSupportTicketsView({
   useEffect(() => {
     loadTickets();
   }, [facilityId]);
+
+  useEffect(() => {
+    const handleTicketUrlSync = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const ticketId = params.get('ticketId');
+        if (ticketId && tickets.length > 0) {
+          const match = tickets.find(
+            (t) => String(t.id) === String(ticketId) || String(t.requestCode) === String(ticketId)
+          );
+          if (match) {
+            setSelectedTicket(match);
+          }
+        }
+      }
+    };
+    window.addEventListener('popstate', handleTicketUrlSync);
+    window.addEventListener('manager-tab-change', handleTicketUrlSync);
+    window.addEventListener('custom-tab-change', handleTicketUrlSync);
+    return () => {
+      window.removeEventListener('popstate', handleTicketUrlSync);
+      window.removeEventListener('manager-tab-change', handleTicketUrlSync);
+      window.removeEventListener('custom-tab-change', handleTicketUrlSync);
+    };
+  }, [tickets]);
 
   const handleUpdateProgressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

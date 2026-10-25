@@ -80,6 +80,7 @@ export interface FacilityItem {
   district?: string;
   phone?: string;
   email?: string;
+  images?: string[];
   operatingHours?: string;
   isActive: boolean;
   totalFloors?: number;
@@ -145,5 +146,26 @@ export const facilitiesApi = {
     if (params?.priority) q.append('priority', params.priority);
     const qs = q.toString() ? `?${q.toString()}` : '';
     return api.get<any[]>(`/facilities/${facilityId}/support-requests${qs}`);
+  },
+
+  // Upload ảnh cơ sở kho lên Cloudinary
+  uploadFacilityImage: async (facilityId: string, file: File, isPrimary = true, slotIndex?: number) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('isPrimary', String(isPrimary));
+    if (slotIndex !== undefined && slotIndex !== null) {
+      formData.append('slotIndex', String(slotIndex));
+    }
+    return api.post<{
+      message: string;
+      url: string;
+      images: string[];
+      facility: any;
+    }>(`/facilities/${facilityId}/upload-image`, formData);
+  },
+
+  // Cập nhật danh sách ảnh cơ sở kho
+  updateFacilityImages: async (facilityId: string, images: string[]) => {
+    return api.patch<any>(`/facilities/${facilityId}`, { images });
   },
 };

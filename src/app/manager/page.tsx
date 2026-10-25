@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -21,6 +21,7 @@ import {
   Calendar,
   Boxes,
   Users,
+  Bell,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -30,6 +31,7 @@ import { ManagerTab } from './types';
 import { handoversApi } from '@/lib/api/handovers';
 import { renewalsApi } from '@/lib/api/renewals';
 import { approvalRequestsService } from '../staff/services/approvalRequests';
+import { useNotifications } from '@/lib/useNotifications';
 
 // Import Sub-Components
 import ManagerSidebar from './components/ManagerSidebar';
@@ -72,6 +74,111 @@ export default function ManagerPortalPage() {
   const [isLoadingQueue, setIsLoadingQueue] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pendingRenewalsCount, setPendingRenewalsCount] = useState(0);
+
+  // Notifications State for Manager Portal
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications(currentUser?.id);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const notifMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
+        setNotificationOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Sync tab with URL query parameter (?tab=support, etc.)
+  const syncTabFromUrl = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab') as ManagerTab | null;
+    if (tabParam) {
+      const validTabs: ManagerTab[] = [
+        'dashboard',
+        'facility',
+        'facility_photos',
+        'unit_types',
+        'checkout',
+        'queue',
+        'support',
+        'profile',
+        'settings',
+      ];
+      if (validTabs.includes(tabParam)) {
+        setActiveTab(tabParam);
+        if (tabParam === 'queue') setFlowStep('queue');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    syncTabFromUrl();
+    window.addEventListener('popstate', syncTabFromUrl);
+    window.addEventListener('manager-tab-change', syncTabFromUrl);
+    window.addEventListener('custom-tab-change', syncTabFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncTabFromUrl);
+      window.removeEventListener('manager-tab-change', syncTabFromUrl);
+      window.removeEventListener('custom-tab-change', syncTabFromUrl);
+    };
+  }, [syncTabFromUrl]);
+
+  const handleNotificationClick = (notif: any) => {
+    if (!notif.isRead) {
+      markAsRead(notif.id);
+    }
+    setNotificationOpen(false);
+
+    const notifType = String(notif.type || '').toUpperCase();
+    const entityType = String(notif.entityType || '').toUpperCase();
+    const entityId = notif.entityId;
+    const text = `${notif.title || ''} ${notif.body || ''}`.toLowerCase();
+
+    let targetTab: ManagerTab = 'dashboard';
+    let extraQuery = '';
+
+    if (
+      notifType === 'SUPPORT' ||
+      entityType === 'SUPPORT_REQUEST' ||
+      text.includes('hỗ trợ') ||
+      text.includes('sự cố') ||
+      text.includes('khiếu nại')
+    ) {
+      targetTab = 'support';
+      if (entityId) extraQuery = `&ticketId=${entityId}`;
+    } else if (
+      notifType === 'RENEWAL' ||
+      notifType === 'OVERDUE' ||
+      text.includes('gia hạn') ||
+      text.includes('quá hạn')
+    ) {
+      targetTab = 'checkout';
+    } else if (
+      notifType === 'RESERVATION' ||
+      notifType === 'HANDOVER' ||
+      text.includes('nhận kho') ||
+      text.includes('bàn giao') ||
+      text.includes('đặt chỗ')
+    ) {
+      targetTab = 'queue';
+      setFlowStep('queue');
+    } else if (notifType === 'FACILITY' || text.includes('cơ sở') || text.includes('ảnh')) {
+      targetTab = 'facility_photos';
+    } else {
+      targetTab = 'dashboard';
+    }
+
+    setActiveTab(targetTab);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', `/manager?tab=${targetTab}${extraQuery}`);
+      window.dispatchEvent(new Event('manager-tab-change'));
+      window.dispatchEvent(new Event('custom-tab-change'));
+    }
+  };
 
   // Appointments & Units State
   const [appointments, setAppointments] = useState<CheckInAppointment[]>([]);
@@ -224,7 +331,7 @@ export default function ManagerPortalPage() {
         const tabParam = params.get('tab') as ManagerTab;
         if (
           tabParam &&
-          ['dashboard', 'facility', 'unit_types', 'checkout', 'queue', 'support', 'profile'].includes(tabParam)
+          ['dashboard', 'facility', 'facility_photos', 'unit_types', 'checkout', 'queue', 'support', 'profile'].includes(tabParam)
         ) {
           setActiveTab(tabParam);
           if (tabParam === 'queue') setFlowStep('queue');
@@ -538,6 +645,7 @@ export default function ManagerPortalPage() {
   const currentTabLabel = {
     dashboard: 'Bảng Điều Khiển Tổng Quan',
     facility: 'Sơ Đồ Cơ Sở & Phân Công Nhân Sự',
+    facility_photos: 'Quản Lý Hình Ảnh Cơ Sở',
     unit_types: 'Quản Lý Loại Kho & Bảng Giá',
     checkout: 'Phê Duyệt Gia Hạn & Xử Lý Quá Hạn',
     queue: 'Giám Sát Quầy Nhận Kho',
@@ -562,7 +670,7 @@ export default function ManagerPortalPage() {
           </button>
 
           {/* Logo hệ thống chuẩn nhận diện thương hiệu giống /staff */}
-          <Link href="/manager" className="inline-flex items-center group py-1 pl-1" title="Cổng Quản Lý Cơ Sở">
+          <Link href="/" className="inline-flex items-center group py-1 pl-1" title="Về trang chủ SelfStorage">
             <img
               src="/logo.png"
               alt="SelfStorage Logo"
@@ -586,6 +694,88 @@ export default function ManagerPortalPage() {
             <span className="max-w-[180px] truncate">{facilityName}</span>
           </div>
 
+          {/* Notification Bell with Badge & Dropdown */}
+          <div className="relative" ref={notifMenuRef}>
+            <button
+              type="button"
+              onClick={() => setNotificationOpen((prev) => !prev)}
+              className="relative p-2 rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 transition-colors cursor-pointer border border-transparent hover:border-indigo-100"
+              aria-label="Thông báo quản lý"
+              title="Thông báo hệ thống"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-white animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {notificationOpen && (
+              <div className="absolute right-0 mt-2.5 w-84 bg-white rounded-2xl shadow-xl border border-slate-100 p-3 z-50 animate-slide-up-fade">
+                <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
+                  <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Thông Báo Quản Lý ({unreadCount})</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllAsRead()}
+                      className="text-[10px] font-semibold text-indigo-600 hover:underline cursor-pointer"
+                    >
+                      Đã đọc tất cả
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-2 text-xs max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="py-6 text-center text-slate-400 text-xs">
+                      Chưa có thông báo nào
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => handleNotificationClick(notif)}
+                        className={`p-2.5 rounded-xl border transition-all cursor-pointer space-y-1 hover:border-indigo-300 hover:shadow-xs group ${
+                          notif.isRead
+                            ? 'bg-slate-50/60 border-slate-100 opacity-75'
+                            : 'bg-indigo-50/40 border-indigo-100/80 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1.5 text-[11px]">
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-indigo-600 transition-colors">
+                            {!notif.isRead && (
+                              <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
+                            )}
+                            {notif.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0">
+                            {new Date(notif.createdAt).toLocaleDateString('vi-VN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
+                          {notif.body}
+                        </p>
+                        <div className="flex items-center justify-end pt-0.5">
+                          <span className="text-[10px] font-semibold text-indigo-600 group-hover:underline flex items-center gap-0.5">
+                            <span>Xem chi tiết</span>
+                            <span>&rarr;</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Manager Avatar Pill + Logout Button (Đồng bộ cấu trúc /staff) */}
           {currentUser ? (
             <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
@@ -603,7 +793,7 @@ export default function ManagerPortalPage() {
                     {currentUser.fullName}
                   </div>
                   <div className="text-[10px] text-indigo-600 font-extrabold uppercase tracking-wider">
-                    {currentUser.role === 'BUSINESS_OPERATIONS_MANAGER' ? 'QUẢN LÝ CHUỖI' : 'QUẢN LÝ CHI NHÁNH'}
+                    {currentUser.role === 'BUSINESS_OPERATIONS_MANAGER' ? 'GIÁM ĐỐC VẬN HÀNH' : 'QUẢN LÝ CHI NHÁNH'}
                   </div>
                 </div>
               </button>
@@ -675,11 +865,12 @@ export default function ManagerPortalPage() {
               />
             )}
 
-            {/* TAB 2: SƠ ĐỒ MẶT BẰNG & PHÂN CÔNG NHÂN SỰ */}
-            {activeTab === 'facility' && (
+            {/* TAB 2: SƠ ĐỒ MẶT BẰNG & PHÂN CÔNG NHÂN SỰ & HÌNH ẢNH */}
+            {(activeTab === 'facility' || activeTab === 'facility_photos') && (
               <FacilityLayoutView
                 facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''}
                 userRole={currentUser?.role || 'FACILITY_MANAGER'}
+                initialSubTab={activeTab === 'facility_photos' ? 'photos' : 'layout'}
               />
             )}
 

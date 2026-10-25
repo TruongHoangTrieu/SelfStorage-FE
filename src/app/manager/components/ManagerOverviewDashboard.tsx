@@ -21,6 +21,7 @@ import {
   Sparkles,
   Loader2,
   Bot,
+  Camera,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { aiApi } from '@/lib/api/ai';
@@ -112,6 +113,14 @@ export default function ManagerOverviewDashboard({
             </button>
             <button
               type="button"
+              onClick={() => onNavigateTab('facility_photos')}
+              className="px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md shadow-emerald-600/30 transition flex items-center gap-2 cursor-pointer"
+            >
+              <Camera className="w-4 h-4 text-emerald-100" />
+              <span>Đổi Ảnh Cơ Sở</span>
+            </button>
+            <button
+              type="button"
               onClick={() => onNavigateTab('unit_types')}
               className="px-4 py-2.5 text-xs font-bold text-slate-200 hover:text-white bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl transition flex items-center gap-2 cursor-pointer"
             >
@@ -188,7 +197,7 @@ export default function ManagerOverviewDashboard({
       </div>
 
       {/* 3. Phân Hệ Quản Trị Dành Riêng Cho Quản Lý */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Module 1: Phân công nhân sự */}
         <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs flex flex-col justify-between">
           <div className="space-y-3">
@@ -254,6 +263,29 @@ export default function ManagerOverviewDashboard({
             className="mt-5 w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 text-amber-700 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
           >
             <span>Quản Trị Hợp Đồng &amp; Phạt</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Module 4: Quản lý hình ảnh cơ sở */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs flex flex-col justify-between">
+          <div className="space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+              <Camera className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Hình Ảnh Cơ Sở</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Tải ảnh cơ sở mới, quản lý ảnh đại diện hiển thị đồng bộ trên Web và ứng dụng Mobile.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigateTab('facility_photos')}
+            className="mt-5 w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-emerald-700 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+          >
+            <span>Quản Lý Ảnh Cơ Sở</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>

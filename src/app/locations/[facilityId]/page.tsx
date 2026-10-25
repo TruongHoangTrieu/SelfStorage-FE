@@ -82,14 +82,9 @@ interface StorageUnitType {
 // Clean fallback images if facility has no custom images
 const GALLERY_FALLBACKS = [
   {
-    title: "Lối vào kho",
-    desc: "Lối vào kho với cửa cuốn tự động và bãi đỗ xe",
-    image: "https://images.unsplash.com/photo-1587293852726-70cdb56c2866?auto=format&fit=crop&w=800&q=80",
-  },
-  {
     title: "Kho nhỏ 4.9 m² (12.5 m³)",
     desc: "Kho nhỏ diện tích 4.9 m², thể tích 12.5 m³",
-    image: "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=800&q=80",
+    image: "https://res.cloudinary.com/micb9okr/image/upload/v1792946232/selfstorage/storage_units/unit_sto1.png",
     area: "4.9",
     volume: "12.5",
     type: "Kho nhỏ",
@@ -97,7 +92,7 @@ const GALLERY_FALLBACKS = [
   {
     title: "Kho trung bình 9.0 m² (22.5 m³)",
     desc: "Kho trung bình diện tích 9.0 m², thể tích 22.5 m³",
-    image: "https://images.unsplash.com/photo-1586528116493-a029325540fa?auto=format&fit=crop&w=800&q=80",
+    image: "https://res.cloudinary.com/micb9okr/image/upload/v1792946236/selfstorage/storage_units/unit_sto2.png",
     area: "9.0",
     volume: "22.5",
     type: "Kho trung bình",
@@ -105,31 +100,11 @@ const GALLERY_FALLBACKS = [
   {
     title: "Kho lớn 14.5 m² (36.3 m³)",
     desc: "Kho lớn diện tích 14.5 m², thể tích 36.3 m³",
-    image: "https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?auto=format&fit=crop&w=800&q=80",
+    image: "https://res.cloudinary.com/micb9okr/image/upload/v1792946240/selfstorage/storage_units/unit_sto3.png",
     area: "14.5",
     volume: "36.3",
     type: "Kho lớn",
   },
-  {
-    title: "Sảnh vào hàng rộng rãi",
-    desc: "Sảnh vào hàng rộng rãi, xe tải tiếp cận trực tiếp",
-    image: "https://images.unsplash.com/photo-1586528116480-1a74d75dca26?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    title: "Kho riêng biệt an toàn tuyệt đối",
-    desc: "Kho riêng biệt an toàn tuyệt đối, khóa bàn phím số tay nắm cửa độc lập",
-    image: "https://images.unsplash.com/photo-1508873696983-2df5293cb325?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    title: "Thang máy hàng công nghiệp",
-    desc: "Thang máy hàng công nghiệp tải trọng lớn 2 tấn",
-    image: "https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    title: "Kho kiểm soát nhiệt độ (Kho mát)",
-    desc: "Kho kiểm soát nhiệt độ 23-25°C & độ ẩm dưới 55% RH",
-    image: "https://images.unsplash.com/photo-1605371924599-2d0365da1ae0?auto=format&fit=crop&w=800&q=80",
-  }
 ];
 
 export default function FacilityDetailPage({
@@ -214,13 +189,23 @@ export default function FacilityDetailPage({
   // Dynamic gallery items specific to this facility
   const galleryItems = useMemo(() => {
     return GALLERY_FALLBACKS.map((tmpl, idx) => {
-      // In facility.images: index 0 is banner, index 1..8 are the 8 gallery images
-      const imgFromDb = facility?.images && facility.images[idx + 1] ? facility.images[idx + 1] : tmpl.image;
+      const customImg = facility?.images?.[idx + 1];
+      const isCustomUploaded =
+        customImg &&
+        typeof customImg === 'string' &&
+        customImg.trim() !== '' &&
+        !customImg.includes('photo-1586528116311-ad8dd3c8310d') &&
+        !customImg.includes('photo-1587293852726-70cdb56c2866') &&
+        !customImg.includes('photo-1553413077-190dd305871c') &&
+        !customImg.includes('photo-1563986768609') &&
+        !customImg.includes('photo-1600585154526') &&
+        !customImg.includes('photo-1507089947368') &&
+        !customImg.includes('photo-1486406146926') &&
+        !customImg.includes('photo-1503387762');
+
       return {
         ...tmpl,
-        title: idx === 0 ? `Lối vào kho ${facility?.name || "SelfStorage"}` : tmpl.title,
-        desc: idx === 0 ? `Lối vào kho bãi đỗ xe và cửa cuốn bốc xếp hàng tại ${facility?.name || "SelfStorage"}` : tmpl.desc,
-        image: imgFromDb,
+        image: isCustomUploaded ? customImg : tmpl.image,
       };
     });
   }, [facility]);
@@ -371,7 +356,7 @@ export default function FacilityDetailPage({
                   <div className="relative isolate rounded-3xl p-2 bg-gradient-to-b from-orange-400/30 via-amber-300/20 to-blue-500/20 shadow-2xl">
                     <div className="rounded-[20px] overflow-hidden bg-slate-900 relative aspect-[4/3] group">
                       <img
-                        src={facility.images && facility.images.length > 1 ? facility.images[1] : (facility.images?.[0] || "/climate_control.jpg")}
+                        src={facility.images?.[0] || "/1.jpg"}
                         alt={facility.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-95"
                       />
@@ -379,8 +364,12 @@ export default function FacilityDetailPage({
 
                       {/* Bottom Caption */}
                       <div className="absolute bottom-4 left-4 right-4 text-white">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-orange-400">Trực quan cơ sở</span>
-                        <h4 className="text-base font-bold text-white">Không gian thực tế tại {facility.name}</h4>
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-orange-500/90 backdrop-blur-xs text-white inline-block mb-1">
+                          Hình Ảnh Cơ Sở
+                        </span>
+                        <p className="text-xs sm:text-sm font-bold text-white drop-shadow-sm line-clamp-1">
+                          {facility.name}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -493,8 +482,8 @@ export default function FacilityDetailPage({
                 />
               </div>
 
-              {/* Lưới 4 cột ảnh thực tế khớp 100% với giao diện tham khảo */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-6 sm:gap-y-8">
+              {/* Lưới 3 cột ảnh kích thước ngăn kho trải đều 100% bằng với ảnh trên */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 w-full">
                 {galleryItems.map((item, idx) => (
                   <div
                     key={idx}
@@ -792,10 +781,7 @@ export default function FacilityDetailPage({
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16 relative z-10">
 
               <div className="text-center max-w-3xl mx-auto mb-16">
-                <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-400 mb-2">
-                  <span className="w-2 h-2 rounded-full bg-orange-400"></span>
-                  TIÊU CHUẨN SSAA QUỐC TẾ
-                </span>
+                
                 <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
                   Tài Sản Của Bạn Được Bảo Vệ 24/7 Tuyệt Đối
                 </h2>

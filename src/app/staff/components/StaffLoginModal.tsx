@@ -159,10 +159,18 @@ export default function StaffLoginModal({
               <button
                 type="button"
                 onClick={() => handleQuickFill('manager@selfstorage.vn', '123456')}
-                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold border border-slate-200 text-left transition-colors cursor-pointer"
+                className="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold border border-indigo-200 text-left transition-colors cursor-pointer"
               >
                 <div>Quản lý chi nhánh</div>
-                <div className="text-[10px] text-slate-500 font-normal">manager@selfstorage.vn</div>
+                <div className="text-[10px] text-indigo-500 font-normal">manager@selfstorage.vn</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickFill('ops@selfstorage.vn', '123456')}
+                className="p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold border border-amber-200 text-left transition-colors cursor-pointer"
+              >
+                <div>Giám Đốc Vận Hành</div>
+                <div className="text-[10px] text-amber-600 font-normal">ops@selfstorage.vn</div>
               </button>
             </div>
           </div>

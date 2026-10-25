@@ -176,7 +176,7 @@ export default function Navbar() {
     }
     if (roleName === "BUSINESS_OPERATIONS_MANAGER" || roleName === "OPS") {
       return {
-        label: "Quản Lý Chuỗi",
+        label: "Giám Đốc Vận Hành",
         pillHover: "hover:border-amber-400",
         avatarGrad: "from-amber-500 to-orange-600",
         badge: "bg-amber-100 text-amber-800 border border-amber-200",
@@ -240,6 +240,120 @@ export default function Navbar() {
       return email.split("@")[0];
     }
     return "Tài khoản";
+  };
+
+  const handleNotificationClick = (notif: any) => {
+    if (!notif.isRead) {
+      markAsRead(notif.id);
+    }
+    setNotificationOpen(false);
+
+    const roleName = typeof user?.role === 'object' && user?.role !== null ? user.role.name : user?.role;
+    const isManagerRole = ['FACILITY_MANAGER', 'BUSINESS_OPERATIONS_MANAGER', 'SYSTEM_ADMINISTRATOR', 'ADMIN'].includes(
+      String(roleName || '').toUpperCase()
+    );
+    const isPureStaffRole = ['FACILITY_STAFF', 'OPERATIONS_STAFF'].includes(
+      String(roleName || '').toUpperCase()
+    );
+
+    const notifType = String(notif.type || '').toUpperCase();
+    const entityType = String(notif.entityType || '').toUpperCase();
+    const entityId = notif.entityId;
+    const text = `${notif.title || ''} ${notif.body || ''}`.toLowerCase();
+
+    let targetUrl = '';
+
+    // 1. Yêu cầu hỗ trợ / Sự cố / Khiếu nại
+    if (
+      notifType === 'SUPPORT' ||
+      entityType === 'SUPPORT_REQUEST' ||
+      text.includes('hỗ trợ') ||
+      text.includes('sự cố') ||
+      text.includes('khiếu nại')
+    ) {
+      if (isManagerRole || isPureStaffRole) {
+        targetUrl = `/manager?tab=support${entityId ? `&ticketId=${entityId}` : ''}`;
+      } else {
+        targetUrl = `/dashboard?tab=support`;
+      }
+    }
+    // 2. Gia hạn / Quá hạn
+    else if (
+      notifType === 'RENEWAL' ||
+      notifType === 'OVERDUE' ||
+      text.includes('gia hạn') ||
+      text.includes('quá hạn')
+    ) {
+      if (isManagerRole || isPureStaffRole) {
+        targetUrl = '/manager?tab=checkout';
+      } else {
+        targetUrl = '/dashboard?tab=billing';
+      }
+    }
+    // 3. Đặt chỗ / Nhận kho / Bàn giao
+    else if (
+      notifType === 'RESERVATION' ||
+      notifType === 'HANDOVER' ||
+      text.includes('nhận kho') ||
+      text.includes('bàn giao') ||
+      text.includes('đặt chỗ')
+    ) {
+      if (isManagerRole || isPureStaffRole) {
+        targetUrl = '/manager?tab=queue';
+      } else {
+        targetUrl = '/dashboard?tab=my_units';
+      }
+    }
+    // 4. Hợp đồng
+    else if (notifType === 'CONTRACT' || text.includes('hợp đồng')) {
+      if (isManagerRole || isPureStaffRole) {
+        targetUrl = '/manager?tab=checkout';
+      } else {
+        targetUrl = '/dashboard?tab=documents';
+      }
+    }
+    // 5. Thanh toán / Hóa đơn
+    else if (notifType === 'PAYMENT' || text.includes('thanh toán') || text.includes('hóa đơn')) {
+      if (isManagerRole || isPureStaffRole) {
+        targetUrl = '/manager?tab=dashboard';
+      } else {
+        targetUrl = '/dashboard?tab=billing';
+      }
+    }
+    // 6. Cơ sở / Mặt bằng / Ảnh
+    else if (notifType === 'FACILITY' || text.includes('cơ sở') || text.includes('mặt bằng')) {
+      if (isManagerRole || isPureStaffRole) {
+        targetUrl = '/manager?tab=facility_photos';
+      } else {
+        targetUrl = '/locations';
+      }
+    }
+    // 7. Mặc định theo vai trò
+    else {
+      if (isManagerRole) {
+        targetUrl = '/manager';
+      } else if (isPureStaffRole) {
+        targetUrl = '/staff';
+      } else {
+        targetUrl = '/dashboard';
+      }
+    }
+
+    if (targetUrl) {
+      const [targetPath] = targetUrl.split('?');
+      if (typeof window !== 'undefined') {
+        if (window.location.pathname === targetPath) {
+          window.history.pushState({}, '', targetUrl);
+          window.dispatchEvent(new Event('manager-tab-change'));
+          window.dispatchEvent(new Event('custom-tab-change'));
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        } else {
+          router.push(targetUrl);
+        }
+      } else {
+        router.push(targetUrl);
+      }
+    }
   };
 
   // Optimized, non-redundant nav links
@@ -352,15 +466,15 @@ export default function Navbar() {
                         notifications.map((notif) => (
                           <div
                             key={notif.id}
-                            onClick={() => !notif.isRead && markAsRead(notif.id)}
-                            className={`p-2.5 rounded-xl border transition-colors cursor-pointer space-y-1 ${
+                            onClick={() => handleNotificationClick(notif)}
+                            className={`p-2.5 rounded-xl border transition-all cursor-pointer space-y-1 hover:border-blue-300 hover:shadow-xs group ${
                               notif.isRead
                                 ? 'bg-slate-50/60 border-slate-100 opacity-75'
                                 : 'bg-blue-50/40 border-blue-100/80 shadow-2xs'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-1.5 text-[11px]">
-                              <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                              <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
                                 {!notif.isRead && (
                                   <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
                                 )}
@@ -373,9 +487,15 @@ export default function Navbar() {
                                 })}
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-600 leading-relaxed">
+                            <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
                               {notif.body}
                             </p>
+                            <div className="flex items-center justify-end pt-0.5">
+                              <span className="text-[10px] font-semibold text-blue-600 group-hover:underline flex items-center gap-0.5">
+                                <span>Xem chi tiết</span>
+                                <span>&rarr;</span>
+                              </span>
+                            </div>
                           </div>
                         ))
                       )}

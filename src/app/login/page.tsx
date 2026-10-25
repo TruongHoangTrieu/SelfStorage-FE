@@ -594,7 +594,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="mt-5 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500 leading-relaxed">
-                  💡 <b>Hướng dẫn cấu hình:</b> Để sử dụng Google OAuth thật từ tài khoản Google của bạn, hãy thêm <code>GOOGLE_CLIENT_ID</code> và <code>GOOGLE_CLIENT_SECRET</code> vào file <code>.env</code> ở Backend.
+                  <b>Hướng dẫn cấu hình:</b> Để sử dụng Google OAuth thật từ tài khoản Google của bạn, hãy thêm <code>GOOGLE_CLIENT_ID</code> và <code>GOOGLE_CLIENT_SECRET</code> vào file <code>.env</code> ở Backend.
                 </div>
               </div>
             </div>

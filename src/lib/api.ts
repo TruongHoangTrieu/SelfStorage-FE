@@ -56,19 +56,23 @@ async function request<T>(endpoint: string, options: FetchOptions = {}): Promise
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   signal?.addEventListener('abort', () => controller.abort(), { once: true });
 
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
   const config: RequestInit = {
     ...customConfig,
     credentials: 'include',
     signal: controller.signal,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       'X-Requested-With': 'XMLHttpRequest',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
   };
 
   if (data !== undefined) {
-    config.body = JSON.stringify(data);
+    config.body = isFormData ? data : JSON.stringify(data);
   }
 
   let response: Response;
