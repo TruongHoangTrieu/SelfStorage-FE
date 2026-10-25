@@ -225,7 +225,7 @@ export default function FacilityDetailPage({
     });
   }, [facility]);
 
-  const bannerImage = facility?.images?.[0] || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1600&q=80";
+  const bannerImage = facility?.images?.[0] || "/1.jpg";
 
   // Filter unit types accurately by name, description, code or climateControlled flag
   const filteredUnitTypes = useMemo(() => {

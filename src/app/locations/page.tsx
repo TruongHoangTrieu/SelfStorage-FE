@@ -79,14 +79,12 @@ interface FormattedFacility {
 
 // Curated warehouse photo set to assign deterministically based on facility ID
 const FACILITY_PHOTOS = [
-  "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1565118531796-763e5082d113?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1549194388-f61be84a6e9e?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1587293852726-70cdb56c2866?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80"
+  "/1.jpg",
+  "/2.png",
+  "/3.png",
+  "/4.jpg",
+  "/5.png",
+  "/6.png"
 ];
 
 function extractDistrict(address: string, name: string): string {
@@ -107,9 +105,10 @@ function formatFacility(raw: ApiFacility, index: number): FormattedFacility {
   const totalUnitTypes = raw.totalUnitTypes ?? raw._count?.storageUnitTypes ?? 0;
   const addressText = raw.address || "Địa chỉ đang cập nhật";
 
-  const imagesList = Array.isArray(raw.images) && raw.images.length > 0
-    ? raw.images
-    : [FACILITY_PHOTOS[index % FACILITY_PHOTOS.length]];
+  const imagesList: string[] =
+    Array.isArray(raw.images) && raw.images.length > 0
+      ? raw.images
+      : [FACILITY_PHOTOS[index % FACILITY_PHOTOS.length]];
 
   const primaryImage = imagesList[0];
 

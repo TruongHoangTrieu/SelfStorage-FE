@@ -66,12 +66,12 @@ interface ApiFacility {
 
 // Fallback images for facility cards
 const facilityImages = [
-  "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1565118531796-763e5082d113?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1549194388-f61be84a6e9e?auto=format&fit=crop&w=1200&q=80"
+  "/1.jpg",
+  "/2.png",
+  "/3.png",
+  "/4.jpg",
+  "/5.png",
+  "/6.png"
 ];
 
 // FAQs Data (100% Focused on Self-Storage)
@@ -632,7 +632,7 @@ export default function LandingPage() {
                       className="block relative aspect-[16/9] w-full rounded-2xl overflow-hidden mb-5 bg-slate-100 cursor-pointer"
                     >
                       <img
-                        src={(fac.images && fac.images.length > 0 ? fac.images[0] : null) || facilityImages[idx % facilityImages.length]}
+                        src={fac.images?.[0] || facilityImages[idx % facilityImages.length]}
                         alt={fac.name || "Cơ sở kho tự quản"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
