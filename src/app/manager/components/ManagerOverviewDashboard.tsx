@@ -195,7 +195,7 @@ export default function ManagerOverviewDashboard({
       </div>
 
       {/* 2.5. Phân Hệ Giám Sát Doanh Số & Dòng Tiền Cơ Sở (Facility Revenue Analytics & Charts) */}
-      <FacilityRevenueAnalytics facilityName={facilityName} />
+      <FacilityRevenueAnalytics facilityName={facilityName} facilityId={facilityId} />
 
       {/* 3. Phân Hệ Quản Trị Dành Riêng Cho Quản Lý */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

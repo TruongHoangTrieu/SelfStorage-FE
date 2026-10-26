@@ -412,18 +412,54 @@ const MOCK_UNITS = [
 
 function FacilityManagerView() {
   const [managerSubTab, setManagerSubTab] = useState<'financial' | 'telemetry'>('financial');
+  const [facilities, setFacilities] = useState<any[]>([]);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<string>('');
   const [selectedUnit, setSelectedUnit] = useState(MOCK_UNITS[0]);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res: any = await api.get('/facilities');
+        const list = Array.isArray(res) ? res : res?.data || [];
+        setFacilities(list);
+        if (list.length > 0) {
+          setSelectedFacilityId(String(list[0].id));
+        }
+      } catch (e) {
+        console.warn('Failed to load facilities in admin view:', e);
+      }
+    })();
+  }, []);
+
+  const currentFacility = facilities.find((f) => String(f.id) === selectedFacilityId) || facilities[0];
+  const facilityName = currentFacility ? currentFacility.name : 'Kho Tự Quản Trụ Sở Chính Võ Nguyên Giáp';
+  const facilityCode = currentFacility ? currentFacility.code : 'FAC_TD';
 
   return (
     <div className="animate-in fade-in duration-300 max-w-[1500px] mx-auto space-y-6">
       {/* Top Facility Manager Switcher Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-200 uppercase tracking-wider mb-1">
-            <span>Chi Nhánh Cầu Giấy • Hà Nội</span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-200 uppercase tracking-wider">
+              {facilityCode} • {currentFacility?.address ? currentFacility.address.split(',')[currentFacility.address.split(',').length - 1] : 'TP. Hồ Chí Minh'}
+            </span>
+            {facilities.length > 0 && (
+              <select
+                value={selectedFacilityId}
+                onChange={(e) => setSelectedFacilityId(e.target.value)}
+                className="bg-indigo-50/70 border border-indigo-200 rounded-lg px-2.5 py-1 text-xs font-bold text-indigo-900 outline-none cursor-pointer hover:bg-indigo-100/70 transition"
+              >
+                {facilities.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({f.code})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-            Khu Vực Quản Lý Chi Nhánh (Facility Manager)
+            Khu Vực Quản Lý Chi Nhánh (Facility Manager: {facilityName})
           </h2>
         </div>
 
@@ -457,7 +493,11 @@ function FacilityManagerView() {
       </div>
 
       {managerSubTab === 'financial' ? (
-        <FacilityRevenueAnalytics facilityName="Chi nhánh Cầu Giấy, Hà Nội" facilityCode="FAC-CG01" />
+        <FacilityRevenueAnalytics
+          facilityName={facilityName}
+          facilityCode={facilityCode}
+          facilityId={selectedFacilityId}
+        />
       ) : (
         <div className="space-y-6">
           {/* Header & Ribbon */}
