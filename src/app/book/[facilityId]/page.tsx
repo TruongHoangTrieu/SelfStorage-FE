@@ -265,8 +265,10 @@ function BookingFlowContent() {
 
     const checkPayment = async () => {
       try {
+        console.log(`[SePay Polling] [Commit: cefdd62] Đang kiểm tra trạng thái cọc đơn ${reservationId}...`);
         const summary: any = await api.get(`/payments/reservations/${reservationId}/summary`);
         if (!isSubscribed) return;
+        console.log(`[SePay Polling] Kết quả Backend cho đơn ${reservationId}:`, summary);
         const isConfirmed =
           Boolean(summary?.depositPaid) ||
           summary?.reservationStatus === "CONFIRMED" ||
@@ -274,6 +276,7 @@ function BookingFlowContent() {
           summary?.reservation?.status === "CONFIRMED";
 
         if (isConfirmed) {
+          console.log(`[SePay Polling] ✅ ĐÃ NHẬN TIỀN CỌC THÀNH CÔNG! Chuyển trang...`);
           sessionStorage.removeItem(`booking_pending_${facilityId}`);
           toast.success("Hệ thống đã nhận được tiền cọc thành công! Ô kho đã được giữ chỗ.");
           setStep("success");
@@ -286,8 +289,8 @@ function BookingFlowContent() {
           setTimeLeft(0);
           toast.error("Đơn đặt chỗ đã hết hạn 15 phút và bị hủy.");
         }
-      } catch {
-        // silent catch during background polling
+      } catch (err) {
+        console.warn(`[SePay Polling] Lỗi kiểm tra thanh toán:`, err);
       }
     };
 
@@ -545,8 +548,10 @@ function BookingFlowContent() {
   const handleManualCheckPayment = async () => {
     if (!reservationId) return;
     setCheckingPayment(true);
+    console.log(`[Manual Check] [Commit: cefdd62] Người dùng bấm kiểm tra cọc đơn ${reservationId}...`);
     try {
       const summary: any = await api.get(`/payments/reservations/${reservationId}/summary`);
+      console.log(`[Manual Check] Kết quả Backend cho đơn ${reservationId}:`, summary);
       const isConfirmed =
         Boolean(summary?.depositPaid) ||
         summary?.reservationStatus === "CONFIRMED" ||
@@ -554,6 +559,7 @@ function BookingFlowContent() {
         summary?.reservation?.status === "CONFIRMED";
 
       if (isConfirmed) {
+        console.log(`[Manual Check] ✅ ĐÃ NHẬN TIỀN CỌC THÀNH CÔNG! Chuyển trang...`);
         sessionStorage.removeItem(`booking_pending_${facilityId}`);
         toast.success("Hệ thống đã nhận được tiền cọc thành công! Ô kho đã được giữ chỗ.");
         setStep("success");
@@ -563,6 +569,7 @@ function BookingFlowContent() {
         );
       }
     } catch (err: any) {
+      console.error(`[Manual Check] Lỗi:`, err);
       toast.error(err?.message || "Không thể kiểm tra giao dịch lúc này. Vui lòng thử lại.");
     } finally {
       setCheckingPayment(false);
@@ -1391,10 +1398,15 @@ function BookingFlowContent() {
                     <>
                       <div className="mb-8">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-                          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            Bước 3 / 3: Quét Mã Thanh Toán Cọc
-                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                              Bước 3 / 3: Quét Mã Thanh Toán Cọc
+                            </span>
+                            <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
+                              Commit: cefdd62
+                            </span>
+                          </div>
                           <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold self-start sm:self-auto transition-colors ${
                             timeLeft <= 120 
                               ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse'
@@ -1526,6 +1538,10 @@ function BookingFlowContent() {
                         <span>Mô Phỏng Webhook (Test)</span>
                       </button>
                     </div>
+
+                    <p className="mt-4 text-[11px] text-slate-400 font-mono">
+                      Bản dựng FE: <span className="font-bold text-slate-600">cefdd62</span> • Tự động đối soát SePay: <span className="text-emerald-600 font-bold">BẬT (3s/lần)</span>
+                    </p>
                   </div>
                     </>
                   )}
