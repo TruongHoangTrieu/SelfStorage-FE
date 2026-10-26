@@ -548,15 +548,8 @@ function BookingFlowContent() {
         transferAmount: amount,
       };
 
-      const res = await fetch("/api/payments/sepay/webhook", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(webhookPayload),
-      });
-
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.message || `HTTP ${res.status}`);
-      if (body?.success === false) throw new Error(body?.message || "Webhook trả về thất bại");
+      const res = await api.post("/payments/sepay/webhook", webhookPayload);
+      if (res?.success === false) throw new Error(res?.message || "Webhook trả về thất bại");
 
       sessionStorage.removeItem(`booking_pending_${facilityId}`);
       toast.success("Thanh toán cọc thành công! Đã giữ chỗ ô kho.");

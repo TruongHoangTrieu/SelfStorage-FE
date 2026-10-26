@@ -388,7 +388,9 @@ export const handoversApi = {
     const res = await api.get(`/reservations?${query.toString()}`);
     const rawList = Array.isArray(res) ? res : (res?.data || []);
 
-    const items = rawList.map(normalizeReservation);
+    const items = rawList
+      .map(normalizeReservation)
+      .filter((app: CheckInAppointment) => app.depositStatus === 'paid');
     return { items, total: items.length };
   },
 
