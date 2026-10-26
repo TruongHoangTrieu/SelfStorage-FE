@@ -213,11 +213,18 @@ export default function CustomerDashboardPage() {
       }
     };
     checkTabQuery();
+    const handleCheckoutUpdate = () => {
+      loadContractsData(false);
+    };
     window.addEventListener('popstate', checkTabQuery);
     window.addEventListener('custom-tab-change', checkTabQuery);
+    window.addEventListener('customer-checkout-updated', handleCheckoutUpdate);
+    window.addEventListener('storage', handleCheckoutUpdate);
     return () => {
       window.removeEventListener('popstate', checkTabQuery);
       window.removeEventListener('custom-tab-change', checkTabQuery);
+      window.removeEventListener('customer-checkout-updated', handleCheckoutUpdate);
+      window.removeEventListener('storage', handleCheckoutUpdate);
     };
   }, [loadContractsData]);
 

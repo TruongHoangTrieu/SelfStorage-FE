@@ -647,7 +647,7 @@ export default function ManagerPortalPage() {
     facility: 'Sơ Đồ Cơ Sở & Phân Công Nhân Sự',
     facility_photos: 'Quản Lý Hình Ảnh Cơ Sở',
     unit_types: 'Quản Lý Loại Kho & Bảng Giá',
-    checkout: 'Phê Duyệt Gia Hạn & Xử Lý Quá Hạn',
+    checkout: 'Thủ Tục Trả Kho & Phê Duyệt Gia Hạn',
     queue: 'Giám Sát Quầy Nhận Kho',
     support: 'Giám Sát Xử Lý Sự Cố & Khiếu Nại',
     profile: 'Hồ Sơ Quản Lý & Bảo Mật',

@@ -614,12 +614,38 @@ export const handoversApi = {
   /**
    * Tra cứu thông tin hợp đồng để chuẩn bị Check-out / Trả kho và đối soát hiện trạng
    * GET /handovers/contracts/:contractId/check-out
+   * Hỗ trợ tìm kiếm thông minh bằng MongoDB ID (24-hex), Mã hợp đồng (CON-...) hoặc Số hiệu ô kho (VNG-101...)
    */
   async getContractForCheckOut(contractId: string | number): Promise<HandoverCheckOutContract> {
-    const rawId = typeof contractId === 'string' && (contractId.startsWith('CON-') || contractId.startsWith('HĐ-'))
-      ? contractId
-      : String(contractId);
-    return await api.get<HandoverCheckOutContract>(`/handovers/contracts/${rawId}/check-out`);
+    const rawInput = String(contractId || '').trim();
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(rawInput);
+
+    let resolvedId = rawInput;
+
+    if (!isMongoId && rawInput) {
+      try {
+        const contractsRes: any = await api.get('/contracts').catch(() => null);
+        const list = Array.isArray(contractsRes) ? contractsRes : contractsRes?.data || [];
+        const normalized = rawInput.toLowerCase();
+        const matched = list.find((c: any) => {
+          const cId = String(c.id || c._id || '');
+          const cCode = String(c.contractCode || '').toLowerCase();
+          const hasUnit = Array.isArray(c.contractItems) && c.contractItems.some((ci: any) => {
+            const uNum = String(ci.unit?.unitNumber || '').toLowerCase();
+            return uNum === normalized || uNum.includes(normalized);
+          });
+          return cId === rawInput || cCode === normalized || hasUnit;
+        });
+
+        if (matched && (matched.id || matched._id)) {
+          resolvedId = String(matched.id || matched._id);
+        }
+      } catch (errResolve) {
+        console.warn('Could not resolve contract code to Mongo ObjectId:', errResolve);
+      }
+    }
+
+    return await api.get<HandoverCheckOutContract>(`/handovers/contracts/${resolvedId}/check-out`);
   },
 
   /**

@@ -245,14 +245,27 @@ export default function StaffPortalPage() {
         const unitsRes = await handoversApi.fetchAvailableUnits(staffFacilityId);
         setAvailableUnits(unitsRes || []);
 
-        // Lấy số lượng yêu cầu gia hạn đang chờ duyệt
+        // Lấy số lượng yêu cầu gia hạn & trả kho đang chờ duyệt
         try {
           const renRes = await renewalsApi.getRenewals({
             facilityId: staffFacilityId ? String(staffFacilityId) : undefined,
             status: 'PENDING',
           });
           const renItems = Array.isArray(renRes) ? renRes : (renRes as any)?.data || [];
-          setPendingRenewalsCount(renItems.filter((r: any) => r.status === 'PENDING').length);
+          const pendingRen = renItems.filter((r: any) => r.status === 'PENDING').length;
+
+          let pendingCo = 0;
+          if (typeof window !== 'undefined') {
+            try {
+              const stored = localStorage.getItem('customer_checkout_requests');
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                const uniqueIds = new Set(Object.values(parsed).map((x: any) => x?.contractId || x?.contractCode).filter(Boolean));
+                pendingCo = uniqueIds.size;
+              }
+            } catch {}
+          }
+          setPendingRenewalsCount(pendingRen + pendingCo);
         } catch {
           // Bỏ qua lỗi phụ nếu chưa có dữ liệu gia hạn
         }
@@ -319,8 +332,17 @@ export default function StaffPortalPage() {
       }
     };
     checkTabQuery();
+    const handleCheckoutBadgeRefresh = () => {
+      loadBackendData(false);
+    };
     window.addEventListener('popstate', checkTabQuery);
-    return () => window.removeEventListener('popstate', checkTabQuery);
+    window.addEventListener('customer-checkout-updated', handleCheckoutBadgeRefresh);
+    window.addEventListener('storage', handleCheckoutBadgeRefresh);
+    return () => {
+      window.removeEventListener('popstate', checkTabQuery);
+      window.removeEventListener('customer-checkout-updated', handleCheckoutBadgeRefresh);
+      window.removeEventListener('storage', handleCheckoutBadgeRefresh);
+    };
   }, [loadBackendData]);
 
   // Lắng nghe cập nhật phê duyệt từ localStorage (Cross-tab sync giữa Staff & Manager)
@@ -1029,7 +1051,7 @@ export default function StaffPortalPage() {
           activeTab={activeTab}
           onSelectTab={(tab) => {
             setActiveTab(tab);
-            if (tab === 'queue') setFlowStep('queue');
+            setFlowStep('queue');
             setIsMobileSidebarOpen(false);
           }}
           pendingCount={pendingCount}
@@ -1227,8 +1249,8 @@ export default function StaffPortalPage() {
               />
             )}
 
-            {/* TAB GIA HẠN HỢP ĐỒNG & XỬ LÝ QUÁ HẠN (FLOW 6) */}
-            {activeTab === 'checkout' && flowStep === 'queue' && (
+            {/* TAB THỦ TỤC TRẢ KHO, GIA HẠN & XỬ LÝ QUÁ HẠN (FLOW 5 & 6) */}
+            {activeTab === 'checkout' && (
               <StaffRenewalsOverdueView facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''} />
             )}
 

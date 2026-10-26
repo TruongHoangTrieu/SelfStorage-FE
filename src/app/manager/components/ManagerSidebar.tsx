@@ -17,6 +17,7 @@ import {
   User,
   LogIn,
   Clock,
+  DoorClosed,
   Shield,
   Users,
   Camera,
@@ -75,8 +76,8 @@ export default function ManagerSidebar({
     { id: 'unit_types' as ManagerTab, label: 'Loại kho & Bảng giá', icon: Boxes },
     {
       id: 'checkout' as ManagerTab,
-      label: 'Duyệt gia hạn & Quá hạn',
-      icon: Clock,
+      label: 'Thủ tục trả kho & Gia hạn',
+      icon: DoorClosed,
       badge: pendingRenewalsCount && pendingRenewalsCount > 0 ? pendingRenewalsCount : undefined,
     },
   ];

@@ -92,13 +92,13 @@ export default function StaffOverviewDashboard({
           className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs hover:border-amber-400 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">Gia Hạn & Quá Hạn</span>
+            <span className="text-xs font-bold text-slate-500">Trả Kho &amp; Gia Hạn</span>
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold group-hover:scale-105 transition">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 mt-2">1 chờ duyệt</div>
-          <p className="text-[11px] text-rose-600 font-semibold mt-1">1 ngăn kho vi phạm quá hạn PIN</p>
+          <div className="text-2xl font-black text-slate-900 mt-2">Nghiệm thu trả kho</div>
+          <p className="text-[11px] text-indigo-600 font-semibold mt-1">Đối soát ảnh kho trống, hoàn cọc &amp; gia hạn</p>
         </div>
 
         <div
@@ -172,8 +172,8 @@ export default function StaffOverviewDashboard({
               onClick={() => onNavigateTab('checkout')}
               className="p-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-left transition cursor-pointer"
             >
-              <p className="font-bold text-slate-900">Quét Hạn Hợp Đồng</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Cron scan & Phạt trễ hạn</p>
+              <p className="font-bold text-slate-900">Thủ Tục Trả Kho</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Nghiệm thu, hoàn cọc &amp; gia hạn</p>
             </button>
             <button
               type="button"

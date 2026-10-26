@@ -161,21 +161,21 @@ export default function ManagerOverviewDashboard({
           <p className="text-[11px] text-blue-600 font-semibold mt-1">Quầy tiếp đón đang làm thủ tục bàn giao</p>
         </div>
 
-        {/* KPI 3: Gia hạn chờ duyệt */}
+        {/* KPI 3: Trả kho & Gia hạn */}
         <div
           onClick={() => onNavigateTab('checkout')}
           className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">Gia Hạn Chờ Duyệt</span>
+            <span className="text-xs font-bold text-slate-500">Trả Kho &amp; Gia Hạn</span>
             <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold group-hover:scale-105 transition">
               <Clock className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2">
-            {pendingRenewalsCount > 0 ? `${pendingRenewalsCount} yêu cầu` : '0 yêu cầu'}
+            {pendingRenewalsCount > 0 ? `${pendingRenewalsCount} thủ tục` : 'Nghiệm thu trả kho'}
           </div>
-          <p className="text-[11px] text-amber-600 font-semibold mt-1">Cần Quản lý xem xét &amp; phê duyệt</p>
+          <p className="text-[11px] text-amber-600 font-semibold mt-1">Đối soát ảnh kho trống, hoàn cọc &amp; gia hạn</p>
         </div>
 
         {/* KPI 4: Xử lý sự cố */}
@@ -263,7 +263,7 @@ export default function ManagerOverviewDashboard({
             onClick={() => onNavigateTab('checkout')}
             className="mt-5 w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 text-amber-700 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
           >
-            <span>Quản Trị Hợp Đồng &amp; Phạt</span>
+            <span>Thủ Tục Trả Kho &amp; Hợp Đồng</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>

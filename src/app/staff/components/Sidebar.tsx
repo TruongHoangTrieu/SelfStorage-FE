@@ -17,6 +17,7 @@ import {
   User,
   LogIn,
   Clock,
+  DoorClosed,
 } from 'lucide-react';
 import { StaffTab, StaffUser } from '../types';
 
@@ -80,8 +81,8 @@ export default function Sidebar({
     { id: 'queue' as StaffTab, label: 'Hàng đợi nhận kho', icon: Inbox, badge: pendingCount },
     {
       id: 'checkout' as StaffTab,
-      label: 'Gia hạn & Quá hạn',
-      icon: Clock,
+      label: 'Thủ tục trả kho & Gia hạn',
+      icon: DoorClosed,
       badge: pendingRenewalsCount && pendingRenewalsCount > 0 ? pendingRenewalsCount : undefined,
     },
     { id: 'facility' as StaffTab, label: 'Sơ đồ & Ô kho 24/7', icon: MapPin },

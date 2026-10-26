@@ -44,6 +44,9 @@ interface ReturnUnitModalProps {
     depositAmount: number;
     estimatedRefund: number;
     photos?: string[];
+    customerName?: string;
+    customerPhone?: string;
+    facilityName?: string;
   }) => Promise<void> | void;
   onCancelCheckout?: (unit: CustomerUnit) => Promise<void> | void;
 }
@@ -68,6 +71,11 @@ const REASON_OPTIONS = [
   'Cần thuê diện tích kho khác (lớn hơn hoặc nhỏ hơn)',
   'Tối ưu hóa kế hoạch chi phí cá nhân / doanh nghiệp',
   'Lý do khác',
+];
+
+const DEMO_EMPTY_STORAGE_PHOTOS = [
+  'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&w=1200&q=80',
 ];
 
 export default function ReturnUnitModal({
@@ -96,7 +104,12 @@ export default function ReturnUnitModal({
   const [itemsCleared, setItemsCleared] = useState<boolean>(existingReq?.unitClearanceConfirmed ?? false);
   const [lockIntact, setLockIntact] = useState<boolean>(existingReq?.lockIntactConfirmed ?? false);
   const [readyForInspection, setReadyForInspection] = useState<boolean>(true);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(existingReq?.photos?.[0] || null);
+  const [photos, setPhotos] = useState<string[]>(
+    existingReq?.photos && existingReq.photos.length > 0
+      ? existingReq.photos
+      : []
+  );
+  const [previewZoomPhoto, setPreviewZoomPhoto] = useState<string | null>(null);
 
   // Step 3: Financial & Bank
   const depositNum = unit.depositAmount || unit.monthlyRentNum || 1800000;
@@ -190,11 +203,25 @@ export default function ReturnUnitModal({
     setErrorMsg(null);
     try {
       const finalReason = selectedReason === 'Lý do khác' ? customReason.trim() : selectedReason;
+
+      let storedCustomer: any = {};
+      if (typeof window !== 'undefined') {
+        try {
+          storedCustomer = JSON.parse(localStorage.getItem('customer_user') || '{}');
+        } catch {}
+      }
+
+      const custName = storedCustomer?.fullName || (unit as any).customerName || 'Nguyễn Văn Khách Hàng';
+      const custPhone = storedCustomer?.phone || (unit as any).customerPhone || '0909123456';
+
       await onConfirmCheckout({
         contractId: unit.rawContractId || unit.contractId,
         contractCode: unit.contractId,
         unitId: unit.rawUnitId || unit.id,
         unitNumber: unit.unitNumber,
+        facilityName: unit.facilityName,
+        customerName: custName,
+        customerPhone: custPhone,
         requestedMoveOutDate: moveOutDate,
         reason: finalReason,
         feedbackNotes: feedback.trim() || undefined,
@@ -207,7 +234,7 @@ export default function ReturnUnitModal({
         },
         depositAmount: depositNum,
         estimatedRefund,
-        photos: photoPreview ? [photoPreview] : undefined,
+        photos: photos.length > 0 ? photos : undefined,
       });
       onClose();
     } catch (err: any) {
@@ -228,12 +255,27 @@ export default function ReturnUnitModal({
     }
   };
 
-  const handleMockUploadPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const fakeUrl = URL.createObjectURL(file);
-      setPhotoPreview(fakeUrl);
-    }
+  const handleUploadPhotoFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (base64) {
+          setPhotos((prev) => [...prev, base64].slice(0, 4));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleUseDemoPhotos = () => {
+    setPhotos(DEMO_EMPTY_STORAGE_PHOTOS);
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -338,6 +380,38 @@ export default function ReturnUnitModal({
                 </span>
               </div>
             </div>
+
+            {/* Ảnh chụp kho trống đã tải lên (nếu có) */}
+            {existingReq?.photos && existingReq.photos.length > 0 && (
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/90 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">
+                    Ảnh chụp kho trống đã tải lên ({existingReq.photos.length} ảnh):
+                  </span>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-100/70 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold">
+                    Đã xác nhận kho trống
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {existingReq.photos.map((pUrl, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setPreviewZoomPhoto(pUrl)}
+                      className="group relative aspect-4/3 rounded-xl overflow-hidden border border-slate-200 cursor-pointer shadow-2xs hover:ring-2 hover:ring-emerald-500 transition"
+                    >
+                      <img
+                        src={pUrl}
+                        alt={`Ảnh kho trống ${idx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition"
+                      />
+                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition">
+                        Phóng to
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Footer Buttons for Pending */}
             <div className="pt-2 flex items-center justify-between gap-3">
@@ -606,39 +680,64 @@ export default function ReturnUnitModal({
                     </label>
                   </div>
 
-                  {/* Upload ảnh minh chứng hiện trạng kho trống (Tùy chọn) */}
-                  <div className="pt-2">
-                    <span className="text-xs font-bold text-slate-800 block mb-1">
-                      Ảnh chụp kho trống trước khi rời đi (Khuyến khích):
-                    </span>
+                  {/* Upload ảnh minh chứng hiện trạng kho trống */}
+                  <div className="pt-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">
+                        Ảnh chụp kho trống xác nhận đã dọn sạch ({photos.length}/4 ảnh):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleUseDemoPhotos}
+                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                      >
+                        Dùng ảnh mẫu kho trống (Demo)
+                      </button>
+                    </div>
+
                     <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition bg-slate-50 hover:bg-blue-50/30">
                       <Upload className="w-5 h-5 text-slate-400 mb-1" />
                       <span className="text-xs font-semibold text-slate-700">
-                        {photoPreview ? 'Đã tải lên 1 ảnh hiện trạng (Bấm để đổi)' : 'Tải lên ảnh hoặc chụp ảnh kho'}
+                        {photos.length > 0 ? `Đã thêm ${photos.length} ảnh (Bấm để thêm tiếp)` : 'Tải lên ảnh hoặc chụp ảnh kho đã dọn trống'}
                       </span>
-                      <span className="text-[10px] text-slate-400 mt-0.5">Hỗ trợ JPG, PNG (tối đa 5MB)</span>
+                      <span className="text-[10px] text-slate-400 mt-0.5">Chụp sàn kho, các góc tường, cửa và khóa điện tử (Tối đa 4 ảnh)</span>
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={handleMockUploadPhoto}
+                        multiple
+                        onChange={handleUploadPhotoFiles}
                         className="hidden"
                       />
                     </label>
 
-                    {photoPreview && (
-                      <div className="mt-2 relative w-24 h-24 rounded-xl overflow-hidden border border-slate-200 shadow-2xs">
-                        <img
-                          src={photoPreview}
-                          alt="Kho trống preview"
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setPhotoPreview(null)}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/80 text-white text-[10px] flex items-center justify-center"
-                        >
-                          ✕
-                        </button>
+                    {photos.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                        {photos.map((pUrl, idx) => (
+                          <div key={idx} className="relative aspect-4/3 rounded-xl overflow-hidden border border-slate-200 shadow-2xs group">
+                            <img
+                              src={pUrl}
+                              alt={`Kho trống ${idx + 1}`}
+                              className="w-full h-full object-cover cursor-pointer"
+                              onClick={() => setPreviewZoomPhoto(pUrl)}
+                            />
+                            <div className="absolute top-1 right-1 flex items-center gap-1 z-10">
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePhoto(idx)}
+                                className="w-5 h-5 rounded-full bg-slate-900/80 text-white text-[10px] flex items-center justify-center hover:bg-rose-600 transition"
+                                title="Xóa ảnh"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <div
+                              onClick={() => setPreviewZoomPhoto(pUrl)}
+                              className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[10px] font-bold cursor-pointer"
+                            >
+                              Phóng to
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -864,6 +963,37 @@ export default function ReturnUnitModal({
           </form>
         )}
       </div>
+
+      {/* Lightbox phóng to ảnh kho trống */}
+      {previewZoomPhoto && (
+        <div
+          className="fixed inset-0 z-60 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewZoomPhoto(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[85vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700 p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewZoomPhoto(null)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-slate-950/80 hover:bg-slate-900 text-white flex items-center justify-center transition cursor-pointer"
+            >
+              ✕
+            </button>
+            <div className="overflow-hidden rounded-2xl flex items-center justify-center max-h-[75vh]">
+              <img
+                src={previewZoomPhoto}
+                alt="Ảnh phóng to kho trống"
+                className="max-w-full max-h-[75vh] object-contain rounded-2xl"
+              />
+            </div>
+            <div className="p-3 text-center text-xs text-slate-400">
+              Ảnh xác nhận hiện trạng kho đã dọn dẹp sạch sẽ trước khi trả kho
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

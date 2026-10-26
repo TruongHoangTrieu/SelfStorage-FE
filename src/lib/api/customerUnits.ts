@@ -491,6 +491,8 @@ export const customerUnitsApi = {
           parsed[String(payload.contractCode)] = checkoutItem;
         }
         localStorage.setItem('customer_checkout_requests', JSON.stringify(parsed));
+        window.dispatchEvent(new Event('customer-checkout-updated'));
+        window.dispatchEvent(new Event('manager-tab-change'));
       } catch (err) {
         console.warn('Could not persist checkout to localStorage', err);
       }
@@ -541,6 +543,8 @@ export const customerUnitsApi = {
           const parsed = JSON.parse(stored);
           delete parsed[String(contractId)];
           localStorage.setItem('customer_checkout_requests', JSON.stringify(parsed));
+          window.dispatchEvent(new Event('customer-checkout-updated'));
+          window.dispatchEvent(new Event('manager-tab-change'));
         }
       } catch (err) {
         console.warn('Could not remove checkout from localStorage', err);
