@@ -92,6 +92,7 @@ export default function Storage3DShowcaseSection() {
   const [showItems, setShowItems] = useState(true);
   const [showRulers, setShowRulers] = useState(true);
   const [cameraPreset, setCameraPreset] = useState<'front' | 'iso' | 'top' | 'interior'>('iso');
+  const [resetSignal, setResetSignal] = useState<number>(0);
 
   const activePreset = useMemo(
     () => PRESETS.find((p) => p.id === selectedPresetId) || PRESETS[1],
@@ -198,7 +199,10 @@ export default function Storage3DShowcaseSection() {
                 <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
                   <button
                     type="button"
-                    onClick={() => setCameraPreset('iso')}
+                    onClick={() => {
+                      setCameraPreset('iso');
+                      setResetSignal((prev) => prev + 1);
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer font-sans ${
                       cameraPreset === 'iso'
                         ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-black'
@@ -211,7 +215,10 @@ export default function Storage3DShowcaseSection() {
 
                   <button
                     type="button"
-                    onClick={() => setCameraPreset('front')}
+                    onClick={() => {
+                      setCameraPreset('front');
+                      setResetSignal((prev) => prev + 1);
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer font-sans ${
                       cameraPreset === 'front'
                         ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-black'
@@ -224,7 +231,10 @@ export default function Storage3DShowcaseSection() {
 
                   <button
                     type="button"
-                    onClick={() => setCameraPreset('top')}
+                    onClick={() => {
+                      setCameraPreset('top');
+                      setResetSignal((prev) => prev + 1);
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer font-sans ${
                       cameraPreset === 'top'
                         ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-black'
@@ -237,7 +247,10 @@ export default function Storage3DShowcaseSection() {
 
                   <button
                     type="button"
-                    onClick={() => setCameraPreset('interior')}
+                    onClick={() => {
+                      setCameraPreset('interior');
+                      setResetSignal((prev) => prev + 1);
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer font-sans ${
                       cameraPreset === 'interior'
                         ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-black'
@@ -260,6 +273,7 @@ export default function Storage3DShowcaseSection() {
                   showItems={showItems}
                   showRulers={showRulers}
                   cameraPreset={cameraPreset}
+                  resetSignal={resetSignal}
                   onUserOrbit={() => {}}
                 />
 
@@ -323,9 +337,13 @@ export default function Storage3DShowcaseSection() {
                       onClick={() => {
                         setCameraPreset('iso');
                         setIsDoorOpen(true);
+                        setIsLightOn(true);
+                        setShowItems(true);
+                        setShowRulers(true);
+                        setResetSignal((prev) => prev + 1);
                       }}
                       title="Đặt lại góc nhìn mặc định"
-                      className="px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs font-sans bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs font-sans bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span className="hidden sm:inline">Đặt lại</span>

@@ -13,6 +13,7 @@ interface StorageUnitSceneProps {
   showItems: boolean;
   showRulers: boolean;
   cameraPreset?: 'front' | 'iso' | 'top' | 'interior';
+  resetSignal?: number;
   onUserOrbit?: () => void;
 }
 
@@ -23,6 +24,7 @@ export default function StorageUnitScene({
   showItems,
   showRulers,
   cameraPreset = 'iso',
+  resetSignal,
   onUserOrbit,
 }: StorageUnitSceneProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -36,8 +38,14 @@ export default function StorageUnitScene({
   const itemsGroupRef = useRef<THREE.Group | null>(null);
   const rulersGroupRef = useRef<THREE.Group | null>(null);
 
+  // Door animation state ref to prevent stale closure in animation loop
+  const isDoorOpenRef = useRef<boolean>(isDoorOpen);
+  useEffect(() => {
+    isDoorOpenRef.current = isDoorOpen;
+  }, [isDoorOpen]);
+
   // Animation values
-  const currentDoorProgress = useRef<number>(1); // default open
+  const currentDoorProgress = useRef<number>(isDoorOpen ? 1 : 0);
 
   // Helper to create ribbed metal texture for self-storage walls (Light Theme)
   const createCorrugatedTexture = (horizontal = false) => {
@@ -420,7 +428,7 @@ export default function StorageUnitScene({
       animationFrameId = requestAnimationFrame(animate);
 
       // Smooth door animation
-      const targetProgress = isDoorOpen ? 1 : 0;
+      const targetProgress = isDoorOpenRef.current ? 1 : 0;
       currentDoorProgress.current += (targetProgress - currentDoorProgress.current) * 0.14;
 
       if (doorPivotRef.current) {
@@ -468,7 +476,7 @@ export default function StorageUnitScene({
   useEffect(() => {
     if (!cameraRef.current || !controlsRef.current) return;
     applyCameraPreset(cameraRef.current, controlsRef.current, cameraPreset, dimensions);
-  }, [cameraPreset, dimKey]);
+  }, [cameraPreset, resetSignal, dimKey]);
 
   // --------------------------------------------------------------------------
   // 3. Toggle States Effects

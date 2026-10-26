@@ -16,6 +16,7 @@ import {
   Eye,
   Check,
   Thermometer,
+  RotateCcw,
 } from 'lucide-react';
 import StorageUnitScene from './StorageUnitScene';
 import { resolveUnitDimensions, UnitDimensions } from './unitDimensions';
@@ -42,6 +43,7 @@ export default function StorageUnit3DModal({
   const [showItems, setShowItems] = useState(true);
   const [showRulers, setShowRulers] = useState(true);
   const [cameraPreset, setCameraPreset] = useState<'front' | 'iso' | 'top' | 'interior'>('iso');
+  const [resetSignal, setResetSignal] = useState<number>(0);
 
   // Compute accurate dimensions with useMemo to keep reference stable
   const dimensions: UnitDimensions = useMemo(() => {
@@ -151,7 +153,10 @@ export default function StorageUnit3DModal({
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
               <button
                 type="button"
-                onClick={() => setCameraPreset('iso')}
+                onClick={() => {
+                  setCameraPreset('iso');
+                  setResetSignal((prev) => prev + 1);
+                }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                   cameraPreset === 'iso'
                     ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-black'
@@ -164,7 +169,10 @@ export default function StorageUnit3DModal({
 
               <button
                 type="button"
-                onClick={() => setCameraPreset('front')}
+                onClick={() => {
+                  setCameraPreset('front');
+                  setResetSignal((prev) => prev + 1);
+                }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                   cameraPreset === 'front'
                     ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-black'
@@ -177,7 +185,10 @@ export default function StorageUnit3DModal({
 
               <button
                 type="button"
-                onClick={() => setCameraPreset('top')}
+                onClick={() => {
+                  setCameraPreset('top');
+                  setResetSignal((prev) => prev + 1);
+                }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                   cameraPreset === 'top'
                     ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-black'
@@ -190,7 +201,10 @@ export default function StorageUnit3DModal({
 
               <button
                 type="button"
-                onClick={() => setCameraPreset('interior')}
+                onClick={() => {
+                  setCameraPreset('interior');
+                  setResetSignal((prev) => prev + 1);
+                }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                   cameraPreset === 'interior'
                     ? 'bg-white text-blue-600 shadow-xs border border-slate-200/60 font-black'
@@ -213,6 +227,7 @@ export default function StorageUnit3DModal({
               showItems={showItems}
               showRulers={showRulers}
               cameraPreset={cameraPreset}
+              resetSignal={resetSignal}
               onUserOrbit={() => {}}
             />
 
@@ -269,6 +284,23 @@ export default function StorageUnit3DModal({
                 >
                   <Ruler className="w-3.5 h-3.5" />
                   <span>{showRulers ? 'Thước Đo 3D' : 'Hiện Thước'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCameraPreset('iso');
+                    setIsDoorOpen(true);
+                    setIsLightOn(true);
+                    setShowItems(true);
+                    setShowRulers(true);
+                    setResetSignal((prev) => prev + 1);
+                  }}
+                  title="Đặt lại góc nhìn mặc định"
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Đặt lại</span>
                 </button>
               </div>
             </div>
