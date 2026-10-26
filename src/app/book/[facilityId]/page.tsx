@@ -99,6 +99,7 @@ function BookingFlowContent() {
   const router = useRouter();
   const facilityId = (params.facilityId as string) || "";
   const unitTypeIdParam = searchParams.get("unitTypeId");
+  const unitIdParam = searchParams.get("unitId");
 
   const [facility, setFacility] = useState<any>(null);
   const [unitTypes, setUnitTypes] = useState<any[]>([]);
@@ -316,8 +317,17 @@ function BookingFlowContent() {
         }
 
         // Tự động nhận diện loại kho từ URL và nhảy thẳng sang Bước 2 (Lịch Dọn Đồ) nếu còn chỗ
-        if (unitTypeIdParam && Array.isArray(typesList) && typesList.length > 0) {
-          const matched = typesList.find((t: any) => String(t.id) === String(unitTypeIdParam));
+        if ((unitTypeIdParam || unitIdParam) && Array.isArray(typesList) && typesList.length > 0) {
+          let matched = unitTypeIdParam
+            ? typesList.find((t: any) => String(t.id) === String(unitTypeIdParam))
+            : null;
+
+          if (!matched && unitIdParam) {
+            matched = typesList.find((t: any) =>
+              Array.isArray(t.storageUnits) && t.storageUnits.some((su: any) => String(su.id) === String(unitIdParam))
+            );
+          }
+
           if (matched) {
             const isAvail = (matched.availableUnits ?? 1) > 0;
             if (isAvail) {
@@ -336,7 +346,7 @@ function BookingFlowContent() {
       }
     }
     if (facilityId) loadData();
-  }, [facilityId, unitTypeIdParam]);
+  }, [facilityId, unitTypeIdParam, unitIdParam]);
 
   useEffect(() => {
     if (!facilityId || !moveInDate) {

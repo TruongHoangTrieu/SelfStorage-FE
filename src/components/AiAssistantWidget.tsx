@@ -359,8 +359,9 @@ export default function AiAssistantWidget() {
                                   </span>
                                 </div>
                                 <Link
-                                  href={`/book?unitId=${u.unit_id}`}
-                                  className="mt-1 flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                                  href={`/book?unitId=${u.unit_id}${u.unit_type_id ? `&unitTypeId=${u.unit_type_id}` : ""}`}
+                                  onClick={() => setIsOpen(false)}
+                                  className="mt-1 flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer"
                                 >
                                   Đặt ngăn này ngay
                                   <ArrowRight className="w-3 h-3" />
