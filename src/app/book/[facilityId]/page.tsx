@@ -122,6 +122,7 @@ function BookingFlowContent() {
   const [qrData, setQrData] = useState<any>(null);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [simulatingWebhook, setSimulatingWebhook] = useState(false);
+  const [checkingPayment, setCheckingPayment] = useState(false);
   const [timeLeft, setTimeLeft] = useState(900); // 15 mins (900s)
 
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -236,7 +237,7 @@ function BookingFlowContent() {
 
   // 15-minute countdown timer when on payment_qr
   useEffect(() => {
-    if (step !== "payment_qr" || timeLeft <= 0) return;
+    if (step !== "payment_qr") return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -254,24 +255,33 @@ function BookingFlowContent() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [step, reservationId, facilityId, timeLeft]);
+  }, [step, reservationId, facilityId]);
 
   // Auto-polling for payment confirmation (SePay VietQR)
   useEffect(() => {
-    if (step !== "payment_qr" || !reservationId || timeLeft === 0) return;
+    if (step !== "payment_qr" || !reservationId) return;
 
     let isSubscribed = true;
-    const interval = setInterval(async () => {
+
+    const checkPayment = async () => {
       try {
         const summary: any = await api.get(`/payments/reservations/${reservationId}/summary`);
         if (!isSubscribed) return;
-        if (summary?.depositPaid || summary?.reservation?.status === "CONFIRMED") {
-          clearInterval(interval);
+        const isConfirmed =
+          Boolean(summary?.depositPaid) ||
+          summary?.reservationStatus === "CONFIRMED" ||
+          summary?.status === "CONFIRMED" ||
+          summary?.reservation?.status === "CONFIRMED";
+
+        if (isConfirmed) {
           sessionStorage.removeItem(`booking_pending_${facilityId}`);
           toast.success("Hệ thống đã nhận được tiền cọc thành công! Ô kho đã được giữ chỗ.");
           setStep("success");
-        } else if (summary?.reservationStatus === "EXPIRED" || summary?.reservation?.status === "EXPIRED") {
-          clearInterval(interval);
+        } else if (
+          summary?.reservationStatus === "EXPIRED" ||
+          summary?.status === "EXPIRED" ||
+          summary?.reservation?.status === "EXPIRED"
+        ) {
           sessionStorage.removeItem(`booking_pending_${facilityId}`);
           setTimeLeft(0);
           toast.error("Đơn đặt chỗ đã hết hạn 15 phút và bị hủy.");
@@ -279,13 +289,18 @@ function BookingFlowContent() {
       } catch {
         // silent catch during background polling
       }
-    }, 3000);
+    };
+
+    // Immediate check on mount
+    checkPayment();
+
+    const interval = setInterval(checkPayment, 3000);
 
     return () => {
       isSubscribed = false;
       clearInterval(interval);
     };
-  }, [step, reservationId, facilityId, timeLeft]);
+  }, [step, reservationId, facilityId]);
 
   const formatCountdown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -524,6 +539,33 @@ function BookingFlowContent() {
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleManualCheckPayment = async () => {
+    if (!reservationId) return;
+    setCheckingPayment(true);
+    try {
+      const summary: any = await api.get(`/payments/reservations/${reservationId}/summary`);
+      const isConfirmed =
+        Boolean(summary?.depositPaid) ||
+        summary?.reservationStatus === "CONFIRMED" ||
+        summary?.status === "CONFIRMED" ||
+        summary?.reservation?.status === "CONFIRMED";
+
+      if (isConfirmed) {
+        sessionStorage.removeItem(`booking_pending_${facilityId}`);
+        toast.success("Hệ thống đã nhận được tiền cọc thành công! Ô kho đã được giữ chỗ.");
+        setStep("success");
+      } else {
+        toast.info(
+          "Hệ thống đang chờ giao dịch chuyển khoản từ ngân hàng (thường mất 5 - 15 giây). Vui lòng thử lại sau giây lát."
+        );
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể kiểm tra giao dịch lúc này. Vui lòng thử lại.");
+    } finally {
+      setCheckingPayment(false);
     }
   };
 
@@ -1450,25 +1492,41 @@ function BookingFlowContent() {
 
                   {/* Webhook simulation & help */}
                   <div className="mt-8 flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-                    <p className="text-xs text-slate-500 font-medium mb-3 flex items-center gap-1.5">
+                    <p className="text-xs text-slate-500 font-medium mb-4 flex items-center gap-1.5">
                       <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
                       <span>Hệ thống đang tự động lắng nghe giao dịch chuyển khoản VietQR (tự động chuyển trang khi hoàn tất)...</span>
                     </p>
 
-                    <button
-                      type="button"
-                      onClick={handleSimulatePayment}
-                      disabled={simulatingWebhook}
-                      className="inline-flex justify-center items-center gap-2 px-7 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-full shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      {simulatingWebhook ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <QrCode className="w-4 h-4" />
-                      )}
-                      <span>Mô Phỏng Đã Chuyển Khoản Thành Công (Demo Webhook)</span>
-                    </button>
-                      </div>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md">
+                      <button
+                        type="button"
+                        onClick={handleManualCheckPayment}
+                        disabled={checkingPayment}
+                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-full shadow-md shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {checkingPayment ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4" />
+                        )}
+                        <span>Tôi Đã Chuyển Khoản - Kiểm Tra Ngay</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSimulatePayment}
+                        disabled={simulatingWebhook}
+                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-3 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-full border border-slate-300 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {simulatingWebhook ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <QrCode className="w-4 h-4 text-emerald-600" />
+                        )}
+                        <span>Mô Phỏng Webhook (Test)</span>
+                      </button>
+                    </div>
+                  </div>
                     </>
                   )}
                 </div>
