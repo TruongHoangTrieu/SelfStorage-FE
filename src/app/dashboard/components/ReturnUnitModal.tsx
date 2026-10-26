@@ -419,6 +419,15 @@ export default function ReturnUnitModal({
               {/* ================= STEP 1: LÊN LỊCH & LÝ DO ================= */}
               {step === 1 && (
                 <div className="space-y-4 animate-fade-in">
+                  {(unit.hasPendingRenewal || unit.statusLabel?.includes('gia hạn')) && (
+                    <div className="bg-amber-50 border border-amber-200/90 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-xs text-amber-900 leading-relaxed">
+                        <strong>Lưu ý chuyển đổi thủ tục:</strong> Ngăn kho này hiện đang có yêu cầu gia hạn chờ duyệt. Khi bạn gửi yêu cầu trả kho, hệ thống sẽ tự động chuyển đổi sang thủ tục nghiệm thu trả kho và hủy bỏ yêu cầu gia hạn trước đó.
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
                     <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     <div className="text-xs text-blue-900 leading-relaxed">

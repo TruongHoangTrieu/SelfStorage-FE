@@ -118,6 +118,7 @@ export interface CustomerUnit {
   rawContractItemId?: number;
   rawUnitId?: number;
   checkoutRequest?: CheckoutRequest;
+  hasPendingRenewal?: boolean;
 }
 
 export interface CustomerUser {

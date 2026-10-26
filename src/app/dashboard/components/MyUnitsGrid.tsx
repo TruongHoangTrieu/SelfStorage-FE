@@ -602,7 +602,7 @@ export default function MyUnitsGrid({
         return (
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-            {label || 'Đang xử lý trả kho'}
+            {label && !label.includes('gia hạn') ? label : 'Đang xử lý trả kho'}
           </span>
         );
       case 'terminated':

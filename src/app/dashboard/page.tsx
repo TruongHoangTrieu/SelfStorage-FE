@@ -139,13 +139,29 @@ export default function CustomerDashboardPage() {
           // Attach payments, tickets, and check pending renewals
           const enrichedUnits = liveUnits.map((u, idx) => {
             const hasPendingRen = pendingRenewals.some(
-              (r: any) => (String(r.contractId) === String(u.rawContractId) || String(r.contract?.id) === String(u.rawContractId)) && r.status === 'PENDING'
+              (r: any) =>
+                (String(r.contractId) === String(u.rawContractId) ||
+                  String(r.contract?.id) === String(u.rawContractId)) &&
+                r.status === 'PENDING'
             );
+
+            const isCheckingOut = u.status === 'checkout_pending' || Boolean(u.checkoutRequest);
+
+            // Thủ tục Trả kho (Checkout) luôn được ưu tiên cao nhất, hủy bỏ/ghi đè trạng thái chờ duyệt gia hạn
+            const finalStatus = isCheckingOut ? 'checkout_pending' : u.status;
+            const finalStatusLabel = isCheckingOut
+              ? 'Đang xử lý trả kho'
+              : hasPendingRen
+              ? 'Chờ duyệt gia hạn'
+              : u.statusLabel;
+
             return {
               ...u,
-              statusLabel: hasPendingRen ? 'Chờ duyệt gia hạn' : u.statusLabel,
+              status: finalStatus,
+              statusLabel: finalStatusLabel,
+              hasPendingRenewal: hasPendingRen,
               paymentHistory: idx === 0 ? realPayments : [],
-              supportTickets: realTickets.filter(t => t.unitCode.includes(u.unitNumber) || idx === 0),
+              supportTickets: realTickets.filter((t) => t.unitCode.includes(u.unitNumber) || idx === 0),
             };
           });
 
@@ -370,7 +386,43 @@ export default function CustomerDashboardPage() {
   // Callback: Xác nhận gửi yêu cầu trả kho
   const handleConfirmCheckout = async (payload: any) => {
     try {
+      // 1. Nếu kho đang có yêu cầu gia hạn chờ duyệt, tự động hủy bỏ yêu cầu gia hạn để ưu tiên trả kho
+      try {
+        const renewalsRaw: any = await renewalsApi.getRenewals({ status: 'PENDING' }).catch(() => null);
+        const list = Array.isArray(renewalsRaw) ? renewalsRaw : renewalsRaw?.data || [];
+        const matchedRen = list.find(
+          (r: any) => String(r.contractId) === String(payload.contractId) || String(r.contract?.id) === String(payload.contractId)
+        );
+        if (matchedRen?.id) {
+          await renewalsApi.cancelRenewal(matchedRen.id).catch(() => {});
+        }
+      } catch (errRen) {
+        console.warn('Could not auto-cancel pending renewal during checkout', errRen);
+      }
+
+      // 2. Gửi yêu cầu trả kho
       await customerUnitsApi.requestCheckout(payload);
+
+      // 3. Cập nhật giao diện lập tức sang trạng thái Đang xử lý trả kho
+      setUnits((prev) =>
+        prev.map((u) => {
+          if (String(u.rawContractId) === String(payload.contractId) || u.contractId === payload.contractCode) {
+            return {
+              ...u,
+              status: 'checkout_pending',
+              statusLabel: 'Đang xử lý trả kho',
+              hasPendingRenewal: false,
+              checkoutRequest: {
+                ...payload,
+                status: 'PENDING',
+                statusLabel: 'Chờ nhân viên nghiệm thu ô kho',
+              },
+            };
+          }
+          return u;
+        })
+      );
+
       triggerToast(`Đã gửi yêu cầu trả kho cho ${payload.unitNumber}! Nhân viên cơ sở sẽ kiểm tra và liên hệ nghiệm thu.`);
       await loadContractsData(false);
     } catch (err: any) {
@@ -584,6 +636,7 @@ export default function CustomerDashboardPage() {
           {activeTab === 'documents' && (
             <CustomerDocumentsView
               units={units}
+              customerUser={customerUser}
               onRefresh={() => loadContractsData(false)}
             />
           )}

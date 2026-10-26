@@ -267,20 +267,28 @@ export default function UnitDetailsView({
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                 Chi tiết Quản lý: {unit.unitNumber}
               </h1>
-              {unit.status === 'active' && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Đang hoạt động
+              {unit.hasPendingRenewal && unit.status !== 'checkout_pending' ? (
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                  {unit.statusLabel || 'Chờ duyệt gia hạn'}
                 </span>
-              )}
-              {unit.status === 'expiring' && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300">
-                  Sắp hết hạn ({unit.daysRemaining} ngày)
-                </span>
-              )}
-              {unit.status === 'overdue' && (
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
-                  Quá hạn thanh toán
-                </span>
+              ) : (
+                <>
+                  {unit.status === 'active' && (
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Đang hoạt động
+                    </span>
+                  )}
+                  {unit.status === 'expiring' && (
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300">
+                      Sắp hết hạn ({unit.daysRemaining} ngày)
+                    </span>
+                  )}
+                  {unit.status === 'overdue' && (
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
+                      Quá hạn thanh toán
+                    </span>
+                  )}
+                </>
               )}
               {unit.status === 'checkout_pending' && (
                 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1.5 shadow-2xs">
