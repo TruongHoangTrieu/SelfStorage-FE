@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import StorageUnit3DModal from "@/components/3d/StorageUnit3DModal";
 import { api } from "@/lib/api";
+import { CURRENT_COMMIT } from "@/components/BuildInfoLogger";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -265,7 +266,7 @@ function BookingFlowContent() {
 
     const checkPayment = async () => {
       try {
-        console.log(`[SePay Polling] [Commit: cefdd62] Đang kiểm tra trạng thái cọc đơn ${reservationId}...`);
+        console.log(`[SePay Polling] [Commit: ${CURRENT_COMMIT}] Đang kiểm tra trạng thái cọc đơn ${reservationId}...`);
         const summary: any = await api.get(`/payments/reservations/${reservationId}/summary`);
         if (!isSubscribed) return;
         console.log(`[SePay Polling] Kết quả Backend cho đơn ${reservationId}:`, summary);
@@ -548,7 +549,7 @@ function BookingFlowContent() {
   const handleManualCheckPayment = async () => {
     if (!reservationId) return;
     setCheckingPayment(true);
-    console.log(`[Manual Check] [Commit: cefdd62] Người dùng bấm kiểm tra cọc đơn ${reservationId}...`);
+    console.log(`[Manual Check] [Commit: ${CURRENT_COMMIT}] Người dùng bấm kiểm tra cọc đơn ${reservationId}...`);
     try {
       const summary: any = await api.get(`/payments/reservations/${reservationId}/summary`);
       console.log(`[Manual Check] Kết quả Backend cho đơn ${reservationId}:`, summary);
@@ -1404,7 +1405,7 @@ function BookingFlowContent() {
                               Bước 3 / 3: Quét Mã Thanh Toán Cọc
                             </span>
                             <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
-                              Commit: cefdd62
+                              Commit: {CURRENT_COMMIT}
                             </span>
                           </div>
                           <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold self-start sm:self-auto transition-colors ${
@@ -1540,7 +1541,7 @@ function BookingFlowContent() {
                     </div>
 
                     <p className="mt-4 text-[11px] text-slate-400 font-mono">
-                      Bản dựng FE: <span className="font-bold text-slate-600">cefdd62</span> • Tự động đối soát SePay: <span className="text-emerald-600 font-bold">BẬT (3s/lần)</span>
+                      Bản dựng FE: <span className="font-bold text-slate-600">{CURRENT_COMMIT}</span> • Tự động đối soát SePay: <span className="text-emerald-600 font-bold">BẬT (3s/lần)</span>
                     </p>
                   </div>
                     </>
