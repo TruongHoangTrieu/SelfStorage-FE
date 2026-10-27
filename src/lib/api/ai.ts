@@ -16,6 +16,7 @@ export interface AiSuggestedUnit {
   unit_number: string;
   unit_type_id?: string;
   unit_type_name?: string;
+  facility_id?: string;
   facility_name?: string;
   size_m2?: number;
   volume_m3?: number;
@@ -31,12 +32,22 @@ export interface AiChatData {
   method?: string;
   confidence?: number;
   out_of_scope?: boolean;
+  facility_id?: string;
+  facility_name?: string;
   [key: string]: unknown;
 }
 
 export interface AiChatResponse {
   conversation_id: string;
-  intent: 'size_advice' | 'search_policy' | 'recommend_package' | 'get_live_data' | 'out_of_scope' | 'fallback';
+  intent:
+    | 'size_advice'
+    | 'search_policy'
+    | 'recommend_package'
+    | 'get_live_data'
+    | 'prohibited_items'
+    | 'emergency_support'
+    | 'out_of_scope'
+    | 'fallback';
   reply: string;
   data?: AiChatData;
   sources?: string[];
