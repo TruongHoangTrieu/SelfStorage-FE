@@ -14,7 +14,6 @@ import {
   RefreshCw,
   LogIn,
   LogOut,
-  Building2,
   Menu,
   ShieldCheck,
   CheckCircle2,
@@ -688,11 +687,6 @@ export default function ManagerPortalPage() {
 
         {/* Right: Actions, Facility Badge & Manager Profile */}
         <div className="flex items-center gap-2.5 sm:gap-4">
-          {/* Facility Location Pill (vị trí và kích thước đồng bộ với /staff) */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50/80 border border-indigo-200 text-indigo-900">
-            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="max-w-[180px] truncate">{facilityName}</span>
-          </div>
 
           {/* Notification Bell with Badge & Dropdown */}
           <div className="relative" ref={notifMenuRef}>

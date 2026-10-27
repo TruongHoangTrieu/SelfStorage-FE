@@ -94,6 +94,34 @@ function formatDateVi(dateStr: string): string {
   return dateStr;
 }
 
+/**
+ * Tính ngày hết hạn hợp đồng theo nguyên tắc pháp lý chu kỳ thuê:
+ * Ngày hết hạn = (Ngày nhận kho + số tháng) - 1 ngày (hiệu lực đến 23:59:59 của ngày này)
+ */
+function calculateExpiryDate(startDateStr: string, months: number): string {
+  if (!startDateStr || !months) return "";
+  const parts = startDateStr.split("-").map(Number);
+  if (parts.length !== 3) return "";
+  const [year, month, day] = parts;
+
+  // JavaScript Date tháng từ 0 - 11
+  const targetYear = year + Math.floor((month - 1 + months) / 12);
+  const targetMonthIndex = (month - 1 + months) % 12;
+
+  // Lấy ngày cuối cùng của tháng mục tiêu để xử lý các ngày 29, 30, 31
+  const daysInTargetMonth = new Date(targetYear, targetMonthIndex + 1, 0).getDate();
+  const targetDay = Math.min(day, daysInTargetMonth);
+
+  // Ngày hết hạn kết thúc trước 1 ngày so với ngày bắt đầu chu kỳ kế tiếp
+  const expiry = new Date(targetYear, targetMonthIndex, targetDay);
+  expiry.setDate(expiry.getDate() - 1);
+
+  const expDay = String(expiry.getDate()).padStart(2, "0");
+  const expMonth = String(expiry.getMonth() + 1).padStart(2, "0");
+  const expYear = expiry.getFullYear();
+  return `${expDay}/${expMonth}/${expYear}`;
+}
+
 function BookingFlowContent() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -244,7 +272,7 @@ function BookingFlowContent() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          toast.error("Đã quá 15 phút đặt cọc. Đơn đặt chỗ đã tự động hủy.");
+          toast.error("Đã quá 15 phút đặt cọc. Đơn đặt chỗ đã tự động hủy.", { id: "booking-expired-toast" });
           if (reservationId) {
             sessionStorage.removeItem(`booking_pending_${facilityId}`);
             api.post(`/reservations/${reservationId}/expire`).catch(() => {});
@@ -260,11 +288,13 @@ function BookingFlowContent() {
 
   // Auto-polling for payment confirmation (SePay VietQR)
   useEffect(() => {
-    if (step !== "payment_qr" || !reservationId) return;
+    if (step !== "payment_qr" || !reservationId || timeLeft <= 0) return;
 
     let isSubscribed = true;
+    let intervalId: any = null;
 
     const checkPayment = async () => {
+      if (!isSubscribed) return;
       try {
         console.log(`[SePay Polling] [Commit: ${CURRENT_COMMIT}] Đang kiểm tra trạng thái cọc đơn ${reservationId}...`);
         const summary: any = await api.get(`/payments/reservations/${reservationId}/summary`);
@@ -278,6 +308,7 @@ function BookingFlowContent() {
 
         if (isConfirmed) {
           console.log(`[SePay Polling] ✅ ĐÃ NHẬN TIỀN CỌC THÀNH CÔNG! Chuyển trang...`);
+          if (intervalId) clearInterval(intervalId);
           sessionStorage.removeItem(`booking_pending_${facilityId}`);
           toast.success("Hệ thống đã nhận được tiền cọc thành công! Ô kho đã được giữ chỗ.");
           setStep("success");
@@ -286,9 +317,11 @@ function BookingFlowContent() {
           summary?.status === "EXPIRED" ||
           summary?.reservation?.status === "EXPIRED"
         ) {
+          isSubscribed = false;
+          if (intervalId) clearInterval(intervalId);
           sessionStorage.removeItem(`booking_pending_${facilityId}`);
           setTimeLeft(0);
-          toast.error("Đơn đặt chỗ đã hết hạn 15 phút và bị hủy.");
+          toast.error("Đã hết 15 phút đặt cọc. Đơn đặt chỗ của bạn đã tự động hết hạn và bị hủy.", { id: "booking-expired-toast" });
         }
       } catch (err) {
         console.warn(`[SePay Polling] Lỗi kiểm tra thanh toán:`, err);
@@ -298,13 +331,13 @@ function BookingFlowContent() {
     // Immediate check on mount
     checkPayment();
 
-    const interval = setInterval(checkPayment, 3000);
+    intervalId = setInterval(checkPayment, 3000);
 
     return () => {
       isSubscribed = false;
-      clearInterval(interval);
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [step, reservationId, facilityId]);
+  }, [step, reservationId, facilityId, timeLeft <= 0]);
 
   const formatCountdown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -439,6 +472,7 @@ function BookingFlowContent() {
   const remainingAtCheckIn = Math.max(0, totalRentalAmount - depositAmount);
 
   const isStep2Valid = Boolean(moveInDate && timeSlot && timeSlot.available && durationKey);
+  const isExpired = step === "payment_qr" && timeLeft <= 0;
 
   const handleGenerateQR = async () => {
     if (!selectedUnitType || !isStep2Valid) return;
@@ -680,6 +714,20 @@ function BookingFlowContent() {
                   {formatDateVi(moveInDate)} • {timeSlot?.label}
                 </span>
               </div>
+              {durationInfo && (
+                <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60">
+                  <span className="text-slate-500 font-semibold">Thời Gian Thuê</span>
+                  <span className="font-bold text-slate-900">{durationInfo.label}</span>
+                </div>
+              )}
+              {moveInDate && durationInfo && (
+                <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60">
+                  <span className="text-slate-500 font-semibold">Hết Hạn Hợp Đồng</span>
+                  <span className="font-bold text-slate-900 tabular-nums">
+                    {calculateExpiryDate(moveInDate, rentalMonths)} (23:59)
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center pt-1">
                 <span className="text-slate-500 font-semibold">Tiền Cọc Đã Thanh Toán</span>
                 <span className="font-black text-emerald-600 text-base tabular-nums">
@@ -830,70 +878,102 @@ function BookingFlowContent() {
             )}
           </div>
 
-          {/* Stepper Progress Bar */}
-          <div className="mb-10 bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-2xs">
-            <div className="flex items-center justify-between max-w-3xl mx-auto">
-              {[
-                { s: 1, label: "1. Chọn Loại Kho" },
-                { s: 2, label: "2. Lịch Dọn Đồ" },
-                { s: 3, label: "3. Thanh Toán Cọc" },
-              ].map((item, idx) => (
-                <React.Fragment key={item.s}>
-                  <div
-                    onClick={() => {
-                      if (item.s === 1 && (step === "schedule" || step === "unit")) {
-                        setStep("unit");
-                      } else if (item.s === 2 && selectedUnitType && step === "unit") {
-                        setStep("schedule");
-                      }
-                    }}
-                    className={`flex items-center gap-2.5 ${
-                      (item.s === 1 && step === "schedule") || (item.s === 2 && selectedUnitType && step === "unit")
-                        ? "cursor-pointer hover:opacity-80 transition-opacity"
-                        : ""
-                    }`}
-                  >
+          {/* Stepper Progress Bar (Ẩn khi đơn đặt chỗ hết hạn) */}
+          {!isExpired && (
+            <div className="mb-10 bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-2xs">
+              <div className="flex items-center justify-between max-w-3xl mx-auto">
+                {[
+                  { s: 1, label: "1. Chọn Loại Kho" },
+                  { s: 2, label: "2. Lịch Dọn Đồ" },
+                  { s: 3, label: "3. Thanh Toán Cọc" },
+                ].map((item, idx) => (
+                  <React.Fragment key={item.s}>
                     <div
-                      className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-bold transition-all ${
-                        stepNumber === item.s
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-105"
-                          : stepNumber > item.s
-                          ? "bg-emerald-500 text-white"
-                          : "bg-slate-100 text-slate-400"
+                      onClick={() => {
+                        if (item.s === 1 && (step === "schedule" || step === "unit")) {
+                          setStep("unit");
+                        } else if (item.s === 2 && selectedUnitType && step === "unit") {
+                          setStep("schedule");
+                        }
+                      }}
+                      className={`flex items-center gap-2.5 ${
+                        (item.s === 1 && step === "schedule") || (item.s === 2 && selectedUnitType && step === "unit")
+                          ? "cursor-pointer hover:opacity-80 transition-opacity"
+                          : ""
                       }`}
                     >
-                      {stepNumber > item.s ? <Check className="w-4 h-4" /> : item.s}
+                      <div
+                        className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-bold transition-all ${
+                          stepNumber === item.s
+                            ? "bg-blue-600 text-white shadow-md shadow-blue-500/30 scale-105"
+                            : stepNumber > item.s
+                            ? "bg-emerald-500 text-white"
+                            : "bg-slate-100 text-slate-400"
+                        }`}
+                      >
+                        {stepNumber > item.s ? <Check className="w-4 h-4" /> : item.s}
+                      </div>
+                      <span
+                        className={`text-xs sm:text-sm font-bold hidden sm:inline ${
+                          stepNumber === item.s
+                            ? "text-blue-600"
+                            : stepNumber > item.s
+                            ? "text-slate-800"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
                     </div>
-                    <span
-                      className={`text-xs sm:text-sm font-bold hidden sm:inline ${
-                        stepNumber === item.s
-                          ? "text-blue-600"
-                          : stepNumber > item.s
-                          ? "text-slate-800"
-                          : "text-slate-400"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                  </div>
 
-                  {idx < 2 && (
-                    <div
-                      className={`flex-1 h-1 mx-3 sm:mx-6 rounded-full transition-all ${
-                        stepNumber > idx + 1 ? "bg-emerald-500" : "bg-slate-200"
-                      }`}
-                    />
-                  )}
-                </React.Fragment>
-              ))}
+                    {idx < 2 && (
+                      <div
+                        className={`flex-1 h-1 mx-3 sm:mx-6 rounded-full transition-all ${
+                          stepNumber > idx + 1 ? "bg-emerald-500" : "bg-slate-200"
+                        }`}
+                      />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Two-Column Grid: Form Flow (Left) + Reservation Summary (Right) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            {/* LEFT COLUMN: ACTIVE STEP CONTENT */}
-            <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-2xs">
+          {/* Khi hết hạn: Chỉ hiển thị duy nhất bảng thông báo ở giữa (ảnh 2), ẩn hoàn toàn sidebar */}
+          {isExpired ? (
+            <div className="max-w-2xl mx-auto w-full py-6 sm:py-12 animate-in fade-in duration-300">
+              <div className="bg-white rounded-3xl border border-rose-200/90 p-8 sm:p-14 text-center shadow-xs">
+                <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-2xs">
+                  <Clock className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-3 tracking-tight">
+                  Đơn Đặt Chỗ Đã Hết Hạn
+                </h2>
+                <p className="text-slate-600 text-sm sm:text-base mb-8 leading-relaxed max-w-lg mx-auto">
+                  Đã quá thời hạn 15 phút thanh toán cọc. Hệ thống đã tự động hủy đơn giữ chỗ và giải phóng ô kho cho khách hàng khác. Vui lòng chọn lại ô kho nếu bạn vẫn có nhu cầu thuê.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sessionStorage.removeItem(`booking_pending_${facilityId}`);
+                    setStep("unit");
+                    setTimeLeft(900);
+                    setReservationId(null);
+                    setQrData(null);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-blue-600/25 cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Đặt Lại Ô Kho Khác</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Two-Column Grid: Form Flow (Left) + Reservation Summary (Right) */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              
+              {/* LEFT COLUMN: ACTIVE STEP CONTENT */}
+              <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-2xs">
               
               {/* Staff / Admin Warning Notice */}
               {isStaffOrAdmin && (
@@ -1330,6 +1410,21 @@ function BookingFlowContent() {
                           );
                         })}
                       </div>
+
+                      {/* Live Expiry Preview in Step 2 */}
+                      {moveInDate && durationInfo && (
+                        <div className="mt-4 p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex items-center justify-between text-xs text-blue-900 animate-in fade-in">
+                          <div className="flex items-center gap-2">
+                            <CalendarDays className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>
+                              Chu kỳ thuê: <strong>{formatDateVi(moveInDate)}</strong> đến hết ngày <strong>{calculateExpiryDate(moveInDate, rentalMonths)}</strong>
+                            </span>
+                          </div>
+                          <span className="font-semibold text-blue-700 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
+                            Đến 23:59
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1371,33 +1466,7 @@ function BookingFlowContent() {
               {/* ================= STEP 3: PAYMENT QR ================= */}
               {step === "payment_qr" && qrData && (
                 <div>
-                  {timeLeft <= 0 ? (
-                    <div className="bg-white rounded-3xl border border-rose-200 p-8 sm:p-12 text-center max-w-xl mx-auto shadow-sm">
-                      <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Clock className="w-8 h-8" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-slate-900 mb-2">Đơn Đặt Chỗ Đã Hết Hạn</h2>
-                      <p className="text-slate-600 text-sm mb-6 leading-relaxed">
-                        Đã quá thời hạn 15 phút thanh toán cọc. Hệ thống đã tự động hủy đơn giữ chỗ và giải phóng ô kho cho khách hàng khác. Vui lòng chọn lại ô kho nếu bạn vẫn có nhu cầu thuê.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sessionStorage.removeItem(`booking_pending_${facilityId}`);
-                          setStep("unit");
-                          setTimeLeft(900);
-                          setReservationId(null);
-                          setQrData(null);
-                        }}
-                        className="inline-flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition shadow-md shadow-blue-600/20 cursor-pointer"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        <span>Đặt Lại Ô Kho Khác</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="mb-8">
+                  <div className="mb-8">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
@@ -1544,8 +1613,6 @@ function BookingFlowContent() {
                       Bản dựng FE: <span className="font-bold text-slate-600">{CURRENT_COMMIT}</span> • Tự động đối soát SePay: <span className="text-emerald-600 font-bold">BẬT (3s/lần)</span>
                     </p>
                   </div>
-                    </>
-                  )}
                 </div>
               )}
 
@@ -1622,12 +1689,30 @@ function BookingFlowContent() {
                     </div>
                   )}
 
+                  {/* Expiration Date (Chỉ hiện khi đã chọn Ngày nhận kho VÀ Thời gian thuê) */}
+                  {moveInDate && durationInfo && (
+                    <div className="pb-3 border-b border-slate-100 animate-in fade-in">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <CalendarDays className="w-3 h-3 text-orange-500" />
+                        Hết Hạn Hợp Đồng
+                      </p>
+                      <div className="flex items-baseline justify-between">
+                        <p className="font-bold text-slate-900 tabular-nums">
+                          {calculateExpiryDate(moveInDate, rentalMonths)}
+                        </p>
+                        <span className="text-[11px] font-medium text-slate-500">
+                          (Đến 23:59)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Price breakdown */}
                   {selectedUnitType && (
                     <div className="pt-2 space-y-2.5 text-xs">
                       {/* Đơn giá niêm yết */}
                       <div className="flex justify-between text-slate-600">
-                        <span>Giá thuê niêm yết:</span>
+                        <span>Giá thuê cơ bản:</span>
                         <span className="font-semibold tabular-nums">
                           {monthlyPrice.toLocaleString("vi-VN")} đ / tháng
                         </span>
@@ -1636,27 +1721,21 @@ function BookingFlowContent() {
                       {/* Khi đã chọn thời gian thuê */}
                       {durationInfo ? (
                         <>
-                          <div className="flex justify-between text-slate-600">
-                            <span>Thời gian thuê:</span>
-                            <span className="font-semibold tabular-nums">
-                              {rentalMonths} Tháng
-                            </span>
-                          </div>
-
-                          <div className="flex justify-between text-slate-600">
-                            <span>Tổng tiền thuê niêm yết:</span>
-                            <span className="font-semibold tabular-nums">
-                              {grossRentalAmount.toLocaleString("vi-VN")} đ
-                            </span>
-                          </div>
-
                           {discountSavings > 0 && (
-                            <div className="flex justify-between text-emerald-600 font-bold">
-                              <span>Ưu đãi kỳ hạn ({discountPercent}%):</span>
-                              <span className="tabular-nums">
-                                -{discountSavings.toLocaleString("vi-VN")} đ
-                              </span>
-                            </div>
+                            <>
+                              <div className="flex justify-between text-slate-500">
+                                <span>Giá gốc ({rentalMonths} tháng):</span>
+                                <span className="line-through tabular-nums">
+                                  {grossRentalAmount.toLocaleString("vi-VN")} đ
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-emerald-600 font-bold">
+                                <span>Ưu đãi kỳ hạn ({discountPercent}%):</span>
+                                <span className="tabular-nums">
+                                  -{discountSavings.toLocaleString("vi-VN")} đ
+                                </span>
+                              </div>
+                            </>
                           )}
 
                           <div className="flex justify-between items-center text-slate-900 font-bold pt-2 border-t border-slate-100">
@@ -1675,7 +1754,7 @@ function BookingFlowContent() {
                         </>
                       ) : (
                         <p className="text-[11px] text-slate-400 italic">
-                          * Vui lòng chọn thời gian thuê ở bước 3 để xem tổng chi phí.
+                          * Vui lòng chọn thời gian thuê ở bước 2 để xem tổng chi phí.
                         </p>
                       )}
 
@@ -1692,30 +1771,47 @@ function BookingFlowContent() {
                           </div>
                           <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1.5">
                             <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>Trừ thẳng vào tiền thuê khi ký hợp đồng nhận phòng</span>
+                            <span>Khấu trừ 100% vào tiền thuê khi ký hợp đồng nhận phòng</span>
                           </p>
                         </div>
                       </div>
 
                       {/* Số tiền còn lại khi nhận kho */}
                       {durationInfo && (
-                        <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 flex justify-between items-center text-xs">
-                          <div>
-                            <p className="font-bold text-slate-700">
-                              Còn lại thanh toán khi nhận kho:
-                            </p>
-                            <p className="text-[9.5px] text-slate-400">
-                              (Tổng tiền thuê - Tiền cọc đã nộp)
-                            </p>
+                        remainingAtCheckIn === 0 ? (
+                          <div className="p-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200/80 flex items-center justify-between text-xs text-emerald-900">
+                            <div>
+                              <p className="font-bold flex items-center gap-1 text-emerald-800">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Thanh toán khi nhận kho: 0 đ
+                              </p>
+                              <p className="text-[9.5px] text-emerald-600 mt-0.5">
+                                Đã thanh toán trọn gói tháng đầu • Không phát sinh thêm phí
+                              </p>
+                            </div>
+                            <span className="font-black text-emerald-700 text-sm tabular-nums">
+                              0 đ
+                            </span>
                           </div>
-                          <span className="font-black text-slate-900 text-sm tabular-nums">
-                            {remainingAtCheckIn.toLocaleString("vi-VN")} đ
-                          </span>
-                        </div>
+                        ) : (
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 flex justify-between items-center text-xs">
+                            <div>
+                              <p className="font-bold text-slate-700">
+                                Còn lại thanh toán khi nhận kho:
+                              </p>
+                              <p className="text-[9.5px] text-slate-400">
+                                (Tổng tiền thuê - Tiền cọc đã nộp)
+                              </p>
+                            </div>
+                            <span className="font-black text-slate-900 text-sm tabular-nums">
+                              {remainingAtCheckIn.toLocaleString("vi-VN")} đ
+                            </span>
+                          </div>
+                        )
                       )}
 
                       <p className="text-[10.5px] text-slate-400 mt-2 leading-tight">
-                        * Lưu ý: Tiền cọc sẽ được trừ trực tiếp vào tiền thuê khi ký hợp đồng và không hoàn lại nếu quý khách hủy đơn.
+                        * Tiền cọc giữ chỗ được trừ trực tiếp vào tiền thuê khi ký hợp đồng và không hoàn lại nếu quý khách hủy đơn.
                       </p>
                     </div>
                   )}
@@ -1735,6 +1831,7 @@ function BookingFlowContent() {
             </div>
 
           </div>
+          )}
 
         </div>
       </main>

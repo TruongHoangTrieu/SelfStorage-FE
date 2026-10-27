@@ -602,9 +602,61 @@ export default function LandingPage() {
 
           {/* Dynamic API Rendering */}
           {facilitiesLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-3xl border border-slate-200/90 shadow-sm">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-              <p className="text-slate-600 font-semibold text-sm">Đang tải danh sách cơ sở kho từ hệ thống...</p>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="p-7 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Top status bar skeleton */}
+                    <div className="flex items-center justify-end gap-2 mb-4">
+                      <div className="h-6 w-28 rounded-lg bg-slate-200" />
+                    </div>
+
+                    {/* Facility Image preview skeleton */}
+                    <div className="relative aspect-[16/9] w-full rounded-2xl bg-slate-200 mb-5 overflow-hidden">
+                      <div className="absolute top-3 left-3 w-28 h-6 rounded-lg bg-slate-300" />
+                    </div>
+
+                    {/* Title skeleton */}
+                    <div className="h-6 w-4/5 rounded-lg bg-slate-200 mb-3" />
+
+                    {/* Address skeleton */}
+                    <div className="flex items-start gap-2 mt-2">
+                      <div className="w-4 h-4 rounded bg-slate-200 shrink-0 mt-0.5" />
+                      <div className="space-y-1.5 w-full">
+                        <div className="h-3.5 bg-slate-200 rounded w-11/12" />
+                        <div className="h-3 bg-slate-100 rounded w-2/3" />
+                      </div>
+                    </div>
+
+                    {/* Description skeleton */}
+                    <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-2">
+                      <div className="h-3 bg-slate-200 rounded w-full" />
+                      <div className="h-3 bg-slate-200 rounded w-4/5" />
+                    </div>
+
+                    {/* Quick Stats skeleton */}
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded-full bg-slate-200" />
+                        <div className="h-3.5 bg-slate-200 rounded w-24" />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3.5 h-3.5 rounded bg-slate-200" />
+                        <div className="h-3.5 bg-slate-200 rounded w-24" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom action bar skeleton */}
+                  <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div className="h-4 bg-slate-200 rounded w-28" />
+                    <div className="h-8 bg-slate-200 rounded-xl w-32" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : facilitiesError ? (
             <div className="p-8 text-center bg-white rounded-3xl border border-rose-200 shadow-sm text-slate-700">

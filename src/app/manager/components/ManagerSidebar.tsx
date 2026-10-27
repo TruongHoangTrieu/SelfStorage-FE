@@ -134,19 +134,6 @@ export default function ManagerSidebar({
 
       {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-1">
-        {/* Facility Info Card (visible when expanded) */}
-        <div
-          className={`mx-2 mb-3 p-3 rounded-2xl bg-indigo-50/70 border border-indigo-100 transition-all duration-300 ${
-            isCollapsed ? 'max-h-0 opacity-0 p-0 m-0 border-0 overflow-hidden' : 'opacity-100'
-          }`}
-        >
-          <div className="flex items-center gap-2.5 text-xs font-bold text-indigo-950">
-            <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span className="line-clamp-2 leading-tight break-words flex-1" title={facilityName}>
-              {facilityName}
-            </span>
-          </div>
-        </div>
 
         {/* ================= SECTION 1: QUẢN TRỊ CƠ SỞ ================= */}
         <div

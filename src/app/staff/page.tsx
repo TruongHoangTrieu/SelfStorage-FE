@@ -900,12 +900,6 @@ export default function StaffPortalPage() {
 
         {/* Right: Actions, Status & User Pill */}
         <div className="flex items-center gap-2.5 sm:gap-4">
-          {/* Facility Location Pill */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50/70 border border-blue-200 text-blue-900">
-            <Building2 className="w-3.5 h-3.5 text-blue-600" />
-            <span className="max-w-[180px] truncate">{facilityName}</span>
-          </div>
-
           {/* Back to Queue shortcut if inside handover */}
           {flowStep !== 'queue' && (
             <button
