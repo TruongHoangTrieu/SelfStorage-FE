@@ -1267,9 +1267,7 @@ export default function FacilityLayoutView({ facilityId, userRole, initialSubTab
                       Thanh Chọn Chuyển Đổi Chi Nhánh (Toàn Bộ 6 Chi Nhánh)
                     </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shadow-2xs">
-                    Toàn Quyền Admin & Giám Đốc Vận Hành
-                  </span>
+                  
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
@@ -1604,7 +1602,7 @@ export default function FacilityLayoutView({ facilityId, userRole, initialSubTab
                             {isUploadingThis ? (
                               <>
                                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                <span>Đang tải lên Cloudinary...</span>
+                                <span>Đang tải lên ...</span>
                               </>
                             ) : (
                               <>

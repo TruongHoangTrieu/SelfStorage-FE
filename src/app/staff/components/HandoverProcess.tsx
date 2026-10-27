@@ -839,7 +839,7 @@ export default function HandoverProcess({
                 {isUploadingPhoto ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
-                    <span>Đang tải lên Cloudinary...</span>
+                    <span>Đang tải lên ...</span>
                   </>
                 ) : (
                   <>

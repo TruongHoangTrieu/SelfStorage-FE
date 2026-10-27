@@ -127,11 +127,14 @@ const REVIEWS = [
   }
 ];
 
+// Module-level cache so returning to homepage doesn't flash loading states
+let cachedFacilities: ApiFacility[] | null = null;
+
 export default function LandingPage() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  // Dynamic facilities from API
-  const [facilities, setFacilities] = useState<ApiFacility[]>([]);
-  const [facilitiesLoading, setFacilitiesLoading] = useState(true);
+  // Dynamic facilities from API (initialized from cache if available)
+  const [facilities, setFacilities] = useState<ApiFacility[]>(() => cachedFacilities || []);
+  const [facilitiesLoading, setFacilitiesLoading] = useState(() => !cachedFacilities || cachedFacilities.length === 0);
   const [facilitiesError, setFacilitiesError] = useState<string | null>(null);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -151,27 +154,33 @@ export default function LandingPage() {
   const isManager = roleName.includes("MANAGER");
   const isAdmin = roleName.includes("ADMIN");
 
-  // Fetch facilities from API
-  const loadFacilities = async () => {
-    setFacilitiesLoading(true);
+  // Fetch facilities from API with stale-while-revalidate
+  const loadFacilities = async (isBackground?: boolean | unknown) => {
+    const bg = typeof isBackground === "boolean" ? isBackground : false;
+    if (!bg) {
+      setFacilitiesLoading(true);
+    }
     setFacilitiesError(null);
     try {
       const data = await api.get<ApiFacility[]>("/facilities");
       if (Array.isArray(data) && data.length > 0) {
+        cachedFacilities = data;
         setFacilities(data);
-      } else {
+      } else if (!cachedFacilities) {
         setFacilities([]);
       }
     } catch (err) {
       console.error("Failed to load facilities:", err);
-      setFacilitiesError("Không thể tải danh sách cơ sở kho. Vui lòng thử lại.");
+      if (!cachedFacilities || cachedFacilities.length === 0) {
+        setFacilitiesError("Không thể tải danh sách cơ sở kho. Vui lòng thử lại.");
+      }
     } finally {
       setFacilitiesLoading(false);
     }
   };
 
   useEffect(() => {
-    loadFacilities();
+    loadFacilities(Boolean(cachedFacilities && cachedFacilities.length > 0));
   }, []);
 
   return (
@@ -601,7 +610,7 @@ export default function LandingPage() {
             <div className="p-8 text-center bg-white rounded-3xl border border-rose-200 shadow-sm text-slate-700">
               <p className="text-rose-600 font-bold mb-3">{facilitiesError}</p>
               <button
-                onClick={loadFacilities}
+                onClick={() => loadFacilities()}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition"
               >
                 <RefreshCw className="w-4 h-4" /> Thử tải lại

@@ -383,13 +383,13 @@ export default function Navbar() {
           {/* 2. MAIN NAVIGATION (Clean, non-redundant) */}
           <nav className="hidden xl:flex items-center gap-1 2xl:gap-2 text-[15px] font-semibold text-slate-700">
             {navLinks.map((link, idx) => (
-              <a
+              <Link
                 key={idx}
                 href={link.href}
                 className="px-3.5 py-2 rounded-xl text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors whitespace-nowrap"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
@@ -909,14 +909,14 @@ export default function Navbar() {
 
           {/* Cleaned links in mobile */}
           {navLinks.map((link, idx) => (
-            <a
+            <Link
               key={idx}
               href={link.href}
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2.5 rounded-lg text-base font-semibold text-slate-800 hover:bg-blue-50 hover:text-blue-600 transition"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
 
           {/* AI Assistant Mobile Action */}

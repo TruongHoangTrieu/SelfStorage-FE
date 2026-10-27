@@ -142,16 +142,21 @@ function formatFacility(raw: ApiFacility, index: number): FormattedFacility {
   };
 }
 
+// Module-level cache for fast transitions without screen flashes
+let cachedFormattedFacilities: FormattedFacility[] | null = null;
+
 export default function LocationsPage() {
-  const [facilities, setFacilities] = useState<FormattedFacility[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [facilities, setFacilities] = useState<FormattedFacility[]>(() => cachedFormattedFacilities || []);
+  const [loading, setLoading] = useState(() => !cachedFormattedFacilities || cachedFormattedFacilities.length === 0);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
-  const [activeFacility, setActiveFacility] = useState<FormattedFacility | null>(null);
+  const [activeFacility, setActiveFacility] = useState<FormattedFacility | null>(
+    () => (cachedFormattedFacilities && cachedFormattedFacilities.length > 0 ? cachedFormattedFacilities[0] : null)
+  );
 
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -172,7 +177,9 @@ export default function LocationsPage() {
     let cancelled = false;
 
     async function loadFacilities() {
-      setLoading(true);
+      if (!cachedFormattedFacilities || cachedFormattedFacilities.length === 0 || reloadToken > 0) {
+        setLoading(true);
+      }
       setErrorMessage("");
 
       try {
@@ -184,20 +191,23 @@ export default function LocationsPage() {
         }
 
         const formatted = data.map((item, idx) => formatFacility(item, idx));
+        cachedFormattedFacilities = formatted;
         setFacilities(formatted);
         if (formatted.length > 0) {
-          setActiveFacility(formatted[0]);
+          setActiveFacility((prev) => prev || formatted[0]);
         }
       } catch (err: any) {
         if (cancelled) return;
         console.error("Failed to load live facilities:", err);
-        setFacilities([]);
-        setActiveFacility(null);
-        setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Không thể kết nối đến máy chủ Backend để tải danh sách cơ sở."
-        );
+        if (!cachedFormattedFacilities || cachedFormattedFacilities.length === 0) {
+          setFacilities([]);
+          setActiveFacility(null);
+          setErrorMessage(
+            err instanceof Error
+              ? err.message
+              : "Không thể kết nối đến máy chủ Backend để tải danh sách cơ sở."
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -430,12 +440,59 @@ export default function LocationsPage() {
           )}
         </div>
 
-        {/* LOADING STATE */}
+        {/* SKELETON LOADING STATE */}
         {loading && (
-          <div className="py-24 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-            <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-3" />
-            <p className="text-base font-bold text-slate-800">Đang tải danh sách cơ sở từ API...</p>
-            <p className="text-xs text-slate-500 mt-1">Vui lòng đợi trong giây lát</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col shadow-xs"
+              >
+                {/* Image Skeleton */}
+                <div className="relative aspect-[16/10] bg-slate-200 overflow-hidden">
+                  <div className="absolute top-3 left-3 w-20 h-5 rounded-full bg-slate-300" />
+                  <div className="absolute bottom-3 right-3 w-32 h-6 rounded-md bg-slate-300" />
+                </div>
+
+                {/* Card Body Skeleton */}
+                <div className="p-5 flex flex-col flex-1 space-y-4">
+                  <div className="space-y-2">
+                    <div className="h-5 bg-slate-200 rounded-md w-4/5" />
+                    <div className="h-4 bg-slate-100 rounded-md w-3/5" />
+                  </div>
+
+                  {/* Highlights Bullets Skeleton */}
+                  <div className="space-y-2 py-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-slate-200 shrink-0" />
+                      <div className="h-3 bg-slate-200 rounded w-5/6" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-slate-200 shrink-0" />
+                      <div className="h-3 bg-slate-200 rounded w-4/6" />
+                    </div>
+                  </div>
+
+                  {/* Address & Contact Skeleton */}
+                  <div className="mt-auto pt-3 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded bg-slate-200 shrink-0" />
+                      <div className="h-3.5 bg-slate-200 rounded w-full" />
+                    </div>
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="h-3 bg-slate-200 rounded w-24" />
+                      <div className="h-3 bg-slate-200 rounded w-28" />
+                    </div>
+                  </div>
+
+                  {/* Actions Row Skeleton */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div className="h-3.5 bg-slate-200 rounded w-16" />
+                    <div className="h-7 bg-slate-200 rounded-lg w-24" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

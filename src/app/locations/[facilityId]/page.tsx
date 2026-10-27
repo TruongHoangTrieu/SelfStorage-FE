@@ -283,15 +283,26 @@ export default function FacilityDetailPage({
           <section className="pt-28 sm:pt-32 pb-14 sm:pb-20 bg-white border-b border-slate-100">
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
 
-              {/* Back navigation */}
-              <div className="mb-8">
+              {/* Back navigation & Breadcrumbs */}
+              <div className="mb-8 flex items-center flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Trang chủ</span>
+                </Link>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
                 <Link
                   href="/locations"
-                  className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition"
+                  className="text-slate-500 hover:text-blue-600 transition"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Quay lại tất cả chi nhánh</span>
+                  Tất cả chi nhánh
                 </Link>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                <span className="text-slate-900 font-bold truncate max-w-[200px] sm:max-w-xs">
+                  {facility.name}
+                </span>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
