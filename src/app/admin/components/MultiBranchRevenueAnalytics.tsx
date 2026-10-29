@@ -372,13 +372,13 @@ export default function MultiBranchRevenueAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Header & Live Database Status Banner */}
+      {/* 1. Header Banner */}
       <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-7 border border-slate-800 shadow-xs relative overflow-hidden">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-amber-300 border border-slate-700 text-xs font-semibold tracking-wide">
               <Building2 className="w-3.5 h-3.5 text-amber-400" />
-              <span>Hệ Thống {branchData.length} Chi Nhánh • Dữ Liệu Thực Tế Database</span>
+              <span>Hệ Thống {branchData.length} Chi Nhánh</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Tổng Quan Tài Chính &amp; Doanh Thu Toàn Hệ Thống
@@ -387,35 +387,14 @@ export default function MultiBranchRevenueAnalytics() {
               Dành cho <strong>Ban Giám Đốc &amp; Ban Quản Lý Chuỗi</strong>. Toàn bộ chỉ số được đối soát trực tiếp từ{' '}
               <strong className="text-amber-300">{realPayments.length} giao dịch thanh toán</strong>,{' '}
               <strong className="text-emerald-300">{realContracts.length} hợp đồng</strong> và{' '}
-              <strong className="text-indigo-300">{totalSystemUnits} ô kho</strong> trong cơ sở dữ liệu.
+              <strong className="text-indigo-300">{totalSystemUnits} ô kho</strong> trong hệ thống.
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              onClick={() => loadDatabaseData(true)}
-              disabled={isRefreshing}
-              className="px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>{isRefreshing ? 'Đang Đồng Bộ...' : 'Đồng Bộ Database'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (typeof window !== 'undefined') window.print();
-              }}
-              className="px-4 py-2.5 text-xs font-bold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition flex items-center gap-2 cursor-pointer"
-            >
-              <Download className="w-4 h-4 text-slate-300" />
-              <span>Xuất Báo Cáo</span>
-            </button>
           </div>
         </div>
       </div>
 
-      {/* 2. Highlight Monetary KPIs (Số Liệu Thực Từ Database) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 2. Highlight Monetary KPIs (3 Cards - Removed Quỹ Cọc) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Metric 1: Total Gross Revenue */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-indigo-400 hover:shadow-md transition">
           <div className="flex items-center justify-between">
@@ -435,26 +414,7 @@ export default function MultiBranchRevenueAnalytics() {
           </div>
         </div>
 
-        {/* Metric 2: Total System Deposits */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-emerald-400 hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              Quỹ Cọc Bảo Đảm Đang Giữ
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-2.5 tabular-nums">
-            {formatMoney(totalSystemDeposits)}
-          </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>{realContracts.length} hợp đồng active • Bảo đảm an toàn 100%</span>
-          </div>
-        </div>
-
-        {/* Metric 3: Average Revenue per Branch */}
+        {/* Metric 2: Average Revenue per Branch */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
@@ -472,7 +432,7 @@ export default function MultiBranchRevenueAnalytics() {
           </div>
         </div>
 
-        {/* Metric 4: Total Occupancy & Capacity */}
+        {/* Metric 3: Total Occupancy & Capacity */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-cyan-400 hover:shadow-md transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
@@ -722,13 +682,6 @@ export default function MultiBranchRevenueAnalytics() {
             </div>
 
             <div className="bg-white px-3 py-2 rounded-xl border border-indigo-100 shadow-2xs">
-              <span className="text-slate-400 block text-[10px] font-bold uppercase">Quỹ cọc đang giữ</span>
-              <span className="font-black text-emerald-700 text-sm">
-                {formatMoney(selectedBranch.depositVault)}
-              </span>
-            </div>
-
-            <div className="bg-white px-3 py-2 rounded-xl border border-indigo-100 shadow-2xs">
               <span className="text-slate-400 block text-[10px] font-bold uppercase">Chỉ tiêu kế hoạch</span>
               <span className="font-black text-slate-700 text-sm">
                 {formatMoney(selectedBranch.targetRevenue)}
@@ -750,7 +703,7 @@ export default function MultiBranchRevenueAnalytics() {
                   Dòng Tiền Thực Tế Toàn Chuỗi (Theo Tháng Đối Soát)
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Tổng hợp từ cơ sở dữ liệu các giao dịch thanh toán tiền thuê &amp; tiền cọc
+                  Tổng hợp từ các giao dịch thanh toán tiền thuê &amp; tiền đặt cọc giữ chỗ
                 </p>
               </div>
 
@@ -759,7 +712,7 @@ export default function MultiBranchRevenueAnalytics() {
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" /> Tiền thuê
                 </span>
                 <span className="flex items-center gap-1.5 text-emerald-700">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Quỹ cọc
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Tiền cọc giữ chỗ
                 </span>
               </div>
             </div>
@@ -956,7 +909,6 @@ export default function MultiBranchRevenueAnalytics() {
                 <th className="py-3 px-5 text-right">Chỉ Tiêu (KPI)</th>
                 <th className="py-3 px-5">Tỷ Lệ Đạt KPI</th>
                 <th className="py-3 px-5 text-center">Lấp Đầy</th>
-                <th className="py-3 px-5 text-right">Quỹ Cọc Giữ</th>
                 <th className="py-3 px-5 text-center">Đánh Giá</th>
               </tr>
             </thead>
@@ -1038,10 +990,6 @@ export default function MultiBranchRevenueAnalytics() {
                       <div className="text-[10px] text-slate-400 font-normal">
                         ({branch.occupiedUnits}/{branch.totalUnits} ô)
                       </div>
-                    </td>
-
-                    <td className="py-4 px-5 text-right font-bold text-slate-700 tabular-nums">
-                      {formatMoney(branch.depositVault)}
                     </td>
 
                     <td className="py-4 px-5 text-center">

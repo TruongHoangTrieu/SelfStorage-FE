@@ -512,9 +512,6 @@ function BookingFlowContent() {
         notes: rentalDates
           ? `Booked online (${rentalDates.startDateFormatted} - ${rentalDates.endDateFormatted})`
           : "Booked online",
-        startDate: moveInDate,
-        endDate: rentalDates?.endDateIso,
-        dueDate: rentalDates?.dueDateIso,
       });
 
       const resId = resResult.id;

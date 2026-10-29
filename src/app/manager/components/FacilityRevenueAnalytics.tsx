@@ -31,15 +31,49 @@ interface FacilityRevenueAnalyticsProps {
   facilityName?: string;
   facilityCode?: string;
   facilityId?: string | number;
+  onSelectFacility?: (facility: { id: string; name: string; code: string }) => void;
 }
+
+const FALLBACK_FACILITIES = [
+  {
+    id: '1',
+    name: 'Kho Tự Quản Chi Nhánh Landmark 81 - Bình Thạnh',
+    code: 'FAC_BTH',
+    totalUnits: 15,
+    availableUnits: 6,
+  },
+  {
+    id: '2',
+    name: 'Kho Tự Quản Trụ Sở Chính Võ Nguyên Giáp - Thủ Đức',
+    code: 'FAC_TD',
+    totalUnits: 20,
+    availableUnits: 7,
+  },
+  {
+    id: '3',
+    name: 'Kho Tự Quản Chi Nhánh Phú Mỹ Hưng - Quận 7',
+    code: 'FAC_Q7',
+    totalUnits: 16,
+    availableUnits: 5,
+  },
+  {
+    id: '4',
+    name: 'Kho Tự Quản Chi Nhánh Cầu Giấy - Hà Nội',
+    code: 'FAC_HN',
+    totalUnits: 14,
+    availableUnits: 4,
+  },
+];
 
 export default function FacilityRevenueAnalytics({
   facilityName = 'Kho Tự Quản Trụ Sở Chính Võ Nguyên Giáp',
   facilityCode = 'FAC_TD',
   facilityId,
+  onSelectFacility,
 }: FacilityRevenueAnalyticsProps) {
-  // Period filter
+  // Period filter & Facility filter
   const [timeframe, setTimeframe] = useState<'month' | 'quarter' | 'half_year' | 'year'>('half_year');
+  const [selectedFacilityKey, setSelectedFacilityKey] = useState<string>('ALL');
   const [activeChartPoint, setActiveChartPoint] = useState<number | null>(null);
   const [hoveredTier, setHoveredTier] = useState<number | null>(null);
 
@@ -104,28 +138,42 @@ export default function FacilityRevenueAnalytics({
     return map;
   }, [realReservations]);
 
+  // Danh sách toàn bộ cơ sở để người dùng chuyển đổi
+  const allFacilitiesList = useMemo(() => {
+    if (realFacilities && realFacilities.length > 0) {
+      return realFacilities;
+    }
+    return FALLBACK_FACILITIES;
+  }, [realFacilities]);
+
   // Current facility resolution
   const targetFacility = useMemo(() => {
-    if (!realFacilities || realFacilities.length === 0) return null;
+    if (selectedFacilityKey === 'ALL') return null;
+    const foundByKey = allFacilitiesList.find(
+      (f) => String(f.id) === String(selectedFacilityKey) || String(f.code) === String(selectedFacilityKey)
+    );
+    if (foundByKey) return foundByKey;
+
     if (facilityId) {
-      const found = realFacilities.find((f) => String(f.id) === String(facilityId));
+      const found = allFacilitiesList.find((f) => String(f.id) === String(facilityId));
       if (found) return found;
     }
     const cleanName = facilityName.replace(/^Kho\s+Tự\s+Quản\s+/i, '').toLowerCase();
-    const foundByName = realFacilities.find((f) =>
-      f.name.toLowerCase().includes(cleanName) || cleanName.includes(f.name.toLowerCase())
+    const foundByName = allFacilitiesList.find(
+      (f) => f.name.toLowerCase().includes(cleanName) || cleanName.includes(f.name.toLowerCase())
     );
-    return foundByName || realFacilities[0];
-  }, [realFacilities, facilityId, facilityName]);
+    return foundByName || allFacilitiesList[0] || null;
+  }, [allFacilitiesList, selectedFacilityKey, facilityId, facilityName]);
 
-  // Aggregate real payments data
+  // Aggregate real payments data (filtered by selected facility or ALL)
   const {
     totalPaidRevenue,
-    totalDepositVault,
+    totalDepositRevenue,
     totalRentalRevenue,
     totalPendingRevenue,
     paidCount,
     pendingCount,
+    filteredContractsCount,
     monthlyData,
     recentTransactions,
     unitTiers,
@@ -136,6 +184,32 @@ export default function FacilityRevenueAnalytics({
     let pendSum = 0;
     let pCount = 0;
     let penCount = 0;
+
+    // Lọc giao dịch theo cơ sở được chọn (nếu không phải ALL)
+    const filteredPayments = realPayments.filter((p) => {
+      if (selectedFacilityKey === 'ALL' || !targetFacility) return true;
+      const res = p.reservationId ? resMap.get(String(p.reservationId)) : null;
+      const paymentFacId =
+        p.facilityId ??
+        res?.facilityId ??
+        res?.facility?.id ??
+        p.contract?.facilityId ??
+        p.reservation?.facilityId;
+
+      if (paymentFacId !== undefined && paymentFacId !== null) {
+        return String(paymentFacId) === String(targetFacility.id);
+      }
+      return true;
+    });
+
+    const filteredContracts = realContracts.filter((c) => {
+      if (selectedFacilityKey === 'ALL' || !targetFacility) return true;
+      const cFacId = c.facilityId ?? c.facility?.id ?? c.unit?.facilityId;
+      if (cFacId !== undefined && cFacId !== null) {
+        return String(cFacId) === String(targetFacility.id);
+      }
+      return true;
+    });
 
     // Monthly buckets for the past 6 months up to current (T5 to T10/2026)
     const monthBuckets: Record<string, { month: string; revenue: number; target: number; deposit: number; extra: number; contracts: number }> = {
@@ -149,7 +223,7 @@ export default function FacilityRevenueAnalytics({
 
     const txList: any[] = [];
 
-    realPayments.forEach((p) => {
+    filteredPayments.forEach((p) => {
       const amt = Number(p.amount || 0);
       const isPaid = p.status === 'PAID' || p.status === 'SUCCESS' || p.status === 'COMPLETED';
       const pType = String(p.paymentType || 'DEPOSIT').toUpperCase();
@@ -173,7 +247,6 @@ export default function FacilityRevenueAnalytics({
             if (pType === 'DEPOSIT') monthBuckets[key].deposit += amt;
             else monthBuckets[key].extra += amt;
           } else {
-            // Default accumulate to latest active month
             monthBuckets['2026-10'].revenue += amt;
             if (pType === 'DEPOSIT') monthBuckets['2026-10'].deposit += amt;
           }
@@ -197,7 +270,7 @@ export default function FacilityRevenueAnalytics({
         unit: unitNum,
         tenant: tenantName,
         type: pType,
-        typeLabel: pType === 'DEPOSIT' ? 'Cọc bảo đảm (1.0x)' : pType === 'RENTAL' ? 'Tiền thuê kho' : 'Phụ phí / Phạt',
+        typeLabel: pType === 'DEPOSIT' ? 'Tiền cọc giữ chỗ' : pType === 'RENTAL' ? 'Tiền thuê kho' : 'Phụ phí / Phạt',
         method: p.paymentMethod || 'BANK_TRANSFER',
         methodLabel: p.paymentMethod === 'BANK_TRANSFER' ? 'VietQR SePay' : p.paymentMethod || 'Chuyển khoản',
         amount: amt,
@@ -207,12 +280,15 @@ export default function FacilityRevenueAnalytics({
     });
 
     const mData = Object.values(monthBuckets);
-    // Ensure active contracts count per month is realistic
-    mData[mData.length - 1].contracts = realContracts.length > 0 ? realContracts.length : 5;
+    const activeConCount = filteredContracts.length > 0 ? filteredContracts.length : 5;
+    mData[mData.length - 1].contracts = activeConCount;
 
     // Build Unit Tiers from database facility's storageUnitTypes
     const tiers: any[] = [];
-    const rawTypes = targetFacility?.storageUnitTypes || [];
+    const rawTypes =
+      selectedFacilityKey === 'ALL'
+        ? allFacilitiesList[0]?.storageUnitTypes || []
+        : targetFacility?.storageUnitTypes || [];
     const colors = ['#6366f1', '#06b6d4', '#f59e0b', '#10b981'];
     const bgLights = [
       'bg-indigo-50 border-indigo-200 text-indigo-700',
@@ -286,16 +362,17 @@ export default function FacilityRevenueAnalytics({
 
     return {
       totalPaidRevenue: paidSum,
-      totalDepositVault: depSum,
+      totalDepositRevenue: depSum,
       totalRentalRevenue: rentSum,
       totalPendingRevenue: pendSum,
       paidCount: pCount,
       pendingCount: penCount,
+      filteredContractsCount: activeConCount,
       monthlyData: mData,
       recentTransactions: txList.slice(0, 15),
       unitTiers: tiers,
     };
-  }, [realPayments, realContracts, resMap, targetFacility]);
+  }, [realPayments, realContracts, resMap, targetFacility, selectedFacilityKey, allFacilitiesList]);
 
   // Dynamic Chart Parameters
   const chartWidth = 720;
@@ -349,56 +426,86 @@ export default function FacilityRevenueAnalytics({
     ? monthlyData[activeChartPoint]
     : monthlyData[monthlyData.length - 1];
 
-  const actualDisplayName = targetFacility?.name || facilityName;
-  const actualDisplayCode = targetFacility?.code || facilityCode;
-  const activeContractsCount = realContracts.length > 0 ? realContracts.length : 5;
+  const actualDisplayName =
+    selectedFacilityKey === 'ALL'
+      ? `Tất Cả Cơ Sở (${allFacilitiesList.length} Chi Nhánh)`
+      : targetFacility?.name || facilityName;
+  const activeContractsCount = filteredContractsCount;
+
+  const totalFacilityUnits = useMemo(() => {
+    if (selectedFacilityKey === 'ALL') {
+      return allFacilitiesList.reduce((acc, f) => acc + (Number(f.totalUnits) || 12), 0);
+    }
+    return targetFacility?.totalUnits || 12;
+  }, [selectedFacilityKey, allFacilitiesList, targetFacility]);
+
+  const occupiedFacilityUnits = useMemo(() => {
+    if (selectedFacilityKey === 'ALL') {
+      return allFacilitiesList.reduce(
+        (acc, f) => acc + ((Number(f.totalUnits) || 12) - (Number(f.availableUnits) || 5)),
+        0
+      );
+    }
+    return targetFacility ? (targetFacility.totalUnits || 12) - (targetFacility.availableUnits || 5) : 5;
+  }, [selectedFacilityKey, allFacilitiesList, targetFacility]);
 
   return (
     <div className="space-y-6">
-      {/* 1. Header & Controls */}
+      {/* 1. Header & Facility Selector */}
       <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Dữ Liệu Database Trực Tuyến • {actualDisplayName} ({actualDisplayCode})</span>
-          </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
             Giám Sát Doanh Số &amp; Dòng Tiền Cơ Sở
           </h2>
           <p className="text-xs text-slate-500">
-            Tổng hợp trực tiếp từ bảng thanh toán (payments) và hợp đồng thuê kho thực tế trong cơ sở dữ liệu.
+            Đang hiển thị số liệu của: <strong className="text-indigo-700">{actualDisplayName}</strong>
           </p>
         </div>
 
+        {/* Bộ chọn cơ sở để xem các chi nhánh khác */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => loadDatabaseData(true)}
-            disabled={isRefreshing}
-            className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            title="Đồng bộ lại số liệu mới nhất từ MongoDB"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Đồng Bộ Database</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.print();
-              }
-            }}
-            className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            title="Xuất bảng đối soát tài chính chi nhánh"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Xuất Báo Cáo</span>
-          </button>
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2 shadow-2xs">
+            <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Chọn cơ sở:</span>
+            <select
+              value={selectedFacilityKey}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedFacilityKey(val);
+                if (onSelectFacility) {
+                  if (val === 'ALL') {
+                    onSelectFacility({
+                      id: 'ALL',
+                      name: `Tất cả cơ sở (${allFacilitiesList.length} chi nhánh)`,
+                      code: 'ALL',
+                    });
+                  } else {
+                    const found = allFacilitiesList.find((f) => String(f.id) === String(val));
+                    if (found) {
+                      onSelectFacility({
+                        id: String(found.id),
+                        name: found.name,
+                        code: found.code || 'FAC',
+                      });
+                    }
+                  }
+                }
+              }}
+              className="bg-transparent text-xs font-bold text-slate-900 focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="ALL">Tất cả cơ sở ({allFacilitiesList.length} chi nhánh)</option>
+              {allFacilitiesList.map((fac) => (
+                <option key={String(fac.id)} value={String(fac.id)}>
+                  {fac.name} {fac.code ? `(${fac.code})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* 2. Key Monetary Metrics (4 Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 2. Key Monetary Metrics (3 Cards - Removed Quỹ Cọc Bảo Đảm Lưu Ký) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Metric 1: Monthly Real Revenue */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-indigo-400 hover:shadow-md transition">
           <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full blur-xl pointer-events-none" />
@@ -420,27 +527,7 @@ export default function FacilityRevenueAnalytics({
           </div>
         </div>
 
-        {/* Metric 2: Security Deposit Vault */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-emerald-400 hover:shadow-md transition">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/50 rounded-full blur-xl pointer-events-none" />
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Quỹ Cọc Bảo Đảm Lưu Ký
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-2.5 tabular-nums">
-            {formatMoney(totalDepositVault)}
-          </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>{activeContractsCount} hợp đồng active • An toàn 100%</span>
-          </div>
-        </div>
-
-        {/* Metric 3: Pending Payments */}
+        {/* Metric 2: Pending Payments */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition">
           <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50/50 rounded-full blur-xl pointer-events-none" />
           <div className="flex items-center justify-between">
@@ -459,7 +546,7 @@ export default function FacilityRevenueAnalytics({
           </div>
         </div>
 
-        {/* Metric 4: Direct Rental Revenue */}
+        {/* Metric 3: Direct Rental Revenue */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-cyan-400 hover:shadow-md transition">
           <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-50/50 rounded-full blur-xl pointer-events-none" />
           <div className="flex items-center justify-between">
@@ -630,7 +717,7 @@ export default function FacilityRevenueAnalytics({
                   Chi tiết doanh số mốc {selectedMonthData.month}: Thực thu {formatMoney(selectedMonthData.revenue)}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Quỹ cọc: {formatMoney(selectedMonthData.deposit)} • {selectedMonthData.contracts} hợp đồng hoạt động
+                  {selectedMonthData.contracts} hợp đồng đang hoạt động trong kỳ
                 </p>
               </div>
             </div>
@@ -641,7 +728,7 @@ export default function FacilityRevenueAnalytics({
                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                   : 'bg-slate-100 text-slate-700 border border-slate-200'
               }`}>
-                {selectedMonthData.revenue > 0 ? '✓ Đã ghi nhận số liệu DB' : 'Chưa phát sinh giao dịch'}
+                {selectedMonthData.revenue > 0 ? '✓ Đã ghi nhận doanh thu' : 'Chưa phát sinh giao dịch'}
               </span>
             </div>
           </div>
@@ -656,7 +743,7 @@ export default function FacilityRevenueAnalytics({
                   <PieChartIcon className="w-4 h-4 text-emerald-600" />
                   Cơ Cấu Nguồn Tiền Cơ Sở
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Phân bổ dòng tiền thu về từ database</p>
+                <p className="text-xs text-slate-400 mt-0.5">Phân bổ dòng tiền thu về tại cơ sở</p>
               </div>
             </div>
 
@@ -673,9 +760,9 @@ export default function FacilityRevenueAnalytics({
                   title="Tiền thuê kho"
                 />
                 <div
-                  style={{ width: `${totalPaidRevenue > 0 ? Math.round((totalDepositVault / totalPaidRevenue) * 100) : 90}%` }}
+                  style={{ width: `${totalPaidRevenue > 0 ? Math.round((totalDepositRevenue / totalPaidRevenue) * 100) : 90}%` }}
                   className="bg-emerald-500 rounded-full h-full"
-                  title="Quỹ cọc"
+                  title="Tiền đặt cọc giữ chỗ"
                 />
               </div>
               <div className="flex justify-between text-[10px] text-slate-400 font-medium">
@@ -687,22 +774,6 @@ export default function FacilityRevenueAnalytics({
 
             {/* Stream Breakdown Items */}
             <div className="mt-6 space-y-3">
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between hover:bg-emerald-50/50 hover:border-emerald-200 transition">
-                <div className="flex items-center gap-3">
-                  <span className="w-3.5 h-3.5 rounded-md bg-emerald-500 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">Quỹ Cọc Bảo Đảm (Lưu ký)</p>
-                    <p className="text-[11px] text-slate-400">Khách đã đặt cọc giữ kho</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-black text-slate-900">{formatMoney(totalDepositVault)}</p>
-                  <p className="text-[10px] font-bold text-emerald-600">
-                    {totalPaidRevenue > 0 ? Math.round((totalDepositVault / totalPaidRevenue) * 100) : 0}% tổng thu
-                  </p>
-                </div>
-              </div>
-
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between hover:bg-indigo-50/50 hover:border-indigo-200 transition">
                 <div className="flex items-center gap-3">
                   <span className="w-3.5 h-3.5 rounded-md bg-indigo-600 shrink-0" />
@@ -715,6 +786,22 @@ export default function FacilityRevenueAnalytics({
                   <p className="text-xs font-black text-slate-900">{formatMoney(totalRentalRevenue)}</p>
                   <p className="text-[10px] font-bold text-indigo-600">
                     {totalPaidRevenue > 0 ? Math.round((totalRentalRevenue / totalPaidRevenue) * 100) : 0}% tổng thu
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between hover:bg-emerald-50/50 hover:border-emerald-200 transition">
+                <div className="flex items-center gap-3">
+                  <span className="w-3.5 h-3.5 rounded-md bg-emerald-500 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Tiền Đặt Cọc Giữ Chỗ</p>
+                    <p className="text-[11px] text-slate-400">Khách đặt giữ chỗ trực tuyến</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-black text-slate-900">{formatMoney(totalDepositRevenue)}</p>
+                  <p className="text-[10px] font-bold text-emerald-600">
+                    {totalPaidRevenue > 0 ? Math.round((totalDepositRevenue / totalPaidRevenue) * 100) : 0}% tổng thu
                   </p>
                 </div>
               </div>
@@ -736,7 +823,7 @@ export default function FacilityRevenueAnalytics({
           </div>
 
           <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Đối soát Database SePay:</span>
+            <span>Đối soát giao dịch SePay:</span>
             <span className="font-bold text-emerald-600 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
               {paidCount} Giao dịch khớp lệnh
@@ -758,7 +845,7 @@ export default function FacilityRevenueAnalytics({
             </p>
           </div>
           <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200">
-            Tổng cộng: {targetFacility?.totalUnits || 12} ô kho vật lý ({targetFacility ? (targetFacility.totalUnits - targetFacility.availableUnits) : 5}/{targetFacility?.totalUnits || 12} đang cho thuê)
+            Tổng cộng: {totalFacilityUnits} ô kho vật lý ({occupiedFacilityUnits}/{totalFacilityUnits} đang cho thuê)
           </span>
         </div>
 
@@ -817,7 +904,7 @@ export default function FacilityRevenueAnalytics({
         </div>
       </div>
 
-      {/* 5. Recent Facility Payment Ledger (Sổ quỹ giao dịch thu tiền thực tế từ DB) */}
+      {/* 5. Recent Facility Payment Ledger */}
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
         <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -826,15 +913,8 @@ export default function FacilityRevenueAnalytics({
               Sổ Quỹ Giao Dịch Thu Tiền Thực Tế Tại Chi Nhánh ({recentTransactions.length} giao dịch)
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Được tải trực tiếp từ bảng payments trong cơ sở dữ liệu (VietQR SePay, chuyển khoản ngân hàng)
+              Danh sách các giao dịch thanh toán của khách hàng (VietQR SePay, chuyển khoản ngân hàng)
             </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Database Trực Tuyến
-            </span>
           </div>
         </div>
 
