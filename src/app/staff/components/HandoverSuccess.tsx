@@ -359,7 +359,7 @@ export default function HandoverSuccess({
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center">
               <img
-                src={`https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${Math.max(0, remainingAmount || 0)}&addInfo=${encodeURIComponent(`THANH TOAN ${appointment.id}`)}&accountName=${encodeURIComponent('SELFSTORAGE VN')}`}
+                src={`https://img.vietqr.io/image/MB-0838500046-compact2.png?amount=${Math.max(0, remainingAmount || 0)}&addInfo=${encodeURIComponent(`THANH TOAN ${appointment.id}`)}&accountName=${encodeURIComponent('TRUONG DINH LONG')}`}
                 alt="VietQR Code"
                 className="w-56 h-auto rounded-xl shadow-xs border border-slate-200"
                 onError={(e) => {
@@ -378,7 +378,7 @@ export default function HandoverSuccess({
                 </div>
                 <div className="text-slate-500">Nội dung: THANH TOAN {appointment.id}</div>
                 <div className="text-slate-400 text-[10px]">
-                  Ngân hàng Quân Đội (MB) • 0900000000
+                  Ngân hàng Quân Đội (MB) • 0838500046
                 </div>
               </div>
             </div>

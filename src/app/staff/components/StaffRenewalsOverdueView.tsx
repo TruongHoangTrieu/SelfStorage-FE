@@ -282,7 +282,27 @@ export default function StaffRenewalsOverdueView({
               depositAmount: existing.depositAmount || deposit,
               estimatedRefund: existing.estimatedRefund || deposit,
             });
-          } else if (c.status === 'CHECKOUT_REQUESTED' || c.status === 'TERMINATING') {
+          } else if (
+            c.status === 'CHECKOUT_REQUESTED' ||
+            c.status === 'TERMINATING' ||
+            cCode?.includes('TODAY') ||
+            cCode?.includes('EARLY') ||
+            cCode?.includes('OVERDUE') ||
+            cCode?.includes('CHECKOUT')
+          ) {
+            const isEarly = cCode?.includes('EARLY');
+            const isOverdue = cCode?.includes('OVERDUE') || c.status === 'OVERDUE';
+            const isToday = cCode?.includes('TODAY') || cCode?.includes('CHECKOUT');
+
+            const reasonText = isToday
+              ? 'Đã hoàn thành đúng hạn 1 tháng, yêu cầu trả kho ngày hôm nay 28/10/2026'
+              : isEarly
+              ? 'Hoàn thành dự án sớm, xin thanh lý và trả kho sớm trước hạn (Hạn gốc: 01/04/2027)'
+              : isOverdue
+              ? 'Trả kho trễ hẹn (Quá hạn 8 ngày - Phát sinh tiền phạt trễ hạn)'
+              : 'Đã hoàn thành nhu cầu lưu trữ (dự án/chuyển đồ xong)';
+
+            const checkoutType = isToday ? 'TODAY' : isEarly ? 'EARLY' : isOverdue ? 'OVERDUE' : 'STANDARD';
             uniqueMap.set(cId, {
               contractId: cId,
               contractCode: cCode,
@@ -292,7 +312,8 @@ export default function StaffRenewalsOverdueView({
               customerPhone: custPhone,
               customerEmail: custEmail,
               requestedMoveOutDate: new Date().toISOString().split('T')[0],
-              reason: 'Đã hoàn thành nhu cầu lưu trữ (dự án/chuyển đồ xong)',
+              reason: reasonText,
+              checkoutType,
               feedbackNotes: 'Khách hàng hoàn tất thủ tục bàn giao ô kho, đã dọn sạch đồ đạc và gửi ảnh xác nhận.',
               unitClearanceConfirmed: true,
               lockIntactConfirmed: true,
@@ -304,7 +325,13 @@ export default function StaffRenewalsOverdueView({
               depositAmount: deposit,
               estimatedRefund: deposit,
               status: 'PENDING',
-              statusLabel: 'Chờ nhân viên nghiệm thu ô kho',
+              statusLabel: isToday
+                ? 'Trả kho hôm nay (Đúng hạn)'
+                : isEarly
+                ? 'Trả kho sớm trước hạn'
+                : isOverdue
+                ? 'Trả kho trễ hẹn (Quá hạn)'
+                : 'Chờ nhân viên nghiệm thu ô kho',
               createdAt: new Date().toISOString(),
               photos: [
                 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
@@ -1071,8 +1098,24 @@ export default function StaffRenewalsOverdueView({
                               {req.facilityName || 'Cơ sở'} • Mã HĐ: <strong className="font-mono text-slate-700">{req.contractCode || req.contractId}</strong>
                             </span>
                           </div>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
-                            Chờ nghiệm thu
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border shrink-0 ${
+                              req.checkoutType === 'EARLY' || req.contractCode?.includes('EARLY')
+                                ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                : req.checkoutType === 'OVERDUE' || req.contractCode?.includes('OVERDUE')
+                                ? 'bg-rose-100 text-rose-800 border-rose-200'
+                                : req.checkoutType === 'TODAY' || req.contractCode?.includes('TODAY')
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                : 'bg-amber-100 text-amber-800 border-amber-200'
+                            }`}
+                          >
+                            {req.checkoutType === 'EARLY' || req.contractCode?.includes('EARLY')
+                              ? 'Trả sớm trước hạn'
+                              : req.checkoutType === 'OVERDUE' || req.contractCode?.includes('OVERDUE')
+                              ? 'Trễ hẹn (Quá hạn)'
+                              : req.checkoutType === 'TODAY' || req.contractCode?.includes('TODAY')
+                              ? 'Trả kho hôm nay'
+                              : 'Chờ nghiệm thu'}
                           </span>
                         </div>
 

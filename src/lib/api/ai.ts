@@ -18,6 +18,7 @@ export interface AiSuggestedUnit {
   unit_type_name?: string;
   facility_id?: string;
   facility_name?: string;
+  facility_address?: string;
   size_m2?: number;
   volume_m3?: number;
   price_per_month?: number;

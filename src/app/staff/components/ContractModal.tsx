@@ -261,7 +261,7 @@ export default function ContractModal({
                 </div>
                 <div className="pt-1 border-t border-slate-200/60">
                   <span className="text-slate-500">Tài khoản thanh toán: </span>
-                  <span className="tabular-nums font-bold text-slate-900">0900000000</span> tại Ngân hàng TMCP Quân Đội (MBBank)
+                  <span className="tabular-nums font-bold text-slate-900">0838500046</span> tại Ngân hàng TMCP Quân Đội (MBBank)
                 </div>
               </div>
             </div>

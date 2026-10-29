@@ -625,7 +625,7 @@ function BookingFlowContent() {
         id: Math.floor(Math.random() * 1000000),
         gateway: "MBBank",
         transactionDate: new Date().toISOString().slice(0, 19).replace("T", " "),
-        accountNumber: "0900000000",
+        accountNumber: "0838500046",
         code: qrData.transferContent,
         content: `${qrData.transferContent} CK coc`,
         transferType: "in" as const,

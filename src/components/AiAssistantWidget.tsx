@@ -25,6 +25,8 @@ import {
   Minimize2,
   Maximize2,
   Lock,
+  Building2,
+  GripVertical,
 } from "lucide-react";
 import { aiApi, AiChatResponse, AiHealthResponse, AiItem, AiSuggestedUnit } from "@/lib/api/ai";
 
@@ -61,6 +63,44 @@ const QUICK_SUGGESTIONS = [
   },
 ];
 
+const FACILITY_ADDRESS_MAP: Record<string, string> = {
+  "6ac4ea732f3017f8106ae7a6": "375 Võ Nguyên Giáp, Phường An Khánh, TP. Thủ Đức",
+  "6ac4ea732f3017f8106ae7a7": "90 Song Hành, Phường An Phú, TP. Thủ Đức",
+  "6ac4ea732f3017f8106ae7a8": "79 Trần Khắc Chân, Phường Tân Định, Quận 1",
+  "6ac4ea742f3017f8106ae7a9": "69 Trần Trọng Cung, Phường Tân Thuận Đông, Quận 7",
+  "6ac4ea742f3017f8106ae7aa": "Khu B, Tòa nhà Landmark 81, Phường 22, Quận Bình Thạnh",
+  "6ac4ea742f3017f8106ae7ab": "1466 Võ Văn Kiệt, Phường Bình Tiên, Quận 6",
+};
+
+export const resolveFacilityAddress = (u: AiSuggestedUnit): string => {
+  if (u.facility_address && u.facility_address.trim().length > 3) {
+    return u.facility_address;
+  }
+  if (u.facility_id && FACILITY_ADDRESS_MAP[u.facility_id]) {
+    return FACILITY_ADDRESS_MAP[u.facility_id];
+  }
+  const name = (u.facility_name || "").toLowerCase();
+  if (name.includes("quận 7") || name.includes("q7") || name.includes("trần trọng cung")) {
+    return "69 Trần Trọng Cung, Phường Tân Thuận Đông, Quận 7";
+  }
+  if (name.includes("quận 1") || name.includes("q1") || name.includes("tân định") || name.includes("trần khắc chân")) {
+    return "79 Trần Khắc Chân, Phường Tân Định, Quận 1";
+  }
+  if (name.includes("bình thạnh") || name.includes("landmark")) {
+    return "Khu B, Tòa nhà Landmark 81, Phường 22, Quận Bình Thạnh";
+  }
+  if (name.includes("quận 6") || name.includes("centre mall") || name.includes("võ văn kiệt")) {
+    return "1466 Võ Văn Kiệt, Phường Bình Tiên, Quận 6";
+  }
+  if (name.includes("an phú") || name.includes("song hành")) {
+    return "90 Song Hành, Phường An Phú, TP. Thủ Đức";
+  }
+  if (name.includes("thủ đức") || name.includes("võ nguyên giáp")) {
+    return "375 Võ Nguyên Giáp, Phường An Khánh, TP. Thủ Đức";
+  }
+  return "Địa chỉ cơ sở tại TP. Hồ Chí Minh";
+};
+
 export default function AiAssistantWidget() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -80,11 +120,45 @@ export default function AiAssistantWidget() {
   const [aiHealth, setAiHealth] = useState<AiHealthResponse | null>(null);
   const [mounted, setMounted] = useState(false);
 
+  // Vị trí bong bóng AI kéo thả (Draggable)
+  const [bubblePos, setBubblePos] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    startPosX: number;
+    startPosY: number;
+    hasMoved: boolean;
+  }>({
+    startX: 0,
+    startY: 0,
+    startPosX: 0,
+    startPosY: 0,
+    hasMoved: false,
+  });
+  const bubbleRef = useRef<HTMLDivElement>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
+    // Khôi phục vị trí bong bóng AI đã lưu
+    try {
+      const savedPos = localStorage.getItem("ai_assistant_bubble_pos");
+      if (savedPos) {
+        const parsed = JSON.parse(savedPos);
+        if (typeof parsed?.x === "number" && typeof parsed?.y === "number") {
+          // Đảm bảo toạ độ nằm trong màn hình hiện tại
+          const validX = Math.min(Math.max(12, parsed.x), window.innerWidth - 76);
+          const validY = Math.min(Math.max(12, parsed.y), window.innerHeight - 76);
+          setBubblePos({ x: validX, y: validY });
+        }
+      }
+    } catch {
+      // Bỏ qua lỗi parsing
+    }
+
     // Check AI health on mount
     aiApi
       .getHealth()
@@ -193,6 +267,9 @@ export default function AiAssistantWidget() {
           unit_type_name: "Kho Vừa (Loại M)",
           facility_id: isQ7 ? "6ac4ea742f3017f8106ae7a9" : "6ac4ea742f3017f8106ae7a8",
           facility_name: isQ7 ? "Kho Tự Quản Chi Nhánh Quận 7" : "Kho Tự Quản Chi Nhánh Quận 1",
+          facility_address: isQ7
+            ? "69 Trần Trọng Cung, Phường Tân Thuận Đông, Quận 7"
+            : "79 Trần Khắc Chân, Phường Tân Định, Quận 1",
           size_m2: 2.5,
           volume_m3: 5.0,
           price_per_month: 1500000,
@@ -205,6 +282,9 @@ export default function AiAssistantWidget() {
           unit_type_name: "Kho Lớn (Loại L)",
           facility_id: isQ7 ? "6ac4ea742f3017f8106ae7a9" : "6ac4ea742f3017f8106ae7a8",
           facility_name: isQ7 ? "Kho Tự Quản Chi Nhánh Quận 7" : "Kho Tự Quản Chi Nhánh Quận 1",
+          facility_address: isQ7
+            ? "69 Trần Trọng Cung, Phường Tân Thuận Đông, Quận 7"
+            : "79 Trần Khắc Chân, Phường Tân Định, Quận 1",
           size_m2: 4.0,
           volume_m3: 8.0,
           price_per_month: 2400000,
@@ -239,6 +319,9 @@ export default function AiAssistantWidget() {
               unit_type_name: "Kho Nhỏ (Loại S)",
               facility_id: isQ7 ? "6ac4ea742f3017f8106ae7a9" : "6ac4ea742f3017f8106ae7a8",
               facility_name: isQ7 ? "Kho Tự Quản Chi Nhánh Quận 7" : "Kho Tự Quản Chi Nhánh Quận 1",
+              facility_address: isQ7
+                ? "69 Trần Trọng Cung, Phường Tân Thuận Đông, Quận 7"
+                : "79 Trần Khắc Chân, Phường Tân Định, Quận 1",
               size_m2: 1.5,
               volume_m3: 3.0,
               price_per_month: 900000,
@@ -250,6 +333,9 @@ export default function AiAssistantWidget() {
               unit_type_name: "Kho Vừa (Loại M)",
               facility_id: isQ7 ? "6ac4ea742f3017f8106ae7a9" : "6ac4ea742f3017f8106ae7a8",
               facility_name: isQ7 ? "Kho Tự Quản Chi Nhánh Quận 7" : "Kho Tự Quản Chi Nhánh Quận 1",
+              facility_address: isQ7
+                ? "69 Trần Trọng Cung, Phường Tân Thuận Đông, Quận 7"
+                : "79 Trần Khắc Chân, Phường Tân Định, Quận 1",
               size_m2: 2.5,
               volume_m3: 5.0,
               price_per_month: 1500000,
@@ -442,22 +528,97 @@ export default function AiAssistantWidget() {
     );
   };
 
+  // Xử lý kéo thả (drag) bong bóng AI
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Chỉ kích hoạt khi click chuột trái (button === 0)
+    if (e.button !== 0) return;
+
+    const rect = bubbleRef.current?.getBoundingClientRect();
+    const currentX = rect ? rect.left : (bubblePos?.x ?? (window.innerWidth - 80));
+    const currentY = rect ? rect.top : (bubblePos?.y ?? (window.innerHeight - 80));
+
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPosX: currentX,
+      startPosY: currentY,
+      hasMoved: false,
+    };
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - dragRef.current.startX;
+      const dy = moveEvent.clientY - dragRef.current.startY;
+
+      if (!dragRef.current.hasMoved && Math.hypot(dx, dy) > 5) {
+        dragRef.current.hasMoved = true;
+        setIsDragging(true);
+      }
+
+      if (dragRef.current.hasMoved) {
+        const bubbleW = bubbleRef.current?.offsetWidth || 64;
+        const bubbleH = bubbleRef.current?.offsetHeight || 64;
+        const nextX = Math.min(Math.max(12, dragRef.current.startPosX + dx), window.innerWidth - bubbleW - 12);
+        const nextY = Math.min(Math.max(12, dragRef.current.startPosY + dy), window.innerHeight - bubbleH - 12);
+
+        setBubblePos({ x: nextX, y: nextY });
+      }
+    };
+
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+
+      if (dragRef.current.hasMoved) {
+        setTimeout(() => setIsDragging(false), 50);
+        if (bubbleRef.current) {
+          const finalRect = bubbleRef.current.getBoundingClientRect();
+          localStorage.setItem(
+            "ai_assistant_bubble_pos",
+            JSON.stringify({ x: finalRect.left, y: finalRect.top })
+          );
+        }
+      }
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  };
+
   return (
     <>
-      {/* 1. FLOATING ACTION BUTTON (TRIGGER) */}
+      {/* 1. FLOATING ACTION BUTTON (TRIGGER - DRAGGABLE) */}
       {!isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/95 text-white text-xs font-medium shadow-xl border border-slate-700/60 backdrop-blur-md animate-bounce">
+        <div
+          ref={bubbleRef}
+          onPointerDown={handlePointerDown}
+          style={
+            bubblePos
+              ? { left: `${bubblePos.x}px`, top: `${bubblePos.y}px`, bottom: "auto", right: "auto" }
+              : undefined
+          }
+          className={`fixed z-50 flex items-center gap-2 select-none touch-none cursor-grab active:cursor-grabbing ${
+            !bubblePos ? "bottom-6 right-6" : ""
+          } ${isDragging ? "transition-none scale-105 opacity-90" : "transition-transform hover:scale-[1.02]"}`}
+          title="Bấm để mở trợ lý AI • Nhấn giữ và kéo để di chuyển vị trí"
+        >
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/95 text-white text-xs font-medium shadow-xl border border-slate-700/60 backdrop-blur-md pointer-events-none">
+            <GripVertical className="w-3.5 h-3.5 text-slate-400 -ml-0.5" />
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Trợ lý tư vấn kho 24/7</span>
           </div>
 
           <button
-            onClick={() => {
+            type="button"
+            onClick={(e) => {
+              if (dragRef.current.hasMoved) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
               setIsOpen(true);
               setIsMinimized(false);
             }}
-            className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-200 focus:outline-none"
+            className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-indigo-600 text-white shadow-xl shadow-indigo-600/35 hover:bg-indigo-500 active:scale-95 transition-all duration-200 focus:outline-none cursor-pointer"
             aria-label="Mở Trợ lý tư vấn kho"
           >
             <Bot className="w-6 h-6 text-white" />
@@ -473,8 +634,8 @@ export default function AiAssistantWidget() {
         <div
           className={`fixed z-50 transition-all duration-300 ease-out flex flex-col overflow-hidden bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-2xl ${
             isMinimized
-              ? "bottom-6 right-6 w-80 h-16 rounded-2xl"
-              : "bottom-4 right-4 sm:bottom-6 sm:right-6 w-[calc(100vw-32px)] sm:w-[460px] h-[calc(100vh-100px)] sm:h-[650px] max-h-[720px] rounded-3xl"
+              ? "bottom-6 right-6 w-84 h-16 rounded-2xl"
+              : "bottom-3 right-3 sm:bottom-6 sm:right-6 w-[calc(100vw-24px)] sm:w-[500px] md:w-[540px] h-[calc(100vh-60px)] sm:h-[680px] max-h-[760px] rounded-3xl"
           }`}
           style={{ boxShadow: "0 20px 50px -10px rgba(15, 23, 42, 0.25)" }}
         >
@@ -535,6 +696,7 @@ export default function AiAssistantWidget() {
                   const isUser = msg.role === "user";
                   const isProhibited = msg.intent === "prohibited_items";
                   const isEmergency = msg.intent === "emergency_support";
+                  const hasSuggestions = Boolean(msg.data?.suggested_units && msg.data.suggested_units.length > 0);
 
                   return (
                     <div
@@ -560,14 +722,16 @@ export default function AiAssistantWidget() {
                       )}
 
                       <div
-                        className={`max-w-[85%] rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
+                        className={`rounded-2xl p-4 text-sm leading-relaxed shadow-sm ${
                           isUser
-                            ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none"
+                            ? "max-w-[85%] bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-none"
                             : isProhibited
-                            ? "bg-rose-50/90 text-rose-950 border border-rose-200 rounded-tl-none"
+                            ? "max-w-[88%] bg-rose-50/90 text-rose-950 border border-rose-200 rounded-tl-none"
                             : isEmergency
-                            ? "bg-amber-50/90 text-amber-950 border border-amber-200 rounded-tl-none"
-                            : "bg-white text-slate-800 border border-slate-200/80 rounded-tl-none"
+                            ? "max-w-[88%] bg-amber-50/90 text-amber-950 border border-amber-200 rounded-tl-none"
+                            : hasSuggestions
+                            ? "w-full max-w-[96%] sm:max-w-[94%] bg-white text-slate-800 border border-slate-200/90 rounded-tl-none shadow-sm"
+                            : "max-w-[85%] bg-white text-slate-800 border border-slate-200/80 rounded-tl-none"
                         }`}
                       >
                         {/* Render formatted message text */}
@@ -575,14 +739,14 @@ export default function AiAssistantWidget() {
 
                         {/* SKILL 1: SIZE ADVICE CARD - SHOWS ITEMS & SUGGESTED UNITS */}
                         {msg.data?.items && msg.data.items.length > 0 && (
-                          <div className="mt-3.5 pt-3 border-t border-slate-100 space-y-3">
+                          <div className="mt-3.5 pt-3 border-t border-slate-100 space-y-2.5">
                             <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
                               <span className="flex items-center gap-1.5">
                                 <Box className="w-3.5 h-3.5 text-blue-600" />
-                                Đồ vật nhận diện ({msg.data.items.length})
+                                <span>Đồ vật nhận diện ({msg.data.items.length} món)</span>
                               </span>
-                              <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold">
-                                Tổng: ~{msg.data.required_volume_m3?.toFixed(2)} m³
+                              <span className="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-200/60">
+                                Cần: ~{msg.data.required_volume_m3?.toFixed(2)} m³
                               </span>
                             </div>
 
@@ -606,46 +770,100 @@ export default function AiAssistantWidget() {
 
                         {/* SUGGESTED AVAILABLE UNITS WITH DIRECT BOOKING ACTION */}
                         {msg.data?.suggested_units && msg.data.suggested_units.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-slate-100 space-y-2.5">
-                            <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                              Ngăn kho trống phù hợp nhất:
-                            </p>
-                            <div className="space-y-2">
-                              {msg.data.suggested_units.slice(0, 3).map((u: AiSuggestedUnit, idx: number) => (
-                                <div
-                                  key={idx}
-                                  className="p-3 rounded-xl bg-gradient-to-r from-blue-50/80 to-indigo-50/50 border border-blue-200/70 flex flex-col gap-2 hover:border-blue-400 transition-colors shadow-sm"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-xs text-blue-950 flex items-center gap-1">
-                                      <Box className="w-3.5 h-3.5 text-indigo-600" />
-                                      Kho #{u.unit_number} • {u.unit_type_name || "Tiêu chuẩn"}
-                                    </span>
-                                    <span className="text-xs font-extrabold text-blue-700">
-                                      {(u.price_per_month || 0).toLocaleString()}đ/tháng
-                                    </span>
-                                  </div>
+                          <div className="mt-4 pt-3.5 border-t border-slate-100 space-y-3">
+                            <div className="flex items-center justify-between pb-0.5">
+                              <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                <span>Gợi ý ngăn kho phù hợp nhất ({msg.data.suggested_units.length}):</span>
+                              </p>
+                              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/80">
+                                Sẵn sàng bàn giao
+                              </span>
+                            </div>
 
-                                  <div className="flex items-center justify-between text-[11px] text-slate-600">
-                                    <span className="flex items-center gap-1 truncate max-w-[200px]">
-                                      <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                                      {u.facility_name || "Cơ sở SelfStorage"}
-                                    </span>
-                                    <span className="font-medium shrink-0">
-                                      {u.size_m2}m² · ~{u.volume_m3}m³
-                                    </span>
-                                  </div>
-
-                                  <button
-                                    onClick={() => handleBookUnit(u)}
-                                    className="mt-1 flex items-center justify-center gap-2 w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                            <div className="space-y-3">
+                              {msg.data.suggested_units.slice(0, 3).map((u: AiSuggestedUnit, idx: number) => {
+                                const fullAddress = resolveFacilityAddress(u);
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="p-3.5 sm:p-4 rounded-2xl bg-white hover:bg-slate-50/70 border border-slate-200/90 hover:border-indigo-300 transition-all shadow-xs hover:shadow-md space-y-3"
                                   >
-                                    <span>Đặt ngăn này ngay</span>
-                                    <ArrowRight className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              ))}
+                                    {/* Header: Mã kho, Loại kho & Đơn giá */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200/80 text-indigo-700 font-extrabold text-xs tracking-wide">
+                                          <Box className="w-3.5 h-3.5 text-indigo-600" />
+                                          Kho #{u.unit_number}
+                                        </span>
+                                        <span className="font-bold text-slate-800 text-sm">
+                                          {u.unit_type_name || "Kho Tiêu Chuẩn"}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-baseline gap-1 text-right self-start sm:self-auto">
+                                        <span className="text-base sm:text-lg font-black text-blue-600 tracking-tight">
+                                          {(u.price_per_month || 0).toLocaleString()}đ
+                                        </span>
+                                        <span className="text-[11px] font-medium text-slate-500">/tháng</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Cơ sở & Địa chỉ chi tiết (Thoáng đãng, rõ ràng) */}
+                                    <div className="space-y-1.5 bg-slate-50/90 rounded-xl p-3 border border-slate-100/90">
+                                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                                        <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                                        <span>{u.facility_name || "Cơ sở SelfStorage"}</span>
+                                      </div>
+
+                                      <div className="flex items-start gap-1.5 text-[12px] text-slate-600 leading-snug pt-0.5">
+                                        <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                                        <span className="flex-1 font-normal break-words">
+                                          {fullAddress}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Thông số kỹ thuật: Diện tích, Thể tích, Cọc */}
+                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                      <div className="py-1.5 px-2 rounded-lg bg-indigo-50/50 border border-indigo-100/70 flex flex-col items-center">
+                                        <span className="text-[10px] text-slate-500 font-medium">Diện tích</span>
+                                        <span className="text-xs font-bold text-indigo-950 mt-0.5">{u.size_m2} m²</span>
+                                      </div>
+                                      <div className="py-1.5 px-2 rounded-lg bg-blue-50/50 border border-blue-100/70 flex flex-col items-center">
+                                        <span className="text-[10px] text-slate-500 font-medium">Dung tích</span>
+                                        <span className="text-xs font-bold text-blue-950 mt-0.5">~{u.volume_m3} m³</span>
+                                      </div>
+                                      <div className="py-1.5 px-2 rounded-lg bg-emerald-50/50 border border-emerald-100/70 flex flex-col items-center">
+                                        <span className="text-[10px] text-slate-500 font-medium">Tiền cọc</span>
+                                        <span className="text-xs font-bold text-emerald-800 mt-0.5">
+                                          {(u.deposit_amount || 500000).toLocaleString()}đ
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Hành động đặt phòng và liên kết Google Maps */}
+                                    <div className="pt-0.5 flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleBookUnit(u)}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.99] text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                                      >
+                                        <span>Đặt ngăn này ngay (VietQR)</span>
+                                        <ArrowRight className="w-3.5 h-3.5" />
+                                      </button>
+                                      <a
+                                        href={`https://maps.google.com/?q=${encodeURIComponent(fullAddress)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title="Xem địa chỉ trên Google Maps"
+                                        className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors shrink-0 flex items-center justify-center"
+                                      >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                      </a>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

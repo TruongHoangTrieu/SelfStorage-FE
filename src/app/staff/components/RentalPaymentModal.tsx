@@ -140,7 +140,7 @@ export default function RentalPaymentModal({
       const resCode = appointment.id.replace('RSV-', '');
       const fallbackCode = `SSREN${appointment.rawId || resCode}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       const cleanAmount = Math.max(0, remainingToPay || 0);
-      const encodedAccountName = encodeURIComponent('SELFSTORAGE VN');
+      const encodedAccountName = encodeURIComponent('TRUONG DINH LONG');
       const encodedAddInfo = encodeURIComponent(fallbackCode);
       setRentalPaymentData({
         payment: {
@@ -152,10 +152,10 @@ export default function RentalPaymentModal({
           status: 'PENDING',
         },
         qr: {
-          qrCodeUrl: `https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${cleanAmount}&addInfo=${encodedAddInfo}&accountName=${encodedAccountName}`,
+          qrCodeUrl: `https://img.vietqr.io/image/MB-0838500046-compact2.png?amount=${cleanAmount}&addInfo=${encodedAddInfo}&accountName=${encodedAccountName}`,
           bankCode: 'MBBank',
-          accountNumber: '0900000000',
-          accountName: 'SELFSTORAGE VN',
+          accountNumber: '0838500046',
+          accountName: 'TRUONG DINH LONG',
           amount: cleanAmount,
           transferContent: fallbackCode,
         },
@@ -280,7 +280,7 @@ export default function RentalPaymentModal({
   const transferInfo = rentalPaymentData?.qr?.transferContent || rentalPaymentData?.payment?.paymentCode || `SSREN${appointment.rawId || appointment.id.replace('RSV-', '')}`;
   const currentQrUrl =
     rentalPaymentData?.qr?.qrCodeUrl ||
-    `https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${cleanAmount}&addInfo=${encodeURIComponent(transferInfo)}&accountName=${encodeURIComponent('SELFSTORAGE VN')}`;
+    `https://img.vietqr.io/image/MB-0838500046-compact2.png?amount=${cleanAmount}&addInfo=${encodeURIComponent(transferInfo)}&accountName=${encodeURIComponent('TRUONG DINH LONG')}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in">
@@ -426,7 +426,7 @@ export default function RentalPaymentModal({
                           onError={(e) => {
                             const target = e.currentTarget;
                             const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
-                              `00020101021238540010A00000072701260006970422011209000000000208QRIBFTTA5303704540${cleanAmount}5802VN62${transferInfo.length + 4}08${transferInfo.length}${transferInfo}6304`
+                              `00020101021238540010A00000072701260006970422011208385000460208QRIBFTTA5303704540${cleanAmount}5802VN62${transferInfo.length + 4}08${transferInfo.length}${transferInfo}6304`
                             )}`;
                             if (target.src !== fallback) {
                               target.src = fallback;
@@ -453,14 +453,14 @@ export default function RentalPaymentModal({
                           <div>
                             <span className="text-[10px] text-slate-400 block">Số tài khoản:</span>
                             <span className="font-extrabold text-blue-900 font-mono text-sm">
-                              {rentalPaymentData?.qr?.accountNumber || '0900000000'}
+                              {rentalPaymentData?.qr?.accountNumber || '0838500046'}
                             </span>
                           </div>
                           <button
                             type="button"
                             onClick={() =>
                               handleCopy(
-                                rentalPaymentData?.qr?.accountNumber || '0900000000',
+                                rentalPaymentData?.qr?.accountNumber || '0838500046',
                                 'Số tài khoản'
                               )
                             }
@@ -468,6 +468,32 @@ export default function RentalPaymentModal({
                             title="Sao chép số tài khoản"
                           >
                             {copiedField === 'Số tài khoản' ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Chủ tài khoản:</span>
+                            <span className="font-bold text-slate-800 uppercase tracking-wide text-xs">
+                              {rentalPaymentData?.qr?.accountName || 'TRUONG DINH LONG'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopy(
+                                rentalPaymentData?.qr?.accountName || 'TRUONG DINH LONG',
+                                'Chủ tài khoản'
+                              )
+                            }
+                            className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-blue-600 cursor-pointer"
+                            title="Sao chép tên chủ tài khoản"
+                          >
+                            {copiedField === 'Chủ tài khoản' ? (
                               <Check className="w-3.5 h-3.5 text-emerald-600" />
                             ) : (
                               <Copy className="w-3.5 h-3.5" />

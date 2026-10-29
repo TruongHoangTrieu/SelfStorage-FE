@@ -334,9 +334,9 @@ export default function HandoverProcess({
 
   // Thông tin thanh toán QR chuẩn
   const paymentContent = `THANH TOAN ${appointment.id}`;
-  const qrUrl = `https://img.vietqr.io/image/MB-0900000000-compact2.png?amount=${remainingAmount}&addInfo=${encodeURIComponent(
+  const qrUrl = `https://img.vietqr.io/image/MB-0838500046-compact2.png?amount=${remainingAmount}&addInfo=${encodeURIComponent(
     paymentContent
-  )}&accountName=${encodeURIComponent('SELFSTORAGE VN')}`;
+  )}&accountName=${encodeURIComponent('TRUONG DINH LONG')}`;
 
   const steps = [
     { number: 1, label: 'Khách & Ô kho', desc: 'Xác nhận khách & chọn ô' },
@@ -1047,11 +1047,11 @@ export default function HandoverProcess({
                   <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
                     <div>
                       <span className="text-slate-400 text-[10px] block">Số tài khoản:</span>
-                      <strong className="text-blue-900 font-mono text-sm font-black">0900000000</strong>
+                      <strong className="text-blue-900 font-mono text-sm font-black">0838500046</strong>
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleCopy('0900000000', 'STK')}
+                      onClick={() => handleCopy('0838500046', 'STK')}
                       className="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition cursor-pointer"
                     >
                       {copiedField === 'STK' ? 'Đã chép!' : 'Sao chép'}
@@ -1061,7 +1061,7 @@ export default function HandoverProcess({
                   <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
                     <div>
                       <span className="text-slate-400 text-[10px] block">Chủ tài khoản:</span>
-                      <strong className="text-slate-800 font-bold">SELFSTORAGE VN</strong>
+                      <strong className="text-slate-800 font-bold">TRUONG DINH LONG</strong>
                     </div>
                   </div>
 

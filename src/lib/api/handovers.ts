@@ -602,7 +602,7 @@ export const handoversApi = {
       id: Math.floor(Math.random() * 900000) + 100000,
       gateway: payload.gateway || 'MBBank',
       transactionDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      accountNumber: '0900000000',
+      accountNumber: '0838500046',
       code: payload.paymentCode,
       content: `${payload.paymentCode} thanh toan tien thue`,
       transferType: 'in' as const,
