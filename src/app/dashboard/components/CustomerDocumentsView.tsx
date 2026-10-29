@@ -5,20 +5,14 @@ import {
   FileText,
   CheckCircle2,
   Clock,
-  Download,
   Eye,
   PenTool,
-  ShieldCheck,
-  AlertCircle,
-  Building2,
-  Calendar,
-  Lock,
   DoorClosed,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CustomerUnit } from '../types';
 import { api } from '@/lib/api';
-import { downloadContractPdf } from '@/lib/contractPdf';
+import ContractSignModal from './ContractSignModal';
 
 interface CustomerDocumentsViewProps {
   units: CustomerUnit[];
@@ -52,27 +46,6 @@ export default function CustomerDocumentsView({
     }
   };
 
-  const handleDownloadPdf = (u: CustomerUnit) => {
-    toast.success(`Đang mở bản in / tải file PDF hợp đồng #${u.contractId}...`);
-    downloadContractPdf({
-      contractCode: u.contractId,
-      customerName: customerUser?.fullName || 'Khách hàng',
-      customerPhone: customerUser?.phone,
-      customerEmail: customerUser?.email,
-      facilityName: u.facilityName,
-      facilityAddress: u.facilityAddress,
-      unitNumber: u.unitNumber,
-      unitType: u.unitType,
-      dimensions: u.dimensions,
-      area: u.area,
-      startDate: u.contractStartDate,
-      endDate: u.contractEndDate,
-      monthlyRent: u.monthlyRent,
-      depositAmount: u.depositAmount,
-      isSigned: u.isSigned,
-    });
-  };
-
   return (
     <div className="space-y-6">
       {/* Top Banner */}
@@ -82,7 +55,7 @@ export default function CustomerDocumentsView({
             <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <FileText className="w-4 h-4" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Kho Tài Liệu & Hợp Đồng Thuê Kho</h2>
+            <h2 className="text-lg font-bold text-slate-900">Kho Tài Liệu &amp; Hợp Đồng Thuê Kho</h2>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Quản lý các hợp đồng thuê kho tự quản, biên bản bàn giao thiết bị số và chứng từ có giá trị pháp lý.
@@ -104,6 +77,7 @@ export default function CustomerDocumentsView({
           <div className="divide-y divide-slate-100">
             {units.map((u) => {
               const isSigned = u.isSigned ?? true;
+              const rentText = u.monthlyRent.includes('/tháng') ? u.monthlyRent : `${u.monthlyRent}/tháng`;
               return (
                 <div key={u.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition">
                   <div className="flex items-start gap-4">
@@ -135,12 +109,12 @@ export default function CustomerDocumentsView({
                         <span><strong>Ngăn kho:</strong> {u.unitNumber} ({u.dimensions})</span>
                         <span><strong>Cơ sở:</strong> {u.facilityName}</span>
                         <span><strong>Thời hạn:</strong> {u.contractStartDate} → {u.contractEndDate}</span>
-                        <span><strong>Tiền thuê:</strong> {u.monthlyRent}/tháng</span>
+                        <span><strong>Tiền thuê:</strong> {rentText}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Actions (Chỉ xem nội dung hợp đồng, bỏ nút tải xuống) */}
                   <div className="flex items-center gap-2 self-end md:self-auto">
                     <button
                       type="button"
@@ -148,7 +122,7 @@ export default function CustomerDocumentsView({
                         setSelectedUnit(u);
                         setIsPreviewOpen(true);
                       }}
-                      className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                      className="px-3.5 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       <span>Xem nội dung</span>
@@ -159,21 +133,12 @@ export default function CustomerDocumentsView({
                         type="button"
                         onClick={() => handleSignContract(u)}
                         disabled={isSigning}
-                        className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                        className="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                       >
                         <PenTool className="w-3.5 h-3.5" />
                         <span>Ký số ngay</span>
                       </button>
                     )}
-
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadPdf(u)}
-                      className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg transition cursor-pointer"
-                      title="Tải PDF"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               );
@@ -182,82 +147,19 @@ export default function CustomerDocumentsView({
         )}
       </div>
 
-      {/* Contract Preview Modal */}
-      {isPreviewOpen && selectedUnit && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-slide-up-fade flex flex-col max-h-[85vh]">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Hợp Đồng Dịch Vụ Thuê Kho Tự Quản #{selectedUnit.contractId}
-                </h3>
-                <p className="text-xs text-slate-500">Mẫu điện tử tiêu chuẩn có giá trị pháp lý</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPreviewOpen(false)}
-                className="w-7 h-7 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex-1 p-6 overflow-y-auto space-y-4 text-xs text-slate-700 leading-relaxed">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div><strong>Bên Cho Thuê:</strong> Công ty Hệ Thống Kho Tự Quản Thông Minh</div>
-                  <div><strong>Bên Thuê:</strong> Khách hàng cá nhân / doanh nghiệp</div>
-                  <div><strong>Vị trí kho:</strong> {selectedUnit.facilityName} - Ô {selectedUnit.unitNumber}</div>
-                  <div><strong>Kích thước & Thể tích:</strong> {selectedUnit.dimensions} ({selectedUnit.area})</div>
-                  <div><strong>Thời hạn hợp đồng:</strong> {selectedUnit.contractStartDate} đến {selectedUnit.contractEndDate}</div>
-                  <div><strong>Giá thuê mỗi tháng:</strong> {selectedUnit.monthlyRent}</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1">Điều 1: Mục Đích Sử Dụng & Quy Định Hàng Hóa</h4>
-                <p>
-                  Bên Thuê chỉ sử dụng ngăn kho vào mục đích lưu trữ đồ đạc cá nhân, thiết bị văn phòng, hành lý hợp pháp. Tuyệt đối nghiêm cấm tàng trữ chất nổ, hóa chất nguy hiểm, ma túy, sinh vật sống, chất dễ cháy hoặc hàng hóa bị pháp luật cấm.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1">Điều 2: Quản Lý Khóa Thông Minh & Truy Cập 24/7</h4>
-                <p>
-                  Ngăn kho được trang bị ổ khóa số điện tử thông minh. Bên Cho Thuê cấp phát mã PIN ban đầu và thẻ từ RFID tại thời điểm bàn giao. Bên Thuê có quyền tự thay đổi mã PIN cá nhân qua hệ thống và chịu trách nhiệm bảo mật mã số.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1">Điều 3: Gia Hạn & Xử Lý Quá Hạn Hợp Đồng</h4>
-                <p>
-                  Hợp đồng có thể được gia hạn trực tuyến trước ngày đáo hạn ít nhất 03 ngày. Trường hợp quá hạn thanh toán mà không gia hạn, hệ thống sẽ tự động khóa quyền truy cập mã PIN và áp dụng biểu phí phạt trễ hạn theo quy chế vận hành.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-              <span className="text-xs text-slate-500">Mã chứng thực số: SHA256-SS-{selectedUnit.contractId}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleDownloadPdf(selectedUnit)}
-                  className="px-4 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                >
-                  <Download className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Tải file PDF / In</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsPreviewOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition cursor-pointer"
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Synchronized Contract Modal (Đồng bộ với Hợp đồng ký nhận kho) */}
+      {selectedUnit && (
+        <ContractSignModal
+          unit={selectedUnit}
+          customerUser={customerUser}
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          onSignedSuccess={() => {
+            selectedUnit.isSigned = true;
+            setIsPreviewOpen(false);
+            onRefresh();
+          }}
+        />
       )}
     </div>
   );

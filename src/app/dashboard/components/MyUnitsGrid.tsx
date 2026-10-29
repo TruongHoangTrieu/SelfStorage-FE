@@ -319,17 +319,35 @@ export default function MyUnitsGrid({
                         </button>
                       </div>
 
-                      {/* Cảnh báo nếu ô kho quá hạn hoặc sắp hết hạn */}
-                      {unit.status === 'overdue' && (
-                        <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[11px] flex items-center gap-2">
-                          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                          <span>Hợp đồng đã quá hạn. Vui lòng gia hạn để tránh tạm khóa phòng.</span>
+                      {/* Dòng trạng thái hiệu lực hợp đồng cho mọi thẻ */}
+                      {unit.status === 'active' && (
+                        <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] flex items-center gap-2">
+                          <CalendarCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>
+                            Hợp đồng còn hiệu lực đến ngày <strong>{unit.contractEndDate || unit.nextBillingDate}</strong>.
+                          </span>
                         </div>
                       )}
-                      {unit.status === 'expiring' && (
+                      {unit.status === 'checkout_pending' && (
+                        <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] flex items-center gap-2">
+                          <DoorClosed className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>
+                            Đang chờ nghiệm thu trả kho (Hiệu lực đến ngày <strong>{unit.contractEndDate || unit.nextBillingDate}</strong>).
+                          </span>
+                        </div>
+                      )}
+                      {(unit.status === 'overdue' || (unit.status === 'expiring' && unit.daysRemaining <= 0)) && (
+                        <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[11px] flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                          <span>Hợp đồng đã đến hạn ({unit.contractEndDate || unit.nextBillingDate}).</span>
+                        </div>
+                      )}
+                      {unit.status === 'expiring' && unit.daysRemaining > 0 && (
                         <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] flex items-center gap-2">
                           <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                          <span>Hợp đồng sẽ kết thúc trong {unit.daysRemaining} ngày nữa.</span>
+                          <span>
+                            Hợp đồng sẽ kết thúc trong {unit.daysRemaining} ngày nữa ({unit.contractEndDate || unit.nextBillingDate}).
+                          </span>
                         </div>
                       )}
                     </div>
@@ -585,17 +603,25 @@ export default function MyUnitsGrid({
           </span>
         );
       case 'expiring':
+        if (daysRemaining <= 0) {
+          return (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-300 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
+              Hợp đồng đã đến hạn
+            </span>
+          );
+        }
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            {label} ({daysRemaining} ngày)
+            {label && label.includes('gia hạn') ? label : `Sắp đến hạn (${daysRemaining} ngày)`}
           </span>
         );
       case 'overdue':
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-300 shadow-2xs">
             <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
-            {label}
+            {label && label.includes('gia hạn') ? label : 'Hợp đồng đã đến hạn'}
           </span>
         );
       case 'checkout_pending':

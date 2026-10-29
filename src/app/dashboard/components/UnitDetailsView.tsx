@@ -282,14 +282,14 @@ export default function UnitDetailsView({
                       Đang hoạt động
                     </span>
                   )}
-                  {unit.status === 'expiring' && (
+                  {unit.status === 'expiring' && unit.daysRemaining > 0 && (
                     <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300">
-                      Sắp hết hạn ({unit.daysRemaining} ngày)
+                      Sắp đến hạn ({unit.daysRemaining} ngày)
                     </span>
                   )}
-                  {unit.status === 'overdue' && (
+                  {(unit.status === 'overdue' || (unit.status === 'expiring' && unit.daysRemaining <= 0)) && (
                     <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
-                      Quá hạn thanh toán
+                      Hợp đồng đã đến hạn
                     </span>
                   )}
                 </>

@@ -667,56 +667,56 @@ function BookingFlowContent() {
   // SUCCESS STEP (Compact 1-screen layout)
   if (step === "success") {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
+      <div className="h-screen overflow-hidden bg-slate-50 flex flex-col">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center px-4 pt-20 pb-4">
-          <div className="max-w-lg w-full bg-white rounded-3xl p-5 sm:p-6 shadow-xl border border-slate-200 text-center relative overflow-hidden animate-slide-up-fade">
-            <div className="h-1.5 bg-gradient-to-r from-orange-500 via-amber-400 to-blue-600 absolute top-0 inset-x-0" />
+        <div className="flex-1 flex items-center justify-center px-4 pt-16 pb-2 overflow-hidden">
+          <div className="max-w-md w-full bg-white rounded-2xl p-4 sm:p-5 shadow-lg border border-slate-200 text-center relative overflow-hidden animate-slide-up-fade">
+            <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-blue-600 absolute top-0 inset-x-0" />
 
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-2xs shrink-0">
-                <PartyPopper className="w-5 h-5" />
+            <div className="flex items-center justify-center gap-2 mb-1.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+                <PartyPopper className="w-4 h-4" />
               </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 uppercase tracking-wider">
-                <CheckCircle2 className="w-3.5 h-3.5" />
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200 uppercase tracking-wider">
+                <CheckCircle2 className="w-3 h-3" />
                 Đặt Kho Thành Công
               </span>
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-black text-slate-950 mb-1 tracking-tight">
+            <h1 className="text-lg sm:text-xl font-black text-slate-950 mb-0.5 tracking-tight">
               Giữ Chỗ Ngăn Kho Đã Hoàn Tất!
             </h1>
-            <p className="text-slate-500 text-xs font-medium mb-4">
-              Mã giữ chỗ đã được ghi nhận. Lễ tân cơ sở sẽ hướng dẫn bạn nhận kho và kích hoạt Smart Key vào ngày dọn đồ.
+            <p className="text-slate-500 text-[11px] font-medium mb-2.5 leading-snug">
+              Mã giữ chỗ đã được ghi nhận. Lễ tân cơ sở sẽ hướng dẫn bạn nhận kho vào ngày dọn đồ.
             </p>
 
-            <div className="bg-slate-50 rounded-2xl p-3.5 sm:p-4 mb-3.5 space-y-2 text-xs text-left border border-slate-200">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+            <div className="bg-slate-50 rounded-xl p-3 mb-2.5 space-y-1.5 text-xs text-left border border-slate-200">
+              <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/60">
                 <span className="text-slate-500 font-semibold">Mã Đặt Chỗ</span>
-                <span className="font-extrabold text-blue-600 text-sm tabular-nums">
+                <span className="font-extrabold text-blue-600 text-xs sm:text-sm tabular-nums">
                   {reservationCode}
                 </span>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+              <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/60">
                 <span className="text-slate-500 font-semibold">Cơ Sở Lưu Trữ</span>
                 <span className="font-bold text-slate-900 text-right max-w-[65%] truncate">
                   {facility?.name}
                 </span>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+              <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/60">
                 <span className="text-slate-500 font-semibold">Loại Kho &amp; Thời Hạn</span>
                 <span className="font-bold text-slate-900 text-right">
                   {selectedUnitType?.name} • {durationInfo?.label || `${rentalMonths} Tháng`}
                 </span>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+              <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/60">
                 <span className="text-slate-500 font-semibold">Lịch Bàn Giao (Bắt Đầu)</span>
                 <span className="font-bold text-slate-900 tabular-nums">
                   {rentalDates?.startDateFormatted || formatDateVi(moveInDate)} • {timeSlot?.label}
                 </span>
               </div>
               {rentalDates && (
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/60">
                   <span className="text-slate-500 font-semibold">Ngày Kết Thúc</span>
                   <span className="font-extrabold text-blue-700 tabular-nums">
                     {rentalDates.endDateFormatted} • 23:59
@@ -725,29 +725,29 @@ function BookingFlowContent() {
               )}
               <div className="flex justify-between items-center pt-0.5">
                 <span className="text-slate-500 font-semibold">Tiền Cọc Đã Thanh Toán</span>
-                <span className="font-black text-emerald-600 text-sm sm:text-base tabular-nums">
+                <span className="font-black text-emerald-600 text-sm tabular-nums">
                   {depositAmount.toLocaleString("vi-VN")} đ
                 </span>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-900 font-medium text-left mb-4 flex items-start gap-2">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-900 font-medium text-left mb-3 flex items-start gap-1.5 leading-snug">
               <Info className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Lưu ý:</strong> Vui lòng lưu lại <strong>Mã đặt chỗ</strong> và số điện thoại khi đến cơ sở nhận kho. Bạn có thể quản lý kho tại mục <strong>Kho Của Tôi</strong>.
+                <strong>Lưu ý:</strong> Lưu lại <strong>Mã đặt chỗ</strong> khi đến cơ sở nhận kho. Quản lý kho tại mục <strong>Kho Của Tôi</strong>.
               </span>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2.5">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => router.push("/dashboard")}
-                className="flex-1 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs uppercase tracking-wider rounded-full transition-all shadow-md shadow-orange-500/25 cursor-pointer"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs uppercase tracking-wider rounded-full transition-all shadow-sm shadow-orange-500/25 cursor-pointer"
               >
                 Đến Kho Của Tôi
               </button>
               <Link
                 href="/"
-                className="flex-1 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-full transition-colors text-center flex items-center justify-center"
+                className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-full transition-colors text-center flex items-center justify-center"
               >
                 Về Trang Chủ
               </Link>
