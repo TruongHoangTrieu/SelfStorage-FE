@@ -61,11 +61,8 @@ export default function HandoverSuccess({
   const depositNum = parseCurrency(appointment.depositAmount);
   const durationMonths = appointment.durationMonths || 1;
 
-  const discountPercent =
-    durationMonths >= 12 ? 15 : durationMonths >= 6 ? 10 : durationMonths >= 3 ? 5 : 0;
   const rawTotal = monthlyRentNum * durationMonths;
-  const discountAmount = Math.round(rawTotal * (discountPercent / 100));
-  const totalRent = rawTotal - discountAmount;
+  const totalRent = rawTotal;
   const remainingAmount = Math.max(0, totalRent - depositNum);
 
   // Trạng thái thu tiền còn lại: Nếu tiền còn lại <= 0 hoặc đã thu thì tự động là true

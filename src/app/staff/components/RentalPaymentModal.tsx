@@ -72,11 +72,8 @@ export default function RentalPaymentModal({
   const durationMonths = appointment?.durationMonths || 1;
   const monthlyRentNum = parseCurrency(appointment?.monthlyRent);
   const depositNum = parseCurrency(appointment?.depositAmount);
-  const discountPercent =
-    durationMonths >= 12 ? 15 : durationMonths >= 6 ? 10 : durationMonths >= 3 ? 5 : 0;
   const rawTotal = monthlyRentNum * durationMonths;
-  const discountAmount = Math.round(rawTotal * (discountPercent / 100));
-  const fallbackTotalRent = rawTotal - discountAmount;
+  const fallbackTotalRent = rawTotal;
   const fallbackRemaining = Math.max(0, fallbackTotalRent - depositNum);
 
   const totalRentToDisplay = summary?.rentalAmount ?? fallbackTotalRent;

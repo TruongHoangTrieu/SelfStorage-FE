@@ -3,6 +3,7 @@
 import React from 'react';
 import { Printer, Boxes, Download, FileText, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { CheckInAppointment } from '../types';
+import { calculateRentalDates } from '@/lib/dateUtils';
 
 interface PrintModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function PrintModal({
   const finalUnit = assignedUnit || appointment.assignedUnit;
   const finalPin = customPin || appointment.accessPin;
   const currentDate = new Date().toLocaleDateString('vi-VN');
+  const rentalDates = calculateRentalDates(appointment.startDate, appointment.durationMonths || 1);
 
   // Hàm xuất bản in / Lưu PDF chuẩn A4
   const handlePrintDocument = (isPdfSave: boolean = false) => {
@@ -190,6 +192,14 @@ export default function PrintModal({
               <tr>
                 <td class="label">Thời hạn thuê:</td>
                 <td>${appointment.durationMonths || 1} tháng</td>
+              </tr>
+              <tr>
+                <td class="label">Ngày kết thúc thuê:</td>
+                <td><strong>${rentalDates?.endDateFormatted || ''}</strong> <em>(Trước ngày tới hạn 1 ngày)</em></td>
+              </tr>
+              <tr>
+                <td class="label">Ngày tới hạn kỳ tiếp:</td>
+                <td>${rentalDates?.dueDateFormatted || ''}</td>
               </tr>
             </table>
 

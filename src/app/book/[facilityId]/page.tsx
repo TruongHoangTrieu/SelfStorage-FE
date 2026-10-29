@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import StorageUnit3DModal from "@/components/3d/StorageUnit3DModal";
 import { api } from "@/lib/api";
 import { CURRENT_COMMIT } from "@/components/BuildInfoLogger";
+import { calculateRentalDates } from "@/lib/dateUtils";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -41,7 +42,7 @@ interface DurationOption {
   key: string;
   months: number;
   label: string;
-  discount: number;
+  discount?: number;
   badge?: string | null;
 }
 
@@ -365,7 +366,7 @@ function BookingFlowContent() {
         const typesList = unitTypesData.data || unitTypesData || [];
         setUnitTypes(typesList);
         if (Array.isArray(durationsData) && durationsData.length > 0) {
-          setDurationOptions(durationsData);
+          setDurationOptions(durationsData.map((d: any) => ({ ...d, discount: 0, badge: null })));
         }
 
         // Tự động nhận diện loại kho từ URL và nhảy thẳng sang Bước 2 (Lịch Dọn Đồ) nếu còn chỗ
@@ -453,21 +454,14 @@ function BookingFlowContent() {
 
   const durationInfo = durationOptions.find((d) => d.key === durationKey) || null;
   const rentalMonths = durationInfo?.months || 1;
+  const rentalDates = useMemo(() => {
+    return calculateRentalDates(moveInDate, rentalMonths);
+  }, [moveInDate, rentalMonths]);
   const monthlyPrice = Number(selectedUnitType?.price ?? selectedUnitType?.depositAmount) || 0;
   const depositAmount = Number(selectedUnitType?.depositAmount) || monthlyPrice;
 
-  // Tổng tiền thuê niêm yết của cả kỳ (chưa trừ chiết khấu)
-  const grossRentalAmount = monthlyPrice * rentalMonths;
-  // Phần trăm ưu đãi theo kỳ hạn
-  const discountPercent = durationInfo?.discount || 0;
-  // Số tiền được giảm
-  const discountSavings = discountPercent > 0 ? Math.round(grossRentalAmount * (discountPercent / 100)) : 0;
-  // Tổng tiền thuê thực tế sau ưu đãi của cả kỳ
-  const totalRentalAmount = grossRentalAmount - discountSavings;
-  // Đơn giá trung bình mỗi tháng sau ưu đãi
-  const discountedRentalPrice = durationInfo && durationInfo.discount > 0
-    ? Math.round(monthlyPrice * (1 - durationInfo.discount / 100))
-    : monthlyPrice;
+  // Tổng tiền thuê của cả kỳ: tính đủ theo đơn giá niêm yết, không áp dụng chiết khấu
+  const totalRentalAmount = monthlyPrice * rentalMonths;
   // Số tiền còn lại cần thanh toán khi nhận kho (sau khi trừ cọc)
   const remainingAtCheckIn = Math.max(0, totalRentalAmount - depositAmount);
 
@@ -487,6 +481,7 @@ function BookingFlowContent() {
           moveInDate,
           timeSlot,
           durationKey,
+          rentalDates,
         }),
       );
       toast.info("Vui lòng đăng nhập để hoàn tất giữ chỗ kho");
@@ -514,7 +509,12 @@ function BookingFlowContent() {
         appointmentDate,
         rentalPeriod: durationInfo?.months || 1,
         rentalPeriodUnit: "MONTHS",
-        notes: "Booked online",
+        notes: rentalDates
+          ? `Booked online (${rentalDates.startDateFormatted} - ${rentalDates.endDateFormatted})`
+          : "Booked online",
+        startDate: moveInDate,
+        endDate: rentalDates?.endDateIso,
+        dueDate: rentalDates?.dueDateIso,
       });
 
       const resId = resResult.id;
@@ -541,6 +541,7 @@ function BookingFlowContent() {
           moveInDate,
           timeSlot,
           durationKey,
+          rentalDates,
           qrData: payResult.qr,
           paymentData: payResult.payment,
           createdAt: Date.now(),
@@ -709,24 +710,37 @@ function BookingFlowContent() {
                 <span className="font-bold text-slate-900">{selectedUnitType?.name}</span>
               </div>
               <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60">
-                <span className="text-slate-500 font-semibold">Lịch Bàn Giao</span>
-                <span className="font-bold text-slate-900 tabular-nums">
-                  {formatDateVi(moveInDate)} • {timeSlot?.label}
+                <span className="text-slate-500 font-semibold">Thời Hạn Thuê</span>
+                <span className="font-bold text-slate-900">
+                  {durationInfo?.label || `${rentalMonths} Tháng`}
                 </span>
               </div>
-              {durationInfo && (
-                <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60">
-                  <span className="text-slate-500 font-semibold">Thời Gian Thuê</span>
-                  <span className="font-bold text-slate-900">{durationInfo.label}</span>
-                </div>
-              )}
-              {moveInDate && durationInfo && (
-                <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60">
-                  <span className="text-slate-500 font-semibold">Hết Hạn Hợp Đồng</span>
-                  <span className="font-bold text-slate-900 tabular-nums">
-                    {calculateExpiryDate(moveInDate, rentalMonths)} (23:59)
-                  </span>
-                </div>
+              <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60">
+                <span className="text-slate-500 font-semibold">Lịch Bàn Giao (Bắt Đầu)</span>
+                <span className="font-bold text-slate-900 tabular-nums">
+                  {rentalDates?.startDateFormatted || formatDateVi(moveInDate)} • {timeSlot?.label}
+                </span>
+              </div>
+              {rentalDates && (
+                <>
+                  <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60">
+                    <span className="text-slate-500 font-semibold">Ngày Kết Thúc</span>
+                    <span className="font-extrabold text-blue-700 tabular-nums">
+                      {rentalDates.endDateFormatted}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/60">
+                    <div>
+                      <span className="text-slate-500 font-semibold block">Ngày Tới Hạn Kỳ Tiếp</span>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        (Ngày kết thúc trước hạn 1 ngày)
+                      </span>
+                    </div>
+                    <span className="font-bold text-slate-800 tabular-nums">
+                      {rentalDates.dueDateFormatted}
+                    </span>
+                  </div>
+                </>
               )}
               <div className="flex justify-between items-center pt-1">
                 <span className="text-slate-500 font-semibold">Tiền Cọc Đã Thanh Toán</span>
@@ -1395,34 +1409,30 @@ function BookingFlowContent() {
                               }`}
                             >
                               <span className="text-sm">{d.label}</span>
-                              {d.badge ? (
-                                <span className="mt-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-full">
-                                  {d.badge}
-                                </span>
-                              ) : d.discount > 0 ? (
-                                <span className="mt-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-full">
-                                  Giảm {d.discount}%
-                                </span>
-                              ) : (
-                                <span className="mt-1.5 text-[10px] text-slate-400 font-medium">Tiêu chuẩn</span>
-                              )}
+                              <span className="mt-1.5 text-[10px] text-slate-400 font-medium">{d.months} tháng</span>
                             </button>
                           );
                         })}
                       </div>
 
-                      {/* Live Expiry Preview in Step 2 */}
-                      {moveInDate && durationInfo && (
-                        <div className="mt-4 p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex items-center justify-between text-xs text-blue-900 animate-in fade-in">
-                          <div className="flex items-center gap-2">
+                      {moveInDate && rentalDates && (
+                        <div className="mt-4 p-4 rounded-2xl bg-blue-50/80 border border-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2.5">
                             <CalendarDays className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span>
-                              Chu kỳ thuê: <strong>{formatDateVi(moveInDate)}</strong> đến hết ngày <strong>{calculateExpiryDate(moveInDate, rentalMonths)}</strong>
-                            </span>
+                            <div>
+                              <p className="font-bold text-blue-950">
+                                Chu Kỳ Thuê Dự Kiến: {rentalDates.periodSummary} ({rentalMonths} tháng)
+                              </p>
+                              <p className="text-[11px] text-blue-800">
+                                Bắt đầu: <strong className="text-slate-900">{rentalDates.startDateFormatted}</strong> → Kết thúc: <strong className="text-blue-700 font-extrabold">{rentalDates.endDateFormatted}</strong>
+                              </p>
+                            </div>
                           </div>
-                          <span className="font-semibold text-blue-700 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
-                            Đến 23:59
-                          </span>
+                          <div className="text-left sm:text-right bg-white/90 px-3 py-1.5 rounded-xl border border-blue-100 shadow-2xs">
+                            <span className="text-[11px] text-slate-500 block">Ngày tới hạn chu kỳ tiếp:</span>
+                            <span className="font-extrabold text-slate-900 tabular-nums">{rentalDates.dueDateFormatted}</span>
+                            <span className="text-[9.5px] text-emerald-700 block font-semibold">(Ngày kết thúc trước hạn 1 ngày)</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1493,6 +1503,39 @@ function BookingFlowContent() {
                           Mở ứng dụng ngân hàng bất kỳ để quét mã VietQR. Hệ thống tự động xác nhận sau 5 - 10 giây khi nhận được tiền.
                         </p>
                       </div>
+
+                      {/* Tóm tắt bill chu kỳ & thời hạn thuê trước khi chuyển khoản cọc */}
+                      {rentalDates && (
+                        <div className="mb-6 p-4 sm:p-5 bg-white rounded-2xl border border-blue-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                              <CalendarDays className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chu Kỳ Thuê Của Đơn Giữ Chỗ</p>
+                              <p className="font-extrabold text-slate-900 text-sm sm:text-base">
+                                {rentalDates.startDateFormatted} → {rentalDates.endDateFormatted} ({rentalMonths} Tháng)
+                              </p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                Nhận kho: <strong className="text-slate-800">{rentalDates.startDateFormatted}</strong> {timeSlot && `• ${timeSlot.label}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-5 justify-between md:justify-end">
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ngày Kết Thúc</p>
+                              <p className="font-extrabold text-blue-700 text-sm tabular-nums">{rentalDates.endDateFormatted}</p>
+                              <p className="text-[9.5px] text-slate-400">(Trước hạn {rentalDates.dueDateFormatted} 1 ngày)</p>
+                            </div>
+                            <div className="border-l border-slate-200 pl-4 text-right">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cọc Giữ Chỗ Cần Nộp</p>
+                              <p className="font-black text-emerald-600 text-base sm:text-lg tabular-nums">
+                                {depositAmount.toLocaleString("vi-VN")} đ
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200">
                         
@@ -1670,22 +1713,44 @@ function BookingFlowContent() {
                     <div className="pb-3 border-b border-slate-100">
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
                         <CalendarDays className="w-3 h-3 text-slate-400" />
-                        Lịch Nhận Kho
+                        Lịch Nhận Kho (Bắt Đầu)
                       </p>
                       <p className="font-bold text-slate-900 tabular-nums">
-                        {formatDateVi(moveInDate)} {timeSlot && `• ${timeSlot.label}`}
+                        {rentalDates?.startDateFormatted || formatDateVi(moveInDate)} {timeSlot && `• ${timeSlot.label}`}
                       </p>
                     </div>
                   )}
 
-                  {/* Duration (Chỉ hiện khi đã chọn thời gian thuê) */}
+                  {/* Duration & End Date */}
                   {durationInfo && (
-                    <div className="pb-3 border-b border-slate-100">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-400" />
-                        Thời Gian Thuê
-                      </p>
-                      <p className="font-bold text-slate-900">{durationInfo.label}</p>
+                    <div className="pb-3 border-b border-slate-100 space-y-2">
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          Thời Gian Thuê
+                        </p>
+                        <p className="font-bold text-slate-900">{durationInfo.label} ({rentalMonths} tháng)</p>
+                      </div>
+
+                      {rentalDates && (
+                        <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-100 space-y-1.5 text-xs">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-600">Ngày bắt đầu:</span>
+                            <span className="font-bold text-slate-900 tabular-nums">{rentalDates.startDateFormatted}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-900 font-bold">Ngày kết thúc:</span>
+                            <span className="font-extrabold text-blue-700 tabular-nums">{rentalDates.endDateFormatted}</span>
+                          </div>
+                          <div className="pt-1 border-t border-blue-200/50 flex justify-between items-center text-[10.5px] text-slate-500">
+                            <span>Ngày tới hạn kỳ tiếp:</span>
+                            <span className="font-semibold text-slate-700 tabular-nums">{rentalDates.dueDateFormatted}</span>
+                          </div>
+                          <p className="text-[9.5px] text-slate-400 italic">
+                            * Ngày kết thúc được tính trước ngày tới hạn 1 ngày.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1721,22 +1786,12 @@ function BookingFlowContent() {
                       {/* Khi đã chọn thời gian thuê */}
                       {durationInfo ? (
                         <>
-                          {discountSavings > 0 && (
-                            <>
-                              <div className="flex justify-between text-slate-500">
-                                <span>Giá gốc ({rentalMonths} tháng):</span>
-                                <span className="line-through tabular-nums">
-                                  {grossRentalAmount.toLocaleString("vi-VN")} đ
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-emerald-600 font-bold">
-                                <span>Ưu đãi kỳ hạn ({discountPercent}%):</span>
-                                <span className="tabular-nums">
-                                  -{discountSavings.toLocaleString("vi-VN")} đ
-                                </span>
-                              </div>
-                            </>
-                          )}
+                          <div className="flex justify-between text-slate-600">
+                            <span>Thời gian thuê:</span>
+                            <span className="font-semibold tabular-nums">
+                              {rentalMonths} Tháng
+                            </span>
+                          </div>
 
                           <div className="flex justify-between items-center text-slate-900 font-bold pt-2 border-t border-slate-100">
                             <span className="text-slate-800">Tổng tiền thuê ({rentalMonths} tháng):</span>
@@ -1744,11 +1799,6 @@ function BookingFlowContent() {
                               <span className="text-sm font-extrabold text-blue-600 tabular-nums">
                                 {totalRentalAmount.toLocaleString("vi-VN")} đ
                               </span>
-                              {discountSavings > 0 && (
-                                <p className="text-[10px] text-slate-400 font-normal">
-                                  (~{discountedRentalPrice.toLocaleString("vi-VN")} đ/tháng)
-                                </p>
-                              )}
                             </div>
                           </div>
                         </>

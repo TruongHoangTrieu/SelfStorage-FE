@@ -100,11 +100,8 @@ export default function HandoverProcess({
   const monthlyRentNum = parseCurrency(appointment.monthlyRent);
   const depositNum = parseCurrency(appointment.depositAmount);
   const durationMonths = appointment.durationMonths || 1;
-  const discountPercent =
-    durationMonths >= 12 ? 15 : durationMonths >= 6 ? 10 : durationMonths >= 3 ? 5 : 0;
   const rawTotal = monthlyRentNum * durationMonths;
-  const discountAmount = Math.round(rawTotal * (discountPercent / 100));
-  const totalRent = rawTotal - discountAmount;
+  const totalRent = rawTotal;
   const remainingAmount = Math.max(0, totalRent - depositNum);
 
   // Trạng thái các bước
@@ -184,6 +181,12 @@ export default function HandoverProcess({
 
     setIsRevealing(true);
     try {
+      if (!appointment.rawId && appointment.idCard) {
+        setUnmaskedNumber(appointment.idCard);
+        if (appointment.identityAddress) setManualIdAddress(appointment.identityAddress);
+        setIsUnmasked(true);
+        return;
+      }
       const res = await handoversApi.revealCccd(appointment.rawId || appointment.id, appointment.customerName);
       if (res?.identityNumber) {
         setUnmaskedNumber(res.identityNumber);
@@ -191,12 +194,21 @@ export default function HandoverProcess({
         if (res.identityFrontUrl) setIdentityFrontUrl(res.identityFrontUrl);
         if (res.identityBackUrl) setIdentityBackUrl(res.identityBackUrl);
         setIsUnmasked(true);
+      } else if (appointment.idCard) {
+        setUnmaskedNumber(appointment.idCard);
+        setIsUnmasked(true);
       } else {
         alert('Không tìm thấy thông tin CCCD được lưu trữ của khách hàng');
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Thất bại';
-      alert('Lỗi truy xuất CCCD: ' + message);
+      if (appointment.idCard) {
+        setUnmaskedNumber(appointment.idCard);
+        if (appointment.identityAddress) setManualIdAddress(appointment.identityAddress);
+        setIsUnmasked(true);
+      } else {
+        const message = err instanceof Error ? err.message : 'Thất bại';
+        alert('Lỗi truy xuất CCCD: ' + message);
+      }
     } finally {
       setIsRevealing(false);
     }
@@ -408,13 +420,12 @@ export default function HandoverProcess({
                 onClick={() => {
                   if (isClickable) setCurrentStep(st.number);
                 }}
-                className={`flex items-center gap-2.5 py-2.5 px-3 rounded-xl text-left transition-all ${
-                  isActive
+                className={`flex items-center gap-2.5 py-2.5 px-3 rounded-xl text-left transition-all ${isActive
                     ? 'bg-blue-600 text-white font-bold shadow-sm cursor-default'
                     : isCompleted
-                    ? 'bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200 hover:bg-emerald-100 cursor-pointer'
-                    : 'bg-slate-50 text-slate-400 font-medium cursor-not-allowed opacity-50'
-                }`}
+                      ? 'bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200 hover:bg-emerald-100 cursor-pointer'
+                      : 'bg-slate-50 text-slate-400 font-medium cursor-not-allowed opacity-50'
+                  }`}
                 title={
                   !isClickable
                     ? `Hoàn thành Bước ${currentStep} trước khi chuyển sang Bước ${st.number}`
@@ -422,22 +433,20 @@ export default function HandoverProcess({
                 }
               >
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                    isActive
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isActive
                       ? 'bg-white text-blue-600'
                       : isCompleted
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-200 text-slate-500'
-                  }`}
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-200 text-slate-500'
+                    }`}
                 >
                   {isCompleted ? <Check className="w-3.5 h-3.5" /> : st.number}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-bold truncate leading-tight">{st.label}</div>
                   <div
-                    className={`text-[10px] truncate ${
-                      isActive ? 'text-blue-100' : 'text-slate-400'
-                    }`}
+                    className={`text-[10px] truncate ${isActive ? 'text-blue-100' : 'text-slate-400'
+                      }`}
                   >
                     {st.desc}
                   </div>
@@ -866,7 +875,7 @@ export default function HandoverProcess({
                   className="group relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-4/3 cursor-pointer hover:shadow-md transition"
                 >
                   <img src={p.url} alt={p.title} className="w-full h-full object-cover" />
-                  
+
                   {/* Nút xóa ảnh */}
                   <button
                     type="button"
@@ -987,11 +996,10 @@ export default function HandoverProcess({
               <button
                 type="button"
                 onClick={() => setPaymentMethod('vietqr')}
-                className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
-                  paymentMethod === 'vietqr'
+                className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${paymentMethod === 'vietqr'
                     ? 'bg-blue-50 border-blue-600 text-blue-900 ring-2 ring-blue-600/20'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <QrCode className="w-4 h-4 text-blue-600" />
                 <span>Chuyển khoản VietQR SePay</span>
@@ -1000,11 +1008,10 @@ export default function HandoverProcess({
               <button
                 type="button"
                 onClick={() => setPaymentMethod('cash')}
-                className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
-                  paymentMethod === 'cash'
+                className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${paymentMethod === 'cash'
                     ? 'bg-emerald-50 border-emerald-600 text-emerald-900 ring-2 ring-emerald-600/20'
                     : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <Banknote className="w-4 h-4 text-emerald-600" />
                 <span>Tiền mặt tại quầy</span>
@@ -1105,11 +1112,10 @@ export default function HandoverProcess({
               <button
                 type="button"
                 onClick={() => setIsRentalPaidLocally(!isRentalPaidLocally)}
-                className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer ${
-                  isRentalPaidLocally
+                className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer ${isRentalPaidLocally
                     ? 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm'
                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/20'
-                }`}
+                  }`}
               >
                 {isRentalPaidLocally ? (
                   <>
@@ -1214,9 +1220,8 @@ export default function HandoverProcess({
                   <Check className="w-4 h-4" /> Hiện trạng đã kiểm tra
                 </div>
                 <div
-                  className={`flex items-center gap-1.5 font-bold ${
-                    isRentalPaidLocally ? 'text-emerald-700' : 'text-amber-700'
-                  }`}
+                  className={`flex items-center gap-1.5 font-bold ${isRentalPaidLocally ? 'text-emerald-700' : 'text-amber-700'
+                    }`}
                 >
                   {isRentalPaidLocally ? <Check className="w-4 h-4" /> : '•'}
                   {isRentalPaidLocally ? 'Đã thu tiền thuê' : 'Thu tiền thuê sau'}
@@ -1259,11 +1264,10 @@ export default function HandoverProcess({
             type="button"
             onClick={handleAttemptComplete}
             disabled={isSubmitting}
-            className={`inline-flex items-center gap-2 px-7 py-3 text-sm font-extrabold text-white rounded-xl transition shadow-md active:scale-95 cursor-pointer ${
-              isSubmitting
+            className={`inline-flex items-center gap-2 px-7 py-3 text-sm font-extrabold text-white rounded-xl transition shadow-md active:scale-95 cursor-pointer ${isSubmitting
                 ? 'bg-blue-600/70 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/25'
-            }`}
+              }`}
           >
             {isSubmitting ? (
               <>

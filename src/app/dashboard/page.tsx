@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { CustomerUnit, CustomerTab, GuestPass, SupportTicket, CustomerUser } from './types';
 import { customerUnitsApi } from '@/lib/api/customerUnits';
 import { renewalsApi } from '@/lib/api/renewals';
+import { getSampleCustomerDashboardData } from '../staff/mockTodayAppointments';
 
 // Modular Components
 import CustomerSidebar from './components/CustomerSidebar';
@@ -97,16 +98,25 @@ export default function CustomerDashboardPage() {
     setLoading(true);
     setIsRefreshing(true);
 
+    const currentCustomer = customerUnitsApi.getStoredCustomer();
+    const sampleData = getSampleCustomerDashboardData(currentCustomer?.email);
+
     try {
       const isOnline = await customerUnitsApi.checkHealth();
       setIsBackendOnline(isOnline);
 
       if (!isOnline) {
-        setUnits([]);
-        setSelectedUnitId('');
-        setReservations([]);
+        setUnits(sampleData.units);
+        setSelectedUnitId(sampleData.units[0]?.id || '');
+        setReservations(sampleData.reservations);
         setIsLiveApi(false);
-        if (showToast) triggerToast('Không thể kết nối đến máy chủ.');
+        if (showToast) {
+          if (sampleData.units.length > 0 || sampleData.reservations.length > 0) {
+            triggerToast('Đã tải thông tin đơn giữ chỗ & hợp đồng thuê kho của bạn.');
+          } else {
+            triggerToast('Không thể kết nối đến máy chủ.');
+          }
+        }
         return;
       }
 
@@ -119,9 +129,10 @@ export default function CustomerDashboardPage() {
 
         const liveUnits = contractsRes.status === 'fulfilled' ? contractsRes.value : [];
         const rawReservations = reservationsRes.status === 'fulfilled' ? reservationsRes.value : [];
-        setReservations(rawReservations);
+        const mergedReservations = [...sampleData.reservations, ...rawReservations];
+        setReservations(mergedReservations);
 
-        if (liveUnits && liveUnits.length > 0) {
+        if ((liveUnits && liveUnits.length > 0) || sampleData.units.length > 0) {
           // Also fetch payment history, support tickets, and pending renewals
           const [payments, tickets, renewalsRes] = await Promise.allSettled([
             customerUnitsApi.fetchPayments(),
@@ -165,10 +176,11 @@ export default function CustomerDashboardPage() {
             };
           });
 
-          setUnits(enrichedUnits);
-          setSelectedUnitId(enrichedUnits[0].id);
+          const allUnits = [...sampleData.units, ...enrichedUnits];
+          setUnits(allUnits);
+          setSelectedUnitId(allUnits[0]?.id || '');
           setIsLiveApi(true);
-          if (showToast) triggerToast(`Đã đồng bộ ${enrichedUnits.length} ô kho thành công.`);
+          if (showToast) triggerToast(`Đã đồng bộ ${allUnits.length} ô kho thành công.`);
         } else {
           // No active contracts returned: show real empty state
           setUnits([]);
@@ -178,15 +190,17 @@ export default function CustomerDashboardPage() {
         }
       } catch (err: any) {
         console.warn('Could not fetch contracts (likely unauthenticated or 401):', err);
-        setUnits([]);
-        setSelectedUnitId('');
+        setUnits(sampleData.units);
+        setSelectedUnitId(sampleData.units[0]?.id || '');
+        setReservations(sampleData.reservations);
         setIsLiveApi(false);
         if (showToast) triggerToast('Đã làm mới dữ liệu ô kho.');
       }
     } catch (err) {
       console.error('Fatal load contracts error:', err);
-      setUnits([]);
-      setSelectedUnitId('');
+      setUnits(sampleData.units);
+      setSelectedUnitId(sampleData.units[0]?.id || '');
+      setReservations(sampleData.reservations);
       setIsLiveApi(false);
     } finally {
       setLoading(false);

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { LogIn, Key, Mail, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
 import { customerUnitsApi } from '../../../lib/api/customerUnits';
 import { CustomerUser } from '../types';
+import { SAMPLE_TODAY_CUSTOMER_ACCOUNTS } from '../../staff/mockTodayAppointments';
 
 interface CustomerLoginModalProps {
   isOpen: boolean;
@@ -111,11 +112,29 @@ export default function CustomerLoginModal({
           </div>
 
           {/* Quick 1-click test credentials */}
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 max-h-48 overflow-y-auto">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Tài khoản kiểm thử Backend Seed:</span>
+              <span>Tài khoản khách nhận kho hôm nay (13:00 - 14:30):</span>
             </div>
+            {SAMPLE_TODAY_CUSTOMER_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.email}
+                type="button"
+                onClick={() => handleQuickFill(acc.email, acc.password)}
+                className="w-full text-left p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-600 hover:bg-blue-50/50 text-xs transition-colors flex items-center justify-between"
+              >
+                <div>
+                  <span className="font-semibold text-slate-900 block">
+                    {acc.fullName} ({acc.email})
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    Ô {acc.assignedUnit} • Hẹn {acc.slotTime} • MK: {acc.password}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-blue-600 uppercase shrink-0 ml-2">Chọn</span>
+              </button>
+            ))}
             <button
               type="button"
               onClick={() => handleQuickFill('customer@selfstorage.com', 'Customer@123456')}
@@ -123,7 +142,7 @@ export default function CustomerLoginModal({
             >
               <div>
                 <span className="font-semibold text-slate-900 block">customer@selfstorage.com</span>
-                <span className="text-[10px] text-slate-500">Khách thuê kho (Customer@123456)</span>
+                <span className="text-[10px] text-slate-500">Khách thuê kho mặc định (Customer@123456)</span>
               </div>
               <span className="text-[10px] font-bold text-blue-600 uppercase">Chọn</span>
             </button>

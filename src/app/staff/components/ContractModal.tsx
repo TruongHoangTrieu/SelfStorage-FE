@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { CheckInAppointment } from '../types';
 import { handoversApi } from '../../../lib/api/handovers';
+import { calculateRentalDates } from '@/lib/dateUtils';
 
 interface ContractModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export default function ContractModal({
 
   const finalUnit = assignedUnit || appointment.assignedUnit;
   const contractNumber = appointment.contractCode || `SS-HĐ-${(appointment.id || '').replace(/[^a-zA-Z0-9]/g, '')}/2026`;
+  const rentalDates = calculateRentalDates(appointment.startDate, appointment.durationMonths || 1);
 
   // Calculate contract dates
   const today = new Date();
@@ -325,7 +327,7 @@ export default function ContractModal({
                   Điều 2. THỜI HẠN CỦA HỢP ĐỒNG VÀ GIA HẠN
                 </div>
                 <p>
-                  <strong>2.1.</strong> Thời hạn thuê kho là <strong>{appointment.durationMonths} tháng</strong>, bắt đầu tính từ ngày <strong>{appointment.startDate}</strong> đến hết ngày kết thúc hợp đồng theo biên lai thanh toán.
+                  <strong>2.1.</strong> Thời hạn thuê kho là <strong>{appointment.durationMonths} tháng</strong>, bắt đầu tính từ ngày <strong>{appointment.startDate}</strong> đến hết ngày <strong>{rentalDates?.endDateFormatted || 'kết thúc chu kỳ'}</strong> (ngày kết thúc là trước ngày tới hạn thanh toán kỳ tiếp theo <strong>{rentalDates?.dueDateFormatted || ''}</strong> 01 ngày).
                 </p>
                 <p>
                   <strong>2.2.</strong> Khi hết hạn hợp đồng, tùy theo nhu cầu thực tế hai Bên có thể thỏa thuận ký gia hạn hợp đồng hoặc gia hạn tự động thông qua Cổng quản lý khách hàng (Customer Portal).

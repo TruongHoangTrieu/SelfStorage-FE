@@ -28,6 +28,11 @@ import { useNotifications } from '@/lib/useNotifications';
 
 // Import Types & Mock Data
 import { CheckInAppointment, AvailableUnit, StaffTab, FlowStep, StaffUser } from './types';
+import {
+  getTodayAfternoonSampleAppointments,
+  saveTodaySampleAppointmentsState,
+  getSampleAvailableUnits,
+} from './mockTodayAppointments';
 import { handoversApi } from '../../lib/api/handovers';
 import { renewalsApi } from '@/lib/api/renewals';
 import { approvalRequestsService } from './services/approvalRequests';
@@ -221,18 +226,26 @@ export default function StaffPortalPage() {
 
       const storedUser = handoversApi.getStoredUser();
       const staffFacilityId = facilityIdOverride !== undefined ? facilityIdOverride : storedUser?.facilityId;
+      const facName = storedUser?.assignedFacility?.name || storedUser?.facilityName || 'Cơ sở Landmark 81';
+      const todaySamples = getTodayAfternoonSampleAppointments(staffFacilityId, facName);
 
       if (isOnline) {
         // Lấy queue đơn đặt chỗ từ Backend API theo cơ sở được phân công của nhân viên
         const queueRes = await handoversApi.fetchCheckInQueue({
           facilityId: staffFacilityId,
         });
-        if (queueRes.items && queueRes.items.length > 0) {
-          const enhanced = queueRes.items.map((item) => approvalRequestsService.attachToAppointment(item));
+        const liveItems = queueRes.items || [];
+        const existingIds = new Set(liveItems.map((i) => i.id));
+        const mergedRaw = [
+          ...todaySamples.filter((s) => !existingIds.has(s.id)),
+          ...liveItems,
+        ];
+
+        if (mergedRaw.length > 0) {
+          const enhanced = mergedRaw.map((item) => approvalRequestsService.attachToAppointment(item));
           setAppointments(enhanced);
-          setSelectedAppointmentId(enhanced[0].id);
+          setSelectedAppointmentId((prev) => prev || enhanced[0].id);
           setUsingLiveApi(true);
-          const facName = storedUser?.assignedFacility?.name || 'cơ sở';
           if (showToast) toast.success(`Đã cập nhật ${enhanced.length} đơn nhận kho của ${facName}.`);
         } else {
           setAppointments([]);
@@ -243,7 +256,13 @@ export default function StaffPortalPage() {
 
         // Lấy danh sách ô kho trống khả dụng của đúng cơ sở này
         const unitsRes = await handoversApi.fetchAvailableUnits(staffFacilityId);
-        setAvailableUnits(unitsRes || []);
+        const liveUnits = unitsRes || [];
+        const unitCodes = new Set(liveUnits.map((u) => u.code));
+        const mergedUnits = [
+          ...liveUnits,
+          ...getSampleAvailableUnits().filter((u) => !unitCodes.has(u.code)),
+        ];
+        setAvailableUnits(mergedUnits);
 
         // Lấy số lượng yêu cầu gia hạn & trả kho đang chờ duyệt
         try {
@@ -271,18 +290,36 @@ export default function StaffPortalPage() {
         }
       } else {
         setUsingLiveApi(false);
-        setAppointments([]);
-        if (showToast) toast.info('Không thể kết nối đến máy chủ.');
+        const enhanced = todaySamples.map((item) => approvalRequestsService.attachToAppointment(item));
+        setAppointments(enhanced);
+        setSelectedAppointmentId((prev) => prev || (enhanced[0]?.id ?? ''));
+        setAvailableUnits(getSampleAvailableUnits());
+        if (showToast) toast.info(`Đã tải ${enhanced.length} lịch hẹn nhận kho mẫu hôm nay (13:00 - 14:30).`);
       }
     } catch {
+      const storedUser = handoversApi.getStoredUser();
+      const staffFacilityId = facilityIdOverride !== undefined ? facilityIdOverride : storedUser?.facilityId;
+      const facName = storedUser?.assignedFacility?.name || storedUser?.facilityName || 'Cơ sở Landmark 81';
+      const todaySamples = getTodayAfternoonSampleAppointments(staffFacilityId, facName).map((item) =>
+        approvalRequestsService.attachToAppointment(item)
+      );
       setIsBackendOnline(false);
       setUsingLiveApi(false);
-      setAppointments([]);
+      setAppointments(todaySamples);
+      setSelectedAppointmentId((prev) => prev || (todaySamples[0]?.id ?? ''));
+      setAvailableUnits(getSampleAvailableUnits());
     } finally {
       setIsLoadingQueue(false);
       setIsRefreshing(false);
     }
   }, []);
+
+  // Đồng bộ lưu trạng thái các đơn mẫu trong ngày khi nhân viên thao tác
+  useEffect(() => {
+    if (appointments.length > 0) {
+      saveTodaySampleAppointmentsState(appointments);
+    }
+  }, [appointments]);
 
   // Khởi tạo kiểm tra kết nối & auth khi load trang
   useEffect(() => {

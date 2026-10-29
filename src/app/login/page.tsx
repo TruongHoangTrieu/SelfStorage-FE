@@ -20,6 +20,7 @@ import {
   X
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { authenticateSampleCustomer } from "@/app/staff/mockTodayAppointments";
 import { toast } from "sonner";
 
 export default function LoginPage() {
@@ -152,23 +153,38 @@ export default function LoginPage() {
       }
 
       if (isLogin) {
-        const res = await api.post("/auth/login", {
-          email: formData.email.trim(),
-          password: formData.password
-        });
+        let loggedInUser: any = null;
+        try {
+          const res = await api.post("/auth/login", {
+            email: formData.email.trim(),
+            password: formData.password
+          });
+          loggedInUser = res?.user;
+        } catch (loginErr) {
+          // Hỗ trợ đăng nhập cho 4 tài khoản khách hàng mẫu nhận kho hôm nay (13:00 - 14:30)
+          const sampleCustomer = authenticateSampleCustomer(formData.email, formData.password);
+          if (sampleCustomer) {
+            loggedInUser = sampleCustomer;
+          } else {
+            throw loginErr;
+          }
+        }
 
-        if (res?.user) {
-          localStorage.setItem("user", JSON.stringify(res.user));
+        if (loggedInUser) {
+          localStorage.setItem("user", JSON.stringify(loggedInUser));
+          if (loggedInUser.role === "STORAGE_CUSTOMER") {
+            localStorage.setItem("customer_user", JSON.stringify(loggedInUser));
+          }
         }
 
         // Notify other components/tabs of auth change
         window.dispatchEvent(new Event("storage"));
         window.dispatchEvent(new Event("auth-change"));
 
-        const displayName = res?.user?.fullName || res?.user?.email || "";
+        const displayName = loggedInUser?.fullName || loggedInUser?.email || "";
         toast.success(`Đăng nhập thành công! Chào mừng ${displayName}`);
 
-        const targetRoute = getTargetRoute(res?.user);
+        const targetRoute = getTargetRoute(loggedInUser);
         router.push(targetRoute);
       } else {
         // Sign Up Flow
