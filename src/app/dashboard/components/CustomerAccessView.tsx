@@ -180,17 +180,17 @@ export default function CustomerAccessView({
           </div>
 
           {/* Key PIN Display Box */}
-          <div className="bg-slate-900 text-white rounded-2xl p-6 relative overflow-hidden">
-            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-              <span>Mã PIN Mở Cửa Chính</span>
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
-                <Battery className="w-3.5 h-3.5" />
+          <div className="bg-blue-50/60 text-slate-900 rounded-2xl p-6 relative overflow-hidden border border-blue-200/70 shadow-2xs">
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+              <span className="font-bold text-slate-700">Mã PIN Mở Cửa Chính</span>
+              <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                <Battery className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Pin khóa: 94%</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between mt-1">
-              <div className="text-3xl font-mono font-bold tracking-widest">
+              <div className="text-3xl font-mono font-black tracking-widest text-blue-600">
                 {showPin ? currentUnit.mainPin || '883921' : '••••••••'}
               </div>
 
@@ -198,7 +198,7 @@ export default function CustomerAccessView({
                 <button
                   type="button"
                   onClick={() => setShowPin(!showPin)}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+                  className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-blue-50 text-slate-700 transition cursor-pointer shadow-2xs"
                   title={showPin ? 'Ẩn mã' : 'Hiện mã'}
                 >
                   {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -206,16 +206,16 @@ export default function CustomerAccessView({
                 <button
                   type="button"
                   onClick={handleCopyPin}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+                  className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-blue-50 text-slate-700 transition cursor-pointer shadow-2xs"
                   title="Sao chép"
                 >
-                  {copiedPin ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copiedPin ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-400 mt-3 pt-3 border-t border-slate-800 flex items-center gap-1.5">
-              <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
+            <p className="text-[11px] text-slate-500 mt-3 pt-3 border-t border-blue-100 flex items-center gap-1.5">
+              <Smartphone className="w-3.5 h-3.5 text-blue-600" />
               <span>Chạm bàn phím cảm ứng trên cửa kho để kích hoạt đèn LED trước khi nhập mã PIN.</span>
             </p>
           </div>

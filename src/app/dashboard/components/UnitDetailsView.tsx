@@ -651,28 +651,28 @@ export default function UnitDetailsView({
       {activeSubTab === 'access' && (
         <div className="space-y-6">
           {/* Smart Lock Remote Control */}
-          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xs border border-slate-800">
+          <div className="bg-slate-50 text-slate-900 rounded-2xl p-6 shadow-xs border border-slate-200">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-3 max-w-md">
-                <span className="text-xs uppercase font-semibold tracking-wider text-blue-400">
+                <span className="text-xs uppercase font-semibold tracking-wider text-blue-600">
                   Khóa Thông Minh (Smart Lock)
                 </span>
-                <h3 className="text-2xl font-extrabold text-white">
+                <h3 className="text-2xl font-extrabold text-slate-900">
                   Mở Khóa Từ Xa Cho Ô {unit.unitNumber}
                 </h3>
-                <p className="text-slate-400 text-xs leading-relaxed">
+                <p className="text-slate-600 text-xs leading-relaxed">
                   Khi bạn đứng gần cửa kho hoặc muốn mở cửa từ xa cho người thân, nhấn nút bên cạnh để truyền lệnh mở khóa.
                 </p>
 
                 <div className="pt-2 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="text-xs text-slate-400">
-                      Mã PIN cá nhân: <span className="tabular-nums text-lg font-bold text-white ml-1 tracking-wider">{fetchedPin}</span>
+                    <div className="text-xs text-slate-600 font-medium">
+                      Mã PIN cá nhân: <span className="tabular-nums text-lg font-bold text-blue-600 ml-1 tracking-wider">{fetchedPin}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowPinChange(!showPinChange)}
-                      className="px-2.5 py-1 text-[11px] font-semibold text-blue-400 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-1"
+                      className="px-2.5 py-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-100/70 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
                     >
                       <KeyRound className="w-3 h-3" />
                       <span>{showPinChange ? 'Hủy' : 'Đổi mã PIN'}</span>
@@ -681,8 +681,8 @@ export default function UnitDetailsView({
 
                   {/* Inline Change PIN Form */}
                   {showPinChange && (
-                    <form onSubmit={handleChangePin} className="p-3.5 bg-slate-800/90 border border-slate-700/80 rounded-2xl space-y-2.5 animate-slide-up-fade">
-                      <div className="text-xs font-semibold text-slate-300">
+                    <form onSubmit={handleChangePin} className="p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 animate-slide-up-fade shadow-xs">
+                      <div className="text-xs font-semibold text-slate-700">
                         Nhập mã PIN mới (4 - 8 chữ số):
                       </div>
                       <div className="flex items-center gap-2">
@@ -693,7 +693,7 @@ export default function UnitDetailsView({
                           value={newPin}
                           onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
                           placeholder="Ví dụ: 123456"
-                          className="px-3 py-1.5 text-xs tabular-nums tracking-widest bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="px-3 py-1.5 text-xs tabular-nums tracking-widest bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button
                           type="submit"
@@ -715,7 +715,7 @@ export default function UnitDetailsView({
                       </div>
 
                       {pinMessage && (
-                        <div className={`text-[11px] ${pinMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <div className={`text-[11px] font-semibold ${pinMessage.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
                           {pinMessage.text}
                         </div>
                       )}

@@ -297,14 +297,16 @@ export default function MyUnitsGrid({
                       </div>
 
                       {/* Mã PIN mở cửa Smart Lock */}
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-900 text-white">
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200/80">
                         <div className="flex items-center gap-2.5">
-                          <Key className="w-4 h-4 text-blue-400" />
+                          <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                            <Key className="w-4 h-4" />
+                          </div>
                           <div>
-                            <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-bold">
+                            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
                               Mã Smart Lock
                             </span>
-                            <span className="tabular-nums text-base font-extrabold tracking-widest text-amber-400 font-mono">
+                            <span className="tabular-nums text-base font-extrabold tracking-widest text-slate-900 font-mono">
                               {isPinVisible ? unit.mainPin : '••••••'}
                             </span>
                           </div>
@@ -312,7 +314,7 @@ export default function MyUnitsGrid({
                         <button
                           type="button"
                           onClick={() => togglePin(unit.id)}
-                          className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg border border-transparent hover:border-blue-200/80 transition-all cursor-pointer"
                           title={isPinVisible ? 'Ẩn mã' : 'Hiện mã'}
                         >
                           {isPinVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
