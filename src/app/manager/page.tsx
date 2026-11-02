@@ -43,6 +43,7 @@ import PrintModal from '../staff/components/PrintModal';
 import StaffProfileView from '../staff/components/StaffProfileView';
 import UnitTypesPricingManager from '../staff/components/UnitTypesPricingManager';
 import FacilityLayoutView from '../staff/components/FacilityLayoutView';
+import FeeTypesManagerTab from './components/FeeTypesManagerTab';
 import StaffSupportTicketsView from '../staff/components/StaffSupportTicketsView';
 import StaffRenewalsOverdueView from '../staff/components/StaffRenewalsOverdueView';
 import StaffLoginModal from '../staff/components/StaffLoginModal';
@@ -646,6 +647,7 @@ export default function ManagerPortalPage() {
     facility: 'Sơ Đồ Cơ Sở & Phân Công Nhân Sự',
     facility_photos: 'Quản Lý Hình Ảnh Cơ Sở',
     unit_types: 'Quản Lý Loại Kho & Bảng Giá',
+    fee_types: 'Cấu Hình Phí Phụ Thu',
     checkout: 'Thủ Tục Trả Kho & Phê Duyệt Gia Hạn',
     queue: 'Giám Sát Quầy Nhận Kho',
     support: 'Giám Sát Xử Lý Sự Cố & Khiếu Nại',
@@ -874,6 +876,11 @@ export default function ManagerPortalPage() {
                 currentFacilityId={currentUser?.facilityId}
                 currentUser={currentUser}
               />
+            )}
+
+            {/* TAB MỚI: CẤU HÌNH PHÍ PHỤ THU CỦA QUẢN LÝ CƠ SỞ (FACILITY MANAGER) */}
+            {activeTab === 'fee_types' && (
+              <FeeTypesManagerTab currentUser={currentUser} />
             )}
 
             {/* TAB 4: PHÊ DUYỆT GIA HẠN & XỬ LÝ QUÁ HẠN (CRON SCAN & MIỄN GIẢM PHẠT) */}

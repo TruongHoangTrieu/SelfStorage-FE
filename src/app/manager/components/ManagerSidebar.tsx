@@ -21,6 +21,7 @@ import {
   Shield,
   Users,
   Camera,
+  Receipt,
 } from 'lucide-react';
 import { ManagerTab, StaffUser } from '../types';
 
@@ -74,6 +75,7 @@ export default function ManagerSidebar({
     { id: 'facility' as ManagerTab, label: 'Sơ đồ & Phân công NV', icon: MapPin },
     { id: 'facility_photos' as ManagerTab, label: 'Hình ảnh cơ sở', icon: Camera },
     { id: 'unit_types' as ManagerTab, label: 'Loại kho & Bảng giá', icon: Boxes },
+    { id: 'fee_types' as ManagerTab, label: 'Cấu hình phí phụ thu', icon: Receipt },
     {
       id: 'checkout' as ManagerTab,
       label: 'Thủ tục trả kho & Gia hạn',
