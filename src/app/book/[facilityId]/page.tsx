@@ -645,68 +645,33 @@ function BookingFlowContent() {
     }
   };
 
-    const handleCancelReservation = async () => {
-    if (!reservationId) {
-      setStep("unit");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "Bạn có chắc chắn muốn hủy đơn giữ chỗ này không? Buồng kho sẽ được mở lại cho khách hàng khác và đơn thanh toán sẽ kết thúc."
-    );
-    if (!confirmed) return;
-
-    try {
-      setCancellingReservation(true);
-      await api.post(`/reservations/${reservationId}/cancel`, {
-        reason: "Khách hàng hủy trên web",
-      });
-      sessionStorage.removeItem(`booking_pending_${facilityId}`);
-      sessionStorage.removeItem("pendingBooking");
-      toast.info("Đã hủy đơn giữ chỗ thành công.");
-      setReservationId(null);
-      setQrData(null);
-      setStep("unit");
-    } catch (err: any) {
-      toast.error(err?.message || "Không thể hủy đơn đặt chỗ lúc này");
-    } finally {
-      setCancellingReservation(false);
-    }
-  };
-
-  const handleCancelReservation = async () => {
-    if (!reservationId) {
-      setStep("unit");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "Bạn có chắc chắn muốn hủy đơn giữ chỗ này không? Buồng kho sẽ được mở lại cho khách hàng khác và đơn thanh toán sẽ kết thúc."
-    );
-    if (!confirmed) return;
-
-    try {
-      setCancellingReservation(true);
-      await api.post(`/reservations/${reservationId}/cancel`, {
-        reason: "Khách hàng hủy trên web",
-      });
-      sessionStorage.removeItem(`booking_pending_${facilityId}`);
-      sessionStorage.removeItem("pendingBooking");
-      toast.info("Đã hủy đơn giữ chỗ thành công.");
-      setReservationId(null);
-      setQrData(null);
-      setStep("unit");
-    } catch (err: any) {
-      toast.error(err?.message || "Không thể hủy đơn đặt chỗ lúc này");
-    } finally {
-      setCancellingReservation(false);
-    }
-    }
-  };
-
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`Đã sao chép ${label} vào bộ nhớ tạm!`);
+  };
+
+  const handleCancelReservation = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn giữ chỗ này không? Buồng kho sẽ được mở lại cho khách hàng khác.")) {
+      return;
+    }
+
+    try {
+      setCancellingReservation(true);
+      if (reservationId) {
+        await api.post(`/reservations/${reservationId}/cancel`, {
+          reason: "Khách hàng hủy trên website",
+        });
+      }
+      sessionStorage.removeItem(`booking_pending_${facilityId}`);
+      setReservationId(null);
+      setQrData(null);
+      setStep("unit");
+      toast.success("Đã hủy đơn giữ chỗ thành công");
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể hủy đơn đặt chỗ lúc này");
+    } finally {
+      setCancellingReservation(false);
+    }
   };
 
   if (loadingData) {
@@ -968,27 +933,6 @@ function BookingFlowContent() {
                       >
                         {stepNumber > item.s ? <Check className="w-4 h-4" /> : item.s}
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       <span
                         className={`text-xs sm:text-sm font-bold hidden sm:inline ${
                           stepNumber === item.s
@@ -1000,27 +944,6 @@ function BookingFlowContent() {
                       >
                         {item.label}
                       </span>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
 
                     {idx < 2 && (
@@ -1079,27 +1002,6 @@ function BookingFlowContent() {
                     <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
                       <ShieldAlert className="w-5 h-5" />
                     </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-sm font-bold text-amber-950">
@@ -1109,51 +1011,9 @@ function BookingFlowContent() {
                           {roleName}
                         </span>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
                         Tài khoản nội bộ không có quyền đặt thuê kho trực tuyến (chỉ dành riêng cho Khách hàng). Bạn có thể truy cập Cổng Quản lý để kiểm tra và xử lý kho.
                       </p>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
                   <Link
@@ -1188,27 +1048,6 @@ function BookingFlowContent() {
                       <p className="font-bold text-slate-600">Cơ sở này hiện chưa có loại kho trống trực tuyến.</p>
                       <p className="text-xs text-slate-400 mt-1">Vui lòng liên hệ hotline cơ sở để được nhân viên hỗ trợ ngay.</p>
                     </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-10">
                       {unitTypes.map((ut) => {
@@ -1236,81 +1075,18 @@ function BookingFlowContent() {
                               <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
                                 <Check className="w-3.5 h-3.5 stroke-[3]" />
                               </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                             )}
 
                             {!isAvailable && (
                               <div className="absolute top-4 right-4 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200">
                                 Đã kín chỗ
                               </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                             )}
 
                             <div>
                               <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center text-lg mb-4 border border-orange-100">
                                 <Boxes className="w-5 h-5 text-orange-600" />
                               </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
                               <h3 className="text-lg font-bold text-slate-900 leading-snug mb-1">
                                 {ut.name}
@@ -1321,27 +1097,6 @@ function BookingFlowContent() {
                               </p>
                             </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                             <div className="pt-4 border-t border-slate-100">
                               <div className="flex items-baseline gap-1">
                                 <span className="text-2xl font-black text-blue-600 tabular-nums">
@@ -1349,27 +1104,6 @@ function BookingFlowContent() {
                                 </span>
                                 <span className="text-xs text-slate-400 font-bold"> đ/tháng</span>
                               </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                               <div className="text-[11px] font-semibold text-slate-500 mt-2 flex items-center justify-between">
                                 <span className="flex items-center gap-1.5 text-slate-400">
                                   <Tag className="w-3 h-3 text-slate-400" />
@@ -1379,27 +1113,6 @@ function BookingFlowContent() {
                                   Cọc: {Number(ut.depositAmount).toLocaleString("vi-VN")} đ
                                 </span>
                               </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
                               {/* 3D Model Preview Button */}
                               <button
@@ -1418,95 +1131,11 @@ function BookingFlowContent() {
                                 <div className="mt-3 py-1.5 px-3 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold text-center border border-amber-200/60">
                                   Tạm hết phòng trống
                                 </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                               )}
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         );
                       })}
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   )}
 
@@ -1546,27 +1175,6 @@ function BookingFlowContent() {
                         <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-xl shrink-0 shadow-xs">
                           <Boxes className="w-5 h-5 text-white" />
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full">
@@ -1576,74 +1184,11 @@ function BookingFlowContent() {
                               Quy cách: {selectedUnitType.size} {selectedUnitType.sizeUnit}
                             </span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           <h3 className="text-base sm:text-lg font-black text-slate-900 mt-1">
                             {selectedUnitType.name}
                           </h3>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
                       <div className="flex items-center gap-4 self-end sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto justify-between sm:justify-end">
                         <div className="text-left sm:text-right">
@@ -1655,27 +1200,6 @@ function BookingFlowContent() {
                           </span>
                         </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                         <button
                           type="button"
                           onClick={() => setStep("unit")}
@@ -1684,48 +1208,6 @@ function BookingFlowContent() {
                           Đổi loại kho
                         </button>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   )}
 
@@ -1769,53 +1251,11 @@ function BookingFlowContent() {
                             </button>
                           </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                           <div className="grid grid-cols-7 gap-y-3 gap-x-1 text-center flex-1 items-center">
                             {VIETNAMESE_DAYS.map((d) => (
                               <div key={d} className="text-xs font-bold text-slate-400 pb-1">
                                 {d}
                               </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                             ))}
                             {Array.from({ length: firstDayOfMonth }).map((_, i) => (
                               <div key={"e" + i} />
@@ -1873,27 +1313,6 @@ function BookingFlowContent() {
                             })}
                           </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                           {/* Ghi chú quy tắc đặt lịch hẹn trước */}
                           <div className="mt-3.5 p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-[11px] text-amber-800 flex items-start gap-2">
                             <Info className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
@@ -1901,71 +1320,8 @@ function BookingFlowContent() {
                               <strong>Quy tắc đặt lịch:</strong> Cơ sở áp dụng quy tắc đặt trước <strong>tối thiểu 1 ngày</strong> (từ ngày mai) và <strong>tối đa trong vòng 7 ngày tới</strong> (1 tuần) để nhân viên kịp kiểm tra khóa thông minh, vệ sinh kho và tối ưu lịch đón tiếp chu đáo nhất.
                             </span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
                       {/* Cột 2: Khung Giờ Nhân Viên Hỗ Trợ Tiếp Nhận (50%) */}
                       <div className="flex flex-col h-full">
@@ -1982,27 +1338,6 @@ function BookingFlowContent() {
                           )}
                         </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                         {!moveInDate ? (
                           <div className="p-8 bg-slate-50 border border-dashed border-slate-300 rounded-3xl text-center text-xs text-slate-500 font-medium flex-1 flex flex-col items-center justify-center min-h-[320px]">
                             <CalendarDays className="w-10 h-10 text-slate-400 mb-3 opacity-50" />
@@ -2010,52 +1345,10 @@ function BookingFlowContent() {
                               Vui lòng chọn <strong>Ngày Bắt Đầu Dọn Đồ</strong> ở lịch bên cạnh để xem các khung giờ khả dụng.
                             </p>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         ) : timeSlots.filter((s) => s.available).length === 0 && !loadingSlots ? (
                           <div className="p-8 bg-amber-50 border border-amber-200 rounded-3xl text-center text-xs text-amber-800 font-medium flex-1 flex items-center justify-center min-h-[320px]">
                             Hiện tại các khung giờ trong ngày này đã kín lịch. Vui lòng chọn ngày khác.
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         ) : (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 flex-1 content-start">
                             {timeSlots
@@ -2080,97 +1373,13 @@ function BookingFlowContent() {
                                       >
                                         {isSel && <div className="w-2 h-2 rounded-full bg-blue-600" />}
                                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                                       <span className="font-bold text-xs sm:text-sm">{slot.label}</span>
                                     </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
                                     <div className="flex items-center text-[11px] text-slate-400 font-medium pl-6.5 mt-2">
                                       <span>Nhận bàn giao kho</span>
                                     </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                                   </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                                 );
                               })}
                             {/* Card hoàn thiện bố cục khi số ca bị lẻ (7 ca) để 2 cột luôn vuông vức, cân xứng tuyệt đối với lịch */}
@@ -2179,94 +1388,10 @@ function BookingFlowContent() {
                                 <span className="text-xs font-bold text-slate-600">Khung giờ khác?</span>
                                 <span className="text-[11px] text-slate-400 font-medium mt-1">Liên hệ hotline 028 7770 0117</span>
                               </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                             )}
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         )}
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
 
                     {/* Rental Duration Options */}
@@ -2296,27 +1421,6 @@ function BookingFlowContent() {
                         })}
                       </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                       {moveInDate && rentalDates && (
                         <div className="mt-4 p-4 rounded-2xl bg-blue-50/80 border border-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                           <div className="flex items-center gap-2.5">
@@ -2329,118 +1433,13 @@ function BookingFlowContent() {
                                 Bắt đầu: <strong className="text-slate-900">{rentalDates.startDateFormatted}</strong> → Kết thúc: <strong className="text-blue-700 font-extrabold">{rentalDates.endDateFormatted}</strong>
                               </p>
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           <div className="text-left sm:text-right bg-white/90 px-3 py-1.5 rounded-xl border border-blue-100 shadow-2xs">
                             <span className="text-[11px] text-slate-500 block">Thời điểm kết thúc:</span>
                             <span className="font-extrabold text-blue-700 tabular-nums">{rentalDates.endDateFormatted} • 23:59</span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       )}
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
 
@@ -2490,27 +1489,6 @@ function BookingFlowContent() {
                               Bước 3 / 3: Quét Mã Thanh Toán Cọc
                             </span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold self-start sm:self-auto transition-colors ${
                             timeLeft <= 120 
                               ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse'
@@ -2519,49 +1497,7 @@ function BookingFlowContent() {
                             <Clock className="w-3.5 h-3.5" />
                             <span>Thời gian giữ chỗ còn: <strong className="tabular-nums font-black">{formatCountdown(timeLeft)}</strong></span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
                           Thanh Toán Cọc Giữ Chỗ Tự Động
                         </h1>
@@ -2570,27 +1506,6 @@ function BookingFlowContent() {
                         </p>
                       </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                       {/* Tóm tắt bill chu kỳ & thời hạn thuê trước khi chuyển khoản cọc */}
                       {rentalDates && (
                         <div className="mb-6 p-4 sm:p-5 bg-white rounded-2xl border border-blue-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
@@ -2598,27 +1513,6 @@ function BookingFlowContent() {
                             <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                               <CalendarDays className="w-5 h-5" />
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                             <div>
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chu Kỳ Thuê Của Đơn Giữ Chỗ</p>
                               <p className="font-extrabold text-slate-900 text-sm sm:text-base">
@@ -2628,147 +1522,21 @@ function BookingFlowContent() {
                                 Nhận kho: <strong className="text-slate-800">{rentalDates.startDateFormatted}</strong> {timeSlot && `• ${timeSlot.label}`}
                               </p>
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           <div className="flex items-center gap-4 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-5 justify-between md:justify-end">
                             <div>
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ngày Kết Thúc</p>
                               <p className="font-extrabold text-blue-700 text-sm tabular-nums">{rentalDates.endDateFormatted}</p>
                               <p className="text-[10px] text-slate-500 font-medium">Giờ kết thúc: 23:59</p>
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                             <div className="border-l border-slate-200 pl-4 text-right">
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cọc Giữ Chỗ Cần Nộp</p>
                               <p className="font-black text-emerald-600 text-base sm:text-lg tabular-nums">
                                 {depositAmount.toLocaleString("vi-VN")} đ
                               </p>
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       )}
 
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200">
@@ -2782,27 +1550,6 @@ function BookingFlowContent() {
                           />
                         </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                     {/* Bank Info Details */}
                     <div className="md:col-span-6 space-y-3.5 text-xs sm:text-sm">
                       <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
@@ -2810,125 +1557,20 @@ function BookingFlowContent() {
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ngân Hàng Thụ Hưởng</p>
                           <p className="font-bold text-slate-900 text-base">{qrData.bankCode || "MBBank"}</p>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
                       <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tên Chủ Tài Khoản</p>
                           <p className="font-bold text-slate-900">{qrData.accountName || "SELF STORAGE SYSTEM"}</p>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
                       <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Số Tài Khoản</p>
                           <p className="font-black text-blue-600 text-lg tabular-nums">{qrData.accountNumber}</p>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(qrData.accountNumber, "Số tài khoản")}
@@ -2939,27 +1581,6 @@ function BookingFlowContent() {
                         </button>
                       </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                       <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Số Tiền Thanh Toán</p>
@@ -2967,27 +1588,6 @@ function BookingFlowContent() {
                             {Number(qrData.amount).toLocaleString("vi-VN")} đ
                           </p>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(String(qrData.amount), "Số tiền")}
@@ -2998,27 +1598,6 @@ function BookingFlowContent() {
                         </button>
                       </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                       <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nội Dung Chuyển Khoản</p>
@@ -3026,27 +1605,6 @@ function BookingFlowContent() {
                             {qrData.transferContent}
                           </p>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(qrData.transferContent, "Nội dung chuyển khoản")}
@@ -3056,48 +1614,6 @@ function BookingFlowContent() {
                           <Copy className="w-4 h-4" />
                         </button>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
 
@@ -3137,7 +1653,6 @@ function BookingFlowContent() {
                         <span>Mô Phỏng Webhook (Test)</span>
                       </button>
                     </div>
-
                     <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
                       <button
                         type="button"
@@ -3222,27 +1737,6 @@ function BookingFlowContent() {
                         {rentalDates?.startDateFormatted || formatDateVi(moveInDate)} {timeSlot && `• ${timeSlot.label}`}
                       </p>
                     </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                   )}
 
                   {/* Duration & End Date */}
@@ -3256,123 +1750,18 @@ function BookingFlowContent() {
                         <p className="font-bold text-slate-900">{durationInfo.label} ({rentalMonths} tháng)</p>
                       </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                       {rentalDates && (
                         <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-100 space-y-1.5 text-xs">
                           <div className="flex justify-between items-center">
                             <span className="text-slate-600">Ngày bắt đầu:</span>
                             <span className="font-bold text-slate-900 tabular-nums">{rentalDates.startDateFormatted}</span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           <div className="flex justify-between items-center pt-1 border-t border-blue-200/50">
                             <span className="text-blue-900 font-bold">Ngày kết thúc:</span>
                             <span className="font-extrabold text-blue-700 tabular-nums">{rentalDates.endDateFormatted} • 23:59</span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       )}
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   )}
 
@@ -3387,27 +1776,6 @@ function BookingFlowContent() {
                         </span>
                       </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                       {/* Khi đã chọn thời gian thuê */}
                       {durationInfo ? (
                         <>
@@ -3418,27 +1786,6 @@ function BookingFlowContent() {
                             </span>
                           </div>
 
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
                           <div className="flex justify-between items-center text-slate-900 font-bold pt-2 border-t border-slate-100">
                             <span className="text-slate-800">Tổng tiền thuê ({rentalMonths} tháng):</span>
                             <div className="text-right">
@@ -3446,49 +1793,7 @@ function BookingFlowContent() {
                                 {totalRentalAmount.toLocaleString("vi-VN")} đ
                               </span>
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         </>
                       ) : (
                         <p className="text-[11px] text-slate-400 italic">
@@ -3507,75 +1812,12 @@ function BookingFlowContent() {
                               {depositAmount.toLocaleString("vi-VN")} đ
                             </span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                           <p className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1.5">
                             <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                             <span>Khấu trừ 100% vào tiền thuê khi ký hợp đồng nhận phòng</span>
                           </p>
                         </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
                       {/* Số tiền còn lại khi nhận kho */}
                       {durationInfo && (
@@ -3590,52 +1832,10 @@ function BookingFlowContent() {
                                 Đã thanh toán trọn gói tháng đầu • Không phát sinh thêm phí
                               </p>
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                             <span className="font-black text-emerald-700 text-sm tabular-nums">
                               0 đ
                             </span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         ) : (
                           <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 flex justify-between items-center text-xs">
                             <div>
@@ -3646,79 +1846,16 @@ function BookingFlowContent() {
                                 (Tổng tiền thuê - Tiền cọc đã nộp)
                               </p>
                             </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                             <span className="font-black text-slate-900 text-sm tabular-nums">
                               {remainingAtCheckIn.toLocaleString("vi-VN")} đ
                             </span>
                           </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
                         )
                       )}
 
                       <p className="text-[10.5px] text-slate-400 mt-2 leading-tight">
                         * Tiền cọc giữ chỗ được trừ trực tiếp vào tiền thuê khi ký hợp đồng và không hoàn lại nếu quý khách hủy đơn.
                       </p>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   )}
 
@@ -3729,48 +1866,6 @@ function BookingFlowContent() {
                         <p className="font-bold text-amber-900">Tài khoản Nhân viên</p>
                         <p className="text-amber-700 mt-0.5">Không hỗ trợ chức năng thanh toán cọc giữ chỗ trực tuyến.</p>
                       </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {cancellingReservation ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Đang hủy đơn...</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Hủy đơn đặt giữ chỗ này</span>
-                          </>
-                        )}
-                      </button>
                     </div>
                   )}
                 </div>
