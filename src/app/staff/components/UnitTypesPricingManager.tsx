@@ -35,25 +35,128 @@ interface Facility {
   address?: string;
 }
 
-export function parsePenaltyFees(desc?: string | null) {
-  let description = desc || '';
-  let lateFeePerDay = 50000;
-  let cleaningFee = 50000;
-  let damageFee = 100000;
-
-  const match = description.match(/\[PENALTY:\s*lateFeePerDay=(\d+),\s*cleaningFee=(\d+),\s*damageFee=(\d+)\]/i);
-  if (match) {
-    lateFeePerDay = parseInt(match[1], 10) || 50000;
-    cleaningFee = parseInt(match[2], 10) || 50000;
-    damageFee = parseInt(match[3], 10) || 100000;
-    description = description.replace(match[0], '').trim();
-  }
-  return { description, lateFeePerDay, cleaningFee, damageFee };
+export interface UnitPenaltyFee {
+  id: string;
+  name: string;
+  code: string;
+  amount: number;
+  unit: string; // 'VNĐ/ngày' | 'VNĐ'
+  description?: string;
+  isLateFee?: boolean;
 }
 
-export function formatPenaltyDescription(desc: string, lateFeePerDay: number, cleaningFee: number, damageFee: number) {
-  const clean = (desc || '').replace(/\[PENALTY:[^\]]*\]/gi, '').trim();
-  return `${clean} [PENALTY: lateFeePerDay=${lateFeePerDay}, cleaningFee=${cleaningFee}, damageFee=${damageFee}]`.trim();
+export const DEFAULT_UNIT_PENALTIES: UnitPenaltyFee[] = [
+  {
+    id: 'fee-late',
+    name: 'Phí phạt trễ hẹn trả kho',
+    code: 'LATE_FEE',
+    amount: 50000,
+    unit: 'VNĐ/ngày',
+    description: 'Tự động nhân theo số ngày trễ hẹn thực tế (Tối đa 30 ngày trước khi thanh lý kho)',
+    isLateFee: true,
+  },
+  {
+    id: 'fee-clean',
+    name: 'Phí vệ sinh & thu gom rác trong kho',
+    code: 'CLEANING',
+    amount: 50000,
+    unit: 'VNĐ',
+    description: 'Áp dụng khi khách trả ô kho còn rác thải, bụi bẩn hoặc vết dơ cần tẩy rửa',
+    isLateFee: false,
+  },
+  {
+    id: 'fee-scratches',
+    name: 'Bồi thường trầy xước tường & sàn kho',
+    code: 'SCRATCHES',
+    amount: 100000,
+    unit: 'VNĐ',
+    description: 'Áp dụng khi kiểm tra nghiệm thu phát hiện trầy xước vách ngăn hoặc tróc sàn',
+    isLateFee: false,
+  },
+  {
+    id: 'fee-doorlock',
+    name: 'Thay thế chốt khóa / tay nắm hư hỏng',
+    code: 'DOOR_LOCK',
+    amount: 200000,
+    unit: 'VNĐ',
+    description: 'Áp dụng khi chốt khóa thông minh, tay nắm hoặc ổ khóa bị cạy phá, biến dạng',
+    isLateFee: false,
+  },
+  {
+    id: 'fee-custom',
+    name: 'Phụ thu phát sinh linh hoạt khác',
+    code: 'CUSTOM',
+    amount: 0,
+    unit: 'VNĐ',
+    description: 'Khoản phụ thu khác do nhân viên và Quản lý cơ sở thẩm định tại chỗ',
+    isLateFee: false,
+  },
+];
+
+export function parsePenaltyFees(desc?: string | null): {
+  cleanDescription: string;
+  penaltyFees: UnitPenaltyFee[];
+  lateFeePerDay: number;
+  cleaningFee: number;
+  damageFee: number;
+} {
+  let description = desc || '';
+  let penaltyFees: UnitPenaltyFee[] = DEFAULT_UNIT_PENALTIES.map(p => ({ ...p }));
+
+  // 1. Thử parse JSON block mới [PENALTIES_JSON: ... ]
+  const jsonMatch = description.match(/\[PENALTIES_JSON:\s*([\s\S]*?)\]/i);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[1]);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        penaltyFees = parsed;
+      }
+      description = description.replace(jsonMatch[0], '').trim();
+    } catch {}
+  } else {
+    // 2. Fallback cho tag đơn giản [PENALTY: lateFeePerDay=..., cleaningFee=..., damageFee=...]
+    const simpleMatch = description.match(/\[PENALTY:\s*lateFeePerDay=(\d+),\s*cleaningFee=(\d+),\s*damageFee=(\d+)\]/i);
+    if (simpleMatch) {
+      const late = parseInt(simpleMatch[1], 10) || 50000;
+      const clean = parseInt(simpleMatch[2], 10) || 50000;
+      const damage = parseInt(simpleMatch[3], 10) || 100000;
+      penaltyFees = DEFAULT_UNIT_PENALTIES.map((p) => {
+        if (p.code === 'LATE_FEE') return { ...p, amount: late };
+        if (p.code === 'CLEANING') return { ...p, amount: clean };
+        if (p.code === 'SCRATCHES') return { ...p, amount: damage };
+        return { ...p };
+      });
+      description = description.replace(simpleMatch[0], '').trim();
+    }
+  }
+
+  // Đảm bảo luôn dọn dẹp các tag cũ nếu còn
+  description = description
+    .replace(/\[PENALTIES_JSON:[^\]]*\]/gi, '')
+    .replace(/\[PENALTY:[^\]]*\]/gi, '')
+    .trim();
+
+  const lateFeePerDay = penaltyFees.find((p) => p.code === 'LATE_FEE' || p.isLateFee)?.amount || 50000;
+  const cleaningFee = penaltyFees.find((p) => p.code === 'CLEANING')?.amount || 50000;
+  const damageFee = penaltyFees.find((p) => p.code === 'SCRATCHES')?.amount || 100000;
+
+  return { cleanDescription: description, penaltyFees, lateFeePerDay, cleaningFee, damageFee };
+}
+
+export function formatPenaltyDescription(desc: string, penaltyFees: UnitPenaltyFee[]): string {
+  const clean = (desc || '')
+    .replace(/\[PENALTIES_JSON:[\s\S]*?\]/gi, '')
+    .replace(/\[PENALTY:[^\]]*\]/gi, '')
+    .trim();
+
+  const lateFee = penaltyFees.find((p) => p.code === 'LATE_FEE' || p.isLateFee)?.amount || 50000;
+  const cleanFee = penaltyFees.find((p) => p.code === 'CLEANING')?.amount || 50000;
+  const damageFee = penaltyFees.find((p) => p.code === 'SCRATCHES')?.amount || 100000;
+
+  const legacyTag = `[PENALTY: lateFeePerDay=${lateFee}, cleaningFee=${cleanFee}, damageFee=${damageFee}]`;
+  const jsonTag = `[PENALTIES_JSON: ${JSON.stringify(penaltyFees)}]`;
+
+  return `${clean} ${legacyTag} ${jsonTag}`.trim();
 }
 
 export interface UnitTypeItem {
@@ -67,6 +170,7 @@ export interface UnitTypeItem {
   sizeUnit: string;
   price: number;
   depositAmount: number | string;
+  penaltyFees?: UnitPenaltyFee[];
   lateFeePerDay?: number;
   cleaningFee?: number;
   damageFee?: number;
@@ -135,13 +239,20 @@ export default function UnitTypesPricingManager({
     sizeUnit: 'm2',
     price: 1500000,
     depositAmount: 1500000,
-    lateFeePerDay: 50000,
-    cleaningFee: 50000,
-    damageFee: 100000,
+    penaltyFees: DEFAULT_UNIT_PENALTIES.map(p => ({ ...p })),
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
     initialUnitsCount: 0,
     initialUnitsFloor: '1',
   });
+
+  // State cho việc Thêm / Sửa một khoản phí phạt trực tiếp trong Loại Kho
+  const [editingFeeItem, setEditingFeeItem] = useState<UnitPenaltyFee | null>(null);
+  const [feeFormName, setFeeFormName] = useState('');
+  const [feeFormCode, setFeeFormCode] = useState('');
+  const [feeFormAmount, setFeeFormAmount] = useState<number>(50000);
+  const [feeFormUnit, setFeeFormUnit] = useState<'VNĐ' | 'VNĐ/ngày'>('VNĐ');
+  const [feeFormDesc, setFeeFormDesc] = useState('');
+  const [isAddingNewFee, setIsAddingNewFee] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Modal State (Add Units Modal - Tăng số lượng ô kho trống)
@@ -195,13 +306,14 @@ export default function UnitTypesPricingManager({
       );
       const rawList = Array.isArray(data) ? data : data?.data || [];
       const list = rawList.map((u: any) => {
-        const { description, lateFeePerDay, cleaningFee, damageFee } = parsePenaltyFees(u.description);
+        const { cleanDescription, penaltyFees, lateFeePerDay, cleaningFee, damageFee } = parsePenaltyFees(u.description);
         return {
           ...u,
-          cleanDescription: description,
-          lateFeePerDay: u.lateFeePerDay || lateFeePerDay,
-          cleaningFee: u.cleaningFee || cleaningFee,
-          damageFee: u.damageFee || damageFee,
+          cleanDescription,
+          penaltyFees,
+          lateFeePerDay,
+          cleaningFee,
+          damageFee,
         };
       });
       setUnitTypes(list);
@@ -247,13 +359,13 @@ export default function UnitTypesPricingManager({
       sizeUnit: 'm2',
       price: 1600000,
       depositAmount: 1500000,
-      lateFeePerDay: 50000,
-      cleaningFee: 50000,
-      damageFee: 100000,
+      penaltyFees: DEFAULT_UNIT_PENALTIES.map(p => ({ ...p })),
       status: 'ACTIVE',
       initialUnitsCount: 2, // Gợi ý khởi tạo sẵn 2 ô trống khi tạo loại kho mới
       initialUnitsFloor: '1',
     });
+    setIsAddingNewFee(false);
+    setEditingFeeItem(null);
     setIsModalOpen(true);
   };
 
@@ -275,7 +387,7 @@ export default function UnitTypesPricingManager({
       return;
     }
     setEditingItem(item);
-    const { description: cleanDesc, lateFeePerDay, cleaningFee, damageFee } = parsePenaltyFees(item.description);
+    const { cleanDescription: cleanDesc, penaltyFees } = parsePenaltyFees(item.description);
     setFormData({
       name: item.name,
       code: item.code,
@@ -284,13 +396,13 @@ export default function UnitTypesPricingManager({
       sizeUnit: item.sizeUnit || 'm2',
       price: Number(item.price || item.depositAmount),
       depositAmount: Number(item.depositAmount),
-      lateFeePerDay: item.lateFeePerDay || lateFeePerDay,
-      cleaningFee: item.cleaningFee || cleaningFee,
-      damageFee: item.damageFee || damageFee,
+      penaltyFees: item.penaltyFees && item.penaltyFees.length > 0 ? item.penaltyFees : penaltyFees,
       status: item.status,
       initialUnitsCount: 0,
       initialUnitsFloor: '1',
     });
+    setIsAddingNewFee(false);
+    setEditingFeeItem(null);
     setIsModalOpen(true);
   };
 
@@ -305,6 +417,83 @@ export default function UnitTypesPricingManager({
     setAddUnitsFloor('1');
     const cleanPrefix = (item.code || '').replace(/^TYPE_/i, '').trim();
     setAddUnitsPrefix(cleanPrefix || item.code || 'UNIT');
+  };
+
+  // ─── CÁC THAO TÁC THÊM / SỬA / XÓA PHÍ PHẠT CHO LOẠI KHO ───
+  const handleOpenAddFeeForm = () => {
+    setEditingFeeItem(null);
+    setFeeFormName('');
+    setFeeFormCode('FEE_' + Date.now().toString().slice(-4));
+    setFeeFormAmount(50000);
+    setFeeFormUnit('VNĐ');
+    setFeeFormDesc('');
+    setIsAddingNewFee(true);
+  };
+
+  const handleOpenEditFeeForm = (fee: UnitPenaltyFee) => {
+    setEditingFeeItem(fee);
+    setFeeFormName(fee.name);
+    setFeeFormCode(fee.code);
+    setFeeFormAmount(fee.amount);
+    setFeeFormUnit(fee.unit === 'VNĐ/ngày' ? 'VNĐ/ngày' : 'VNĐ');
+    setFeeFormDesc(fee.description || '');
+    setIsAddingNewFee(true);
+  };
+
+  const handleSaveFeeItem = () => {
+    if (!feeFormName.trim()) {
+      toast.error('Vui lòng nhập tên loại phí phạt');
+      return;
+    }
+    const cleanCode = (feeFormCode.trim() || 'FEE_' + Date.now()).toUpperCase();
+    const isLate = feeFormUnit === 'VNĐ/ngày' || cleanCode === 'LATE_FEE';
+
+    if (editingFeeItem) {
+      // Sửa khoản phí
+      setFormData((prev) => ({
+        ...prev,
+        penaltyFees: prev.penaltyFees.map((item) =>
+          item.id === editingFeeItem.id
+            ? {
+                ...item,
+                name: feeFormName.trim(),
+                code: cleanCode,
+                amount: Math.max(0, feeFormAmount),
+                unit: feeFormUnit,
+                description: feeFormDesc.trim(),
+                isLateFee: isLate,
+              }
+            : item
+        ),
+      }));
+      toast.success(`Đã cập nhật phí phạt "${feeFormName.trim()}"!`);
+    } else {
+      // Thêm khoản phí mới
+      const newFee: UnitPenaltyFee = {
+        id: 'fee-' + Date.now(),
+        name: feeFormName.trim(),
+        code: cleanCode,
+        amount: Math.max(0, feeFormAmount),
+        unit: feeFormUnit,
+        description: feeFormDesc.trim(),
+        isLateFee: isLate,
+      };
+      setFormData((prev) => ({
+        ...prev,
+        penaltyFees: [...prev.penaltyFees, newFee],
+      }));
+      toast.success(`Đã thêm loại phí phạt mới "${feeFormName.trim()}"!`);
+    }
+    setIsAddingNewFee(false);
+    setEditingFeeItem(null);
+  };
+
+  const handleDeleteFeeItem = (feeId: string, feeName: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      penaltyFees: prev.penaltyFees.filter((f) => f.id !== feeId),
+    }));
+    toast.success(`Đã xóa phí phạt "${feeName}" khỏi loại kho này!`);
   };
 
   // Thực thi tạo thêm ô kho trống qua API /storage-units
@@ -403,9 +592,7 @@ export default function UnitTypesPricingManager({
       if (editingItem) {
         const combinedDescription = formatPenaltyDescription(
           formData.description,
-          formData.lateFeePerDay,
-          formData.cleaningFee,
-          formData.damageFee,
+          formData.penaltyFees,
         );
 
         // UPDATE PATCH
@@ -423,9 +610,7 @@ export default function UnitTypesPricingManager({
       } else {
         const combinedDescription = formatPenaltyDescription(
           formData.description,
-          formData.lateFeePerDay,
-          formData.cleaningFee,
-          formData.damageFee,
+          formData.penaltyFees,
         );
 
         // CREATE POST
@@ -1046,85 +1231,209 @@ export default function UnitTypesPricingManager({
                 </div>
               </div>
 
-              {/* BIỂU PHÍ PHẠT & PHỤ PHÍ KHI TRẢ KHO CỦA LOẠI KHO NÀY */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/90 to-orange-50/50 border border-amber-200/90 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                    <ShieldAlert className="w-4 h-4 text-amber-600" />
-                    <span>Cấu Hình Phí Phạt &amp; Phụ Phí (Loại Kho Này)</span>
-                  </label>
-                  <span className="text-[10px] font-bold text-amber-800 bg-white px-2 py-0.5 rounded-md border border-amber-200">
-                    Áp dụng khi trả kho
-                  </span>
+              {/* BIỂU PHÍ PHẠT & PHỤ PHÍ KHI TRẢ KHO CỦA LOẠI KHO NÀY (HỖ TRỢ THÊM / SỬA / XÓA) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/90 to-orange-50/50 border border-amber-200/90 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                      <ShieldAlert className="w-4 h-4 text-amber-600" />
+                      <span>Biểu Phí Phạt &amp; Phụ Phí Nghiệm Thu (Loại Kho Này)</span>
+                    </label>
+                    <p className="text-[10px] text-amber-800 mt-0.5">
+                      Tự động áp dụng khi khách trả ô kho thuộc loại này. Có thể thêm, sửa đơn giá hoặc xóa loại phí.
+                    </p>
+                  </div>
+                  {!isAddingNewFee && (
+                    <button
+                      type="button"
+                      onClick={handleOpenAddFeeForm}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[11px] font-bold transition shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Thêm Phí Phạt</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      Phạt trễ hẹn (VNĐ/ngày) *
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="5000"
-                      required
-                      value={formData.lateFeePerDay}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          lateFeePerDay: Math.max(0, parseInt(e.target.value) || 0),
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
-                    <span className="text-[10px] text-amber-700 mt-1 block">
-                      Tự nhân ngày trễ (Tối đa 30 ngày)
-                    </span>
-                  </div>
+                {/* FORM INLINE ĐỂ THÊM HOẶC SỬA 1 KHOẢN PHÍ PHẠT */}
+                {isAddingNewFee && (
+                  <div className="p-3.5 bg-white border border-amber-300 rounded-xl shadow-xs space-y-3 animate-fade-in">
+                    <div className="flex items-center justify-between border-b border-amber-100 pb-2">
+                      <span className="text-xs font-bold text-amber-900">
+                        {editingFeeItem ? `Chỉnh Sửa: ${editingFeeItem.name}` : 'Thêm Mới Loại Phí Phạt Cho Loại Kho'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingNewFee(false);
+                          setEditingFeeItem(null);
+                        }}
+                        className="text-slate-400 hover:text-slate-600 p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      Phụ phí vệ sinh (VNĐ)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="5000"
-                      value={formData.cleaningFee}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          cleaningFee: Math.max(0, parseInt(e.target.value) || 0),
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-[10px] text-slate-500 mt-1 block">
-                      Kho còn rác / vết dơ
-                    </span>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                          Tên loại phí phạt <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="VD: Phí dọn rác kho, Phí trễ hẹn..."
+                          value={feeFormName}
+                          onChange={(e) => setFeeFormName(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      Bồi thường hư hại (VNĐ)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="10000"
-                      value={formData.damageFee}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          damageFee: Math.max(0, parseInt(e.target.value) || 0),
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-[10px] text-slate-500 mt-1 block">
-                      Trầy xước vách, hỏng chốt...
-                    </span>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                          Mã phí (Code)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="VD: LATE_FEE, CLEANING..."
+                          value={feeFormCode}
+                          onChange={(e) => setFeeFormCode(e.target.value.toUpperCase())}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                          Đơn vị tính phí
+                        </label>
+                        <select
+                          value={feeFormUnit}
+                          onChange={(e) => setFeeFormUnit(e.target.value as any)}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="VNĐ">Cố định / Theo sự vụ (VNĐ)</option>
+                          <option value="VNĐ/ngày">Theo ngày trễ hẹn (VNĐ/ngày - Tối đa 30 ngày)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                          Đơn giá quy định (VNĐ) <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="5000"
+                          required
+                          value={feeFormAmount}
+                          onChange={(e) => setFeeFormAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-amber-300 rounded-lg text-xs font-black text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                        Ghi chú / Điều kiện áp dụng
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="VD: Áp dụng khi trả kho còn để lại rác bẩn..."
+                        value={feeFormDesc}
+                        onChange={(e) => setFeeFormDesc(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingNewFee(false);
+                          setEditingFeeItem(null);
+                        }}
+                        className="px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-lg"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveFeeItem}
+                        className="px-4 py-1 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-xs"
+                      >
+                        {editingFeeItem ? 'Lưu Thay Đổi' : 'Xác Nhận Thêm'}
+                      </button>
+                    </div>
                   </div>
+                )}
+
+                {/* DANH SÁCH CÁC KHOẢN PHÍ PHẠT ĐÃ CẤU HÌNH CHO LOẠI KHO NÀY */}
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {formData.penaltyFees.length === 0 ? (
+                    <div className="p-4 bg-white/70 border border-dashed border-amber-200 rounded-xl text-center text-xs text-amber-800">
+                      Chưa cấu hình phí phạt nào cho loại kho này. Nhấn &quot;Thêm Phí Phạt&quot; ở trên để tạo.
+                    </div>
+                  ) : (
+                    formData.penaltyFees.map((fee) => (
+                      <div
+                        key={fee.id || fee.code}
+                        className="p-2.5 bg-white border border-amber-200 rounded-xl flex items-center justify-between gap-3 hover:border-amber-300 transition"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-800 text-xs">
+                              {fee.name}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-100/80 text-amber-800 border border-amber-200">
+                              {fee.code}
+                            </span>
+                            {fee.isLateFee && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                Nhân theo ngày trễ
+                              </span>
+                            )}
+                          </div>
+                          {fee.description ? (
+                            <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                              {fee.description}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right">
+                            <span className="font-black text-amber-700 text-xs">
+                              {fee.amount.toLocaleString('vi-VN')} đ
+                            </span>
+                            <span className="text-[10px] text-slate-500 ml-1 font-semibold">
+                              {fee.unit === 'VNĐ/ngày' ? '/ ngày' : ''}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditFeeForm(fee)}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition"
+                              title="Sửa khoản phí"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFeeItem(fee.id, fee.name)}
+                              className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                              title="Xóa khoản phí"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
