@@ -20,6 +20,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { io } from 'socket.io-client';
 import {
   supportApi,
   SupportTicketItem,
@@ -51,8 +52,9 @@ export default function StaffSupportTicketsView({
   const [replyNote, setReplyNote] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
 
-  const loadTickets = async () => {
-    setLoading(true);
+  const loadTickets = async (silent?: any) => {
+    const isSilent = silent === true;
+    if (!isSilent) setLoading(true);
     try {
       const res = await supportApi.findAll({
         facilityId: facilityId ? String(facilityId) : undefined,
@@ -60,18 +62,19 @@ export default function StaffSupportTicketsView({
       });
       const items = Array.isArray(res) ? res : res?.data || [];
       setTickets(items);
-      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      const targetTicketId = searchParams?.get('ticketId');
-      if (targetTicketId) {
-        const found = items.find((t: any) => String(t.id) === String(targetTicketId) || String(t.requestCode) === String(targetTicketId));
-        if (found) {
-          setSelectedTicket(found);
-        } else if (items.length > 0 && !selectedTicket) {
-          setSelectedTicket(items[0]);
+      setSelectedTicket((prev) => {
+        if (prev) {
+          const updated = items.find((t: any) => String(t.id) === String(prev.id));
+          if (updated) return { ...prev, ...updated };
         }
-      } else if (items.length > 0 && !selectedTicket) {
-        setSelectedTicket(items[0]);
-      }
+        const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+        const targetTicketId = searchParams?.get('ticketId');
+        if (targetTicketId) {
+          const found = items.find((t: any) => String(t.id) === String(targetTicketId) || String(t.requestCode) === String(targetTicketId));
+          if (found) return found;
+        }
+        return prev || (items.length > 0 ? items[0] : null);
+      });
     } catch (e) {
       console.warn('Could not load staff support tickets:', e);
       // Realistic fallback
@@ -143,12 +146,75 @@ export default function StaffSupportTicketsView({
         setSelectedTicket(mockTickets[0]);
       }
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadTickets();
+
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('token') || localStorage.getItem('access_token')
+        : null;
+
+    const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+    let storedUser: any = null;
+    try {
+      if (userStr) storedUser = JSON.parse(userStr);
+    } catch {}
+
+    const socket = io(`${SOCKET_URL}/notifications`, {
+      auth: {
+        token,
+        userId: storedUser?.id,
+        role: storedUser?.role,
+        facilityId: facilityId || storedUser?.facilityId,
+      },
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+    });
+
+    socket.on('connect', () => {
+      console.log('Realtime socket connected in StaffSupportTicketsView');
+      if (facilityId) {
+        socket.emit('join_facility', String(facilityId));
+      }
+    });
+
+    const handleCreated = (newTicket: SupportTicketItem) => {
+      console.log('Realtime support_ticket_created:', newTicket);
+      toast.info(`Phiếu hỗ trợ mới #${newTicket.requestCode || ''}`, {
+        description: newTicket.subject || 'Khách hàng vừa tạo phiếu hỗ trợ mới',
+        duration: 5000,
+      });
+      loadTickets(true);
+    };
+
+    const handleUpdated = (updatedTicket: SupportTicketItem) => {
+      console.log('Realtime support_ticket_updated:', updatedTicket);
+      loadTickets(true);
+    };
+
+    const handleNoteAdded = (payload: { ticketId: string; log: any }) => {
+      console.log('Realtime support_ticket_note_added:', payload);
+      loadTickets(true);
+    };
+
+    socket.on('support_ticket_created', handleCreated);
+    socket.on('support_ticket_updated', handleUpdated);
+    socket.on('support_ticket_note_added', handleNoteAdded);
+    socket.on('notification', (notif: any) => {
+      if (notif?.type === 'SUPPORT' || notif?.entityType === 'SUPPORT_REQUEST') {
+        loadTickets();
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [facilityId]);
 
   useEffect(() => {

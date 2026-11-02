@@ -365,7 +365,7 @@ export default function ContractModal({
                   <strong>4.1.</strong> Ngăn kho được trang bị khóa điện tử thông minh Keypad Smart Lock. Bên B được quyền ra vào cơ sở và mở khóa kho 24/7 bằng mã số điện tử cá nhân hoặc Thẻ từ RFID.
                 </p>
                 <p>
-                  <strong>4.2. Mã số mở khóa ban đầu:</strong> <span className="tabular-nums font-bold text-base text-[#4f39f6] bg-indigo-50 px-2.5 py-0.5 rounded border border-indigo-200">{appointment.accessPin || '682914'}</span>. Bên B có toàn quyền chủ động tự thay đổi mã số này trên ứng dụng bất kỳ lúc nào.
+                  <strong>4.2. Mã số mở khóa ban đầu:</strong> Để đảm bảo an toàn bảo mật, mã số mở khóa điện tử sẽ được hệ thống tự động kích hoạt và gửi riêng đến tài khoản của Bên B trên ứng dụng/website ngay sau khi Hợp đồng này được hai Bên hoàn tất ký kết. Bên B có toàn quyền chủ động tự thay đổi mã số này trên ứng dụng bất kỳ lúc nào.
                 </p>
                 <p>
                   <strong>4.3.</strong> Bên B có nghĩa vụ tự bảo mật mã khóa của mình. Bên A không giữ chìa khóa dự phòng và không can thiệp vào bên trong kho của Bên B trừ trường hợp khẩn cấp về an toàn PCCC hoặc theo yêu cầu bằng văn bản của cơ quan pháp luật có thẩm quyền.

@@ -48,6 +48,7 @@ export default function ManagerOverviewDashboard({
   pendingRenewalsCount,
 }: ManagerOverviewDashboardProps) {
   const [isRunningAi, setIsRunningAi] = useState(false);
+  const [selectedDisplayFacility, setSelectedDisplayFacility] = useState<string>(facilityName);
 
   const handleRunAiPrediction = async () => {
     try {
@@ -76,7 +77,7 @@ export default function ManagerOverviewDashboard({
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-indigo-300 border border-slate-700 text-xs font-semibold tracking-wide">
               <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-              <span>{displayRole} • {facilityName}</span>
+              <span>{displayRole} • {selectedDisplayFacility || facilityName}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Bảng Điều Khiển Cơ Sở
@@ -195,7 +196,11 @@ export default function ManagerOverviewDashboard({
       </div>
 
       {/* 2.5. Phân Hệ Giám Sát Doanh Số & Dòng Tiền Cơ Sở (Facility Revenue Analytics & Charts) */}
-      <FacilityRevenueAnalytics facilityName={facilityName} facilityId={facilityId} />
+      <FacilityRevenueAnalytics
+        facilityName={facilityName}
+        facilityId={facilityId}
+        onSelectFacility={(fac) => setSelectedDisplayFacility(fac.name)}
+      />
 
       {/* 3. Phân Hệ Quản Trị Dành Riêng Cho Quản Lý */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

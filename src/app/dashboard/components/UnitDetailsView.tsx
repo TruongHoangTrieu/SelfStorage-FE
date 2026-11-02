@@ -34,8 +34,11 @@ import {
   Radio,
   DoorClosed,
   RotateCcw,
+  Eye,
+  Receipt,
+  X,
 } from 'lucide-react';
-import { CustomerUnit, AccessLog } from '../types';
+import { CustomerUnit, AccessLog, PaymentRecord } from '../types';
 import StoredItemsTab from './StoredItemsTab';
 import ContractSignModal from './ContractSignModal';
 
@@ -63,6 +66,7 @@ export default function UnitDetailsView({
   // Tabs: 'overview' | 'items' | 'access' | 'logs' | 'history' (Flow 3)
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'items' | 'access' | 'logs' | 'history'>('overview');
   const [isContractSignOpen, setIsContractSignOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<PaymentRecord | null>(null);
   const [unlockStatus, setUnlockStatus] = useState<'idle' | 'unlocking' | 'unlocked'>('idle');
   const [fetchedPin, setFetchedPin] = useState<string>(unit.mainPin || '682914');
   const [showPinChange, setShowPinChange] = useState(false);
@@ -278,14 +282,14 @@ export default function UnitDetailsView({
                       Đang hoạt động
                     </span>
                   )}
-                  {unit.status === 'expiring' && (
+                  {unit.status === 'expiring' && unit.daysRemaining > 0 && (
                     <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-300">
-                      Sắp hết hạn ({unit.daysRemaining} ngày)
+                      Sắp đến hạn ({unit.daysRemaining} ngày)
                     </span>
                   )}
-                  {unit.status === 'overdue' && (
+                  {(unit.status === 'overdue' || (unit.status === 'expiring' && unit.daysRemaining <= 0)) && (
                     <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">
-                      Quá hạn thanh toán
+                      Hợp đồng đã đến hạn
                     </span>
                   )}
                 </>
@@ -647,28 +651,28 @@ export default function UnitDetailsView({
       {activeSubTab === 'access' && (
         <div className="space-y-6">
           {/* Smart Lock Remote Control */}
-          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xs border border-slate-800">
+          <div className="bg-slate-50 text-slate-900 rounded-2xl p-6 shadow-xs border border-slate-200">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-3 max-w-md">
-                <span className="text-xs uppercase font-semibold tracking-wider text-blue-400">
+                <span className="text-xs uppercase font-semibold tracking-wider text-blue-600">
                   Khóa Thông Minh (Smart Lock)
                 </span>
-                <h3 className="text-2xl font-extrabold text-white">
+                <h3 className="text-2xl font-extrabold text-slate-900">
                   Mở Khóa Từ Xa Cho Ô {unit.unitNumber}
                 </h3>
-                <p className="text-slate-400 text-xs leading-relaxed">
+                <p className="text-slate-600 text-xs leading-relaxed">
                   Khi bạn đứng gần cửa kho hoặc muốn mở cửa từ xa cho người thân, nhấn nút bên cạnh để truyền lệnh mở khóa.
                 </p>
 
                 <div className="pt-2 space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="text-xs text-slate-400">
-                      Mã PIN cá nhân: <span className="tabular-nums text-lg font-bold text-white ml-1 tracking-wider">{fetchedPin}</span>
+                    <div className="text-xs text-slate-600 font-medium">
+                      Mã PIN cá nhân: <span className="tabular-nums text-lg font-bold text-blue-600 ml-1 tracking-wider">{fetchedPin}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowPinChange(!showPinChange)}
-                      className="px-2.5 py-1 text-[11px] font-semibold text-blue-400 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-1"
+                      className="px-2.5 py-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-100/70 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
                     >
                       <KeyRound className="w-3 h-3" />
                       <span>{showPinChange ? 'Hủy' : 'Đổi mã PIN'}</span>
@@ -677,8 +681,8 @@ export default function UnitDetailsView({
 
                   {/* Inline Change PIN Form */}
                   {showPinChange && (
-                    <form onSubmit={handleChangePin} className="p-3.5 bg-slate-800/90 border border-slate-700/80 rounded-2xl space-y-2.5 animate-slide-up-fade">
-                      <div className="text-xs font-semibold text-slate-300">
+                    <form onSubmit={handleChangePin} className="p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 animate-slide-up-fade shadow-xs">
+                      <div className="text-xs font-semibold text-slate-700">
                         Nhập mã PIN mới (4 - 8 chữ số):
                       </div>
                       <div className="flex items-center gap-2">
@@ -689,7 +693,7 @@ export default function UnitDetailsView({
                           value={newPin}
                           onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
                           placeholder="Ví dụ: 123456"
-                          className="px-3 py-1.5 text-xs tabular-nums tracking-widest bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="px-3 py-1.5 text-xs tabular-nums tracking-widest bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button
                           type="submit"
@@ -711,7 +715,7 @@ export default function UnitDetailsView({
                       </div>
 
                       {pinMessage && (
-                        <div className={`text-[11px] ${pinMessage.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <div className={`text-[11px] font-semibold ${pinMessage.type === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
                           {pinMessage.text}
                         </div>
                       )}
@@ -1116,7 +1120,7 @@ export default function UnitDetailsView({
                     <th className="px-5 py-3 font-semibold">Số Tiền</th>
                     <th className="px-5 py-3 font-semibold">Phương Thức</th>
                     <th className="px-5 py-3 font-semibold">Trạng Thái</th>
-                    <th className="px-5 py-3 font-semibold text-right">Biên Lai</th>
+                    <th className="px-5 py-3 font-semibold text-right">Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -1141,11 +1145,13 @@ export default function UnitDetailsView({
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <button
-                          onClick={() => toast.info(`Đang tải hóa đơn điện tử VAT cho ${rec.invoiceNumber}...`)}
-                          className="text-blue-600 hover:underline font-semibold flex items-center justify-end gap-1 ml-auto"
+                          type="button"
+                          onClick={() => setSelectedInvoice(rec)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-xl transition cursor-pointer"
+                          title="Xem chi tiết hóa đơn"
                         >
-                          <Download className="w-3 h-3" />
-                          PDF
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Xem chi tiết</span>
                         </button>
                       </td>
                     </tr>
@@ -1208,6 +1214,125 @@ export default function UnitDetailsView({
           setIsContractSignOpen(false);
         }}
       />
+
+      {/* Modal Xem Chi Tiết Hóa Đơn */}
+      {selectedInvoice && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setSelectedInvoice(null)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-slide-up-fade"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+                    Chi Tiết Hóa Đơn Điện Tử
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                    #{selectedInvoice.invoiceNumber}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedInvoice(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-200/80 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                aria-label="Đóng"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-5 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    Tổng số tiền hóa đơn
+                  </span>
+                  <div className="text-2xl font-black text-slate-900 mt-1">
+                    {selectedInvoice.amount}
+                  </div>
+                </div>
+                <div>
+                  {selectedInvoice.status === 'paid' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Thành công
+                    </span>
+                  ) : selectedInvoice.status === 'pending' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      <Clock className="w-3.5 h-3.5" /> Chờ xử lý
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                      <AlertCircle className="w-3.5 h-3.5" /> Quá hạn / Thất bại
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 divide-y divide-slate-100">
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-slate-500">Mã hóa đơn / Giao dịch:</span>
+                  <span className="font-mono font-bold text-slate-900">{selectedInvoice.invoiceNumber}</span>
+                </div>
+                <div className="flex items-center justify-between pt-3">
+                  <span className="text-slate-500">Nội dung thanh toán:</span>
+                  <span className="font-bold text-slate-900 text-right">{selectedInvoice.period}</span>
+                </div>
+                <div className="flex items-center justify-between pt-3">
+                  <span className="text-slate-500">Ngày lập giao dịch:</span>
+                  <span className="font-semibold text-slate-800">{selectedInvoice.date}</span>
+                </div>
+                <div className="flex items-center justify-between pt-3">
+                  <span className="text-slate-500">Phương thức thanh toán:</span>
+                  <span className="font-semibold text-slate-800">
+                    {selectedInvoice.method === 'BANK_TRANSFER'
+                      ? 'Chuyển khoản ngân hàng (VietQR / SePay)'
+                      : selectedInvoice.method}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-3">
+                  <span className="text-slate-500">Cơ sở & Ngăn kho:</span>
+                  <span className="font-semibold text-slate-800 text-right">
+                    {unit.unitNumber} • {unit.facilityName}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-2">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Giá trị thanh toán gốc</span>
+                  <span className="font-semibold text-slate-800">{selectedInvoice.amount}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Phí giao dịch cổng thanh toán</span>
+                  <span className="font-semibold text-emerald-600">Miễn phí (0 đ)</span>
+                </div>
+                <div className="pt-2 border-t border-blue-100 flex items-center justify-between font-bold text-slate-900 text-sm">
+                  <span>Tổng thanh toán</span>
+                  <span className="text-blue-700">{selectedInvoice.amount}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 sm:px-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedInvoice(null)}
+                className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

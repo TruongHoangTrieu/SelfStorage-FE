@@ -217,7 +217,7 @@ export default function FacilityLayoutView({ facilityId, userRole, initialSubTab
           OUT_OF_SERVICE: rawSummary.OUT_OF_SERVICE ?? (data as any).statusCount?.OUT_OF_SERVICE ?? 0,
         };
 
-        const floors: StorageFloorLayout[] = ((data as any).floors || []).map((f: any) => ({
+        const rawFloors: StorageFloorLayout[] = ((data as any).floors || []).map((f: any) => ({
           floor: f.floor,
           total: f.total ?? f.unitCount ?? (f.units?.length || 0),
           occupied: f.occupied ?? (f.units?.filter((u: any) => u.status === 'OCCUPIED').length || 0),
@@ -226,6 +226,38 @@ export default function FacilityLayoutView({ facilityId, userRole, initialSubTab
           maintenance: f.maintenance ?? (f.units?.filter((u: any) => u.status === 'UNDER_MAINTENANCE').length || 0),
           units: f.units || [],
         }));
+
+        // Gộp các tầng trùng tên (ví dụ: 1 và "Tầng 1", 2 và "Tầng 2") thành 1 tầng duy nhất
+        const mergedFloorMap = new Map<string, StorageFloorLayout>();
+        rawFloors.forEach((f) => {
+          const cleanKey = String(f.floor)
+            .replace(/^tầng\s*/i, '')
+            .trim();
+          const normFloor = /^\d+$/.test(cleanKey) ? Number(cleanKey) : cleanKey;
+          const mapKey = String(normFloor).toLowerCase();
+
+          if (mergedFloorMap.has(mapKey)) {
+            const existing = mergedFloorMap.get(mapKey)!;
+            const existingUnitIds = new Set(existing.units.map((u) => String(u.id || u.unitNumber)));
+            const newUnits = (f.units || []).filter((u) => !existingUnitIds.has(String(u.id || u.unitNumber)));
+            const combinedUnits = [...existing.units, ...newUnits];
+            existing.units = combinedUnits;
+            existing.total = combinedUnits.length || existing.total + f.total;
+            existing.occupied = combinedUnits.filter((u) => u.status === 'OCCUPIED').length;
+            existing.available = combinedUnits.filter((u) => u.status === 'AVAILABLE').length;
+            existing.reserved = combinedUnits.filter((u) => u.status === 'RESERVED').length;
+            existing.maintenance = combinedUnits.filter((u) => u.status === 'UNDER_MAINTENANCE').length;
+          } else {
+            mergedFloorMap.set(mapKey, {
+              ...f,
+              floor: normFloor,
+            });
+          }
+        });
+
+        const floors: StorageFloorLayout[] = Array.from(mergedFloorMap.values()).sort((a, b) =>
+          String(a.floor).localeCompare(String(b.floor), undefined, { numeric: true })
+        );
 
         setLayout({
           facility: data.facility || {
@@ -772,43 +804,43 @@ export default function FacilityLayoutView({ facilityId, userRole, initialSubTab
 
       {/* Sub-Tabs: ONLY rendered for Manager & Admin */}
       {isManager && (
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 flex-wrap">
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 flex-nowrap overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveSubTab('layout')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
               activeSubTab === 'layout'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <Layers className="w-4 h-4" />
+            <Layers className="w-4 h-4 shrink-0" />
             <span>Sơ Đồ Mặt Bằng & Ô Kho 24/7</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSubTab('staff')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
               activeSubTab === 'staff'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <UserCheck className="w-4 h-4" />
+            <UserCheck className="w-4 h-4 shrink-0" />
             <span>Phân Công Nhân Sự Cơ Sở ({staffList.filter((s) => !s.endedAt).length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSubTab('photos')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
               activeSubTab === 'photos'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <Camera className="w-4 h-4" />
+            <Camera className="w-4 h-4 shrink-0" />
             <span>Hình Ảnh Cơ Sở</span>
           </button>
         </div>
@@ -819,10 +851,10 @@ export default function FacilityLayoutView({ facilityId, userRole, initialSubTab
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left 8 Cols: Floor Tabs & Unit Grid */}
           <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-6 sm:p-8 flex flex-col">
-            {/* Controls: Floor selector + Filters */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-              {/* Floor tabs - Clean label without duplicated "Tầng" */}
-              <div className="flex items-center gap-1.5 overflow-x-auto">
+            {/* Controls: Floor selector + Filters (Single horizontal row) */}
+            <div className="flex flex-nowrap items-center justify-between gap-3 pb-4 border-b border-slate-100 overflow-x-auto">
+              {/* Floor tabs - Clean single-line label without duplicated "Tầng" */}
+              <div className="flex items-center gap-2 shrink-0">
                 {(layout?.floors || []).map((f) => {
                   const rawFloor = String(f.floor).trim();
                   const floorLabel = rawFloor.toLowerCase().startsWith('tầng')
@@ -833,23 +865,23 @@ export default function FacilityLayoutView({ facilityId, userRole, initialSubTab
                       key={String(f.floor)}
                       type="button"
                       onClick={() => setSelectedFloor(f.floor)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                         String(selectedFloor) === String(f.floor)
                           ? 'bg-indigo-600 text-white shadow-xs'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
-                      <Layers className="w-3.5 h-3.5" />
+                      <Layers className="w-3.5 h-3.5 shrink-0" />
                       <span>{floorLabel}</span>
-                      <span className="text-[10px] opacity-80">({f.total ?? f.units?.length ?? 0} ô)</span>
+                      <span className="text-[11px] opacity-85">({f.total ?? f.units?.length ?? 0} ô)</span>
                     </button>
                   );
                 })}
               </div>
 
               {/* Status Filter & Search */}
-              <div className="flex items-center gap-2">
-                <div className="relative">
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="relative shrink-0">
                   <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
@@ -863,7 +895,7 @@ export default function FacilityLayoutView({ facilityId, userRole, initialSubTab
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <option value="ALL">Tất cả trạng thái</option>
                   <option value="AVAILABLE">Trống khả dụng</option>

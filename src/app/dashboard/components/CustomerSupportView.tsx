@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { io } from 'socket.io-client';
 import {
   supportApi,
   SupportTicketItem,
@@ -151,6 +152,73 @@ export default function CustomerSupportView({
 
   useEffect(() => {
     loadTickets();
+
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('token') || localStorage.getItem('access_token')
+        : null;
+
+    const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+    let storedUser: any = null;
+    try {
+      if (userStr) storedUser = JSON.parse(userStr);
+    } catch {}
+
+    const socket = io(`${SOCKET_URL}/notifications`, {
+      auth: {
+        token,
+        userId: storedUser?.id,
+        role: storedUser?.role,
+      },
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+    });
+
+    socket.on('connect', () => {
+      console.log('Realtime socket connected in CustomerSupportView');
+    });
+
+    const handleCreated = (newTicket: SupportTicketItem) => {
+      setTickets((prev) => {
+        if (prev.some((t) => t.id === newTicket.id)) return prev;
+        return [newTicket, ...prev];
+      });
+    };
+
+    const handleUpdated = (updatedTicket: SupportTicketItem) => {
+      setTickets((prev) =>
+        prev.map((t) => (t.id === updatedTicket.id ? { ...t, ...updatedTicket } : t))
+      );
+      setSelectedTicket((prev) =>
+        prev && prev.id === updatedTicket.id ? { ...prev, ...updatedTicket } : prev
+      );
+    };
+
+    const handleNoteAdded = (payload: { ticketId: string; log: any }) => {
+      setSelectedTicket((prev) => {
+        if (prev && prev.id === payload.ticketId) {
+          const currentLogs = prev.logs || [];
+          if (!currentLogs.some((l) => l.id === payload.log?.id)) {
+            return {
+              ...prev,
+              logs: [...currentLogs, payload.log],
+            };
+          }
+        }
+        return prev;
+      });
+      loadTickets();
+    };
+
+    socket.on('support_ticket_created', handleCreated);
+    socket.on('support_ticket_updated', handleUpdated);
+    socket.on('support_ticket_note_added', handleNoteAdded);
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   useEffect(() => {

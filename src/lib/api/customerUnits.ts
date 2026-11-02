@@ -34,13 +34,16 @@ export function normalizeCustomerContract(contract: any): CustomerUnit[] {
 
   if (contract.status === 'TERMINATED' || contract.status === 'EXPIRED') {
     uiStatus = 'overdue';
-    uiStatusLabel = 'Hết hạn';
+    uiStatusLabel = 'Hợp đồng đã đến hạn';
   } else if (contract.status === 'CHECKOUT_REQUESTED' || contract.status === 'CHECKING_OUT' || activeCheckoutRequest) {
     uiStatus = 'checkout_pending';
     uiStatusLabel = 'Đang xử lý trả kho';
+  } else if (daysRemaining <= 0) {
+    uiStatus = 'overdue';
+    uiStatusLabel = 'Hợp đồng đã đến hạn';
   } else if (daysRemaining <= 7) {
     uiStatus = 'expiring';
-    uiStatusLabel = `Sắp hết hạn (${daysRemaining} ngày)`;
+    uiStatusLabel = `Sắp đến hạn (${daysRemaining} ngày)`;
   }
 
   // Tính toán kỳ hạn hợp đồng: Ngày kết thúc phải là trước ngày tới hạn 1 ngày
