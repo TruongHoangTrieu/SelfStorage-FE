@@ -37,6 +37,8 @@ export interface CheckInAppointment {
   accessPin?: string;
   rfidCard?: string;
   contractCode?: string; // Mã hợp đồng sinh ra từ Backend (CON-...)
+  photos?: string[];
+  handoverPhotos?: string[];
   completedAt?: string;
   cancelReason?: string;
   rescheduledAt?: string;

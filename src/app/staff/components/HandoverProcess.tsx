@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ShieldCheck,
   Key,
@@ -119,8 +119,16 @@ export default function HandoverProcess({
   const [manualIdInput, setManualIdInput] = useState<string>('');
   const [manualIdType, setManualIdType] = useState<string>(appointment.identityType || 'CCCD');
   const [manualIdAddress, setManualIdAddress] = useState<string>(appointment.identityAddress || '');
-  const [identityFrontUrl, setIdentityFrontUrl] = useState<string>(appointment.identityFrontUrl || '');
-  const [identityBackUrl, setIdentityBackUrl] = useState<string>(appointment.identityBackUrl || '');
+  const [identityFrontUrl, setIdentityFrontUrl] = useState<string>(
+    appointment.identityFrontUrl && (appointment.identityFrontUrl.startsWith('http') || appointment.identityFrontUrl.startsWith('data:image'))
+      ? appointment.identityFrontUrl
+      : ''
+  );
+  const [identityBackUrl, setIdentityBackUrl] = useState<string>(
+    appointment.identityBackUrl && (appointment.identityBackUrl.startsWith('http') || appointment.identityBackUrl.startsWith('data:image'))
+      ? appointment.identityBackUrl
+      : ''
+  );
   const [isUploadingFront, setIsUploadingFront] = useState<boolean>(false);
   const [isUploadingBack, setIsUploadingBack] = useState<boolean>(false);
   const frontInputRef = useRef<HTMLInputElement>(null);
@@ -214,24 +222,33 @@ export default function HandoverProcess({
     }
   };
 
-  // Danh sách ảnh hiện trạng ô kho
-  const [photos, setPhotos] = useState([
-    {
-      id: 'photo-1',
-      title: 'Cửa cuốn & Ổ khóa thông minh',
-      url: 'https://images.unsplash.com/photo-1595246140625-573b715d11dc?w=800&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'photo-2',
-      title: 'Không gian bên trong ô kho',
-      url: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=800&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'photo-3',
-      title: 'Hệ thống PCCC & Hành lang',
-      url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80',
-    },
-  ]);
+  // Danh sách ảnh hiện trạng ô kho (bắt đầu rỗng cho đơn mới, không dùng ảnh giả)
+  const [photos, setPhotos] = useState<Array<{ id: string; title: string; url: string }>>(() => {
+    const existing = appointment.photos || (appointment as any).handoverPhotos;
+    if (Array.isArray(existing) && existing.length > 0) {
+      return existing.map((url: string, idx: number) => ({
+        id: `existing-photo-${idx}`,
+        title: `Ảnh hiện trạng ${idx + 1}`,
+        url,
+      }));
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    const existing = appointment.photos || (appointment as any).handoverPhotos;
+    if (Array.isArray(existing) && existing.length > 0) {
+      setPhotos(
+        existing.map((url: string, idx: number) => ({
+          id: `existing-photo-${idx}`,
+          title: `Ảnh hiện trạng ${idx + 1}`,
+          url,
+        }))
+      );
+    } else {
+      setPhotos([]);
+    }
+  }, [appointment.id]);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   // Checklist kiểm tra
@@ -867,8 +884,22 @@ export default function HandoverProcess({
             </div>
 
             {/* Gallery ảnh trực quan */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {photos.map((p) => (
+            {photos.length === 0 ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="p-8 border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl bg-slate-50/50 hover:bg-blue-50/20 flex flex-col items-center justify-center text-center cursor-pointer transition group"
+              >
+                <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-blue-100 text-slate-400 group-hover:text-blue-600 flex items-center justify-center mb-2.5 transition">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-bold text-slate-700">Chưa có ảnh hiện trạng kho nào</p>
+                <p className="text-[11px] text-slate-500 mt-1 max-w-sm">
+                  Nhấp vào đây hoặc nút &quot;Chụp / Thêm ảnh&quot; ở trên để tải lên ảnh chụp hiện trạng ô kho trước khi giao khách.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {photos.map((p) => (
                 <div
                   key={p.id}
                   onClick={() => setSelectedPhoto(p.url)}
@@ -898,7 +929,8 @@ export default function HandoverProcess({
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
 
             {/* Checklist kiểm tra 3 điểm nhanh */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
