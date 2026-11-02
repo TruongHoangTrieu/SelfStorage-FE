@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Clock,
   ArrowLeft,
@@ -21,44 +27,51 @@ import {
   Boxes,
   Users,
   Bell,
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { toast } from "sonner";
 
 // Import Types & APIs
-import { CheckInAppointment, AvailableUnit, FlowStep, StaffUser } from '../staff/types';
-import { ManagerTab } from './types';
-import { handoversApi } from '@/lib/api/handovers';
-import { renewalsApi } from '@/lib/api/renewals';
-import { approvalRequestsService } from '../staff/services/approvalRequests';
-import { useNotifications } from '@/lib/useNotifications';
+import {
+  CheckInAppointment,
+  AvailableUnit,
+  FlowStep,
+  StaffUser,
+} from "../staff/types";
+import { ManagerTab } from "./types";
+import { handoversApi } from "@/lib/api/handovers";
+import { renewalsApi } from "@/lib/api/renewals";
+import { approvalRequestsService } from "../staff/services/approvalRequests";
+import { useNotifications } from "@/lib/useNotifications";
 
 // Import Sub-Components
-import ManagerSidebar from './components/ManagerSidebar';
-import ManagerOverviewDashboard from './components/ManagerOverviewDashboard';
-import CheckInQueue, { checkAppointmentEligibility } from '../staff/components/CheckInQueue';
-import HandoverProcess from '../staff/components/HandoverProcess';
-import HandoverSuccess from '../staff/components/HandoverSuccess';
-import ContractModal from '../staff/components/ContractModal';
-import PrintModal from '../staff/components/PrintModal';
-import StaffProfileView from '../staff/components/StaffProfileView';
-import UnitTypesPricingManager from '../staff/components/UnitTypesPricingManager';
-import FacilityLayoutView from '../staff/components/FacilityLayoutView';
-import FeeTypesManagerTab from './components/FeeTypesManagerTab';
-import StaffSupportTicketsView from '../staff/components/StaffSupportTicketsView';
-import StaffRenewalsOverdueView from '../staff/components/StaffRenewalsOverdueView';
-import StaffLoginModal from '../staff/components/StaffLoginModal';
+import ManagerSidebar from "./components/ManagerSidebar";
+import ManagerOverviewDashboard from "./components/ManagerOverviewDashboard";
+import CheckInQueue, {
+  checkAppointmentEligibility,
+} from "../staff/components/CheckInQueue";
+import HandoverProcess from "../staff/components/HandoverProcess";
+import HandoverSuccess from "../staff/components/HandoverSuccess";
+import ContractModal from "../staff/components/ContractModal";
+import PrintModal from "../staff/components/PrintModal";
+import StaffProfileView from "../staff/components/StaffProfileView";
+import UnitTypesPricingManager from "../staff/components/UnitTypesPricingManager";
+import FacilityLayoutView from "../staff/components/FacilityLayoutView";
+import FeeTypesManagerTab from "./components/FeeTypesManagerTab";
+import StaffSupportTicketsView from "../staff/components/StaffSupportTicketsView";
+import StaffRenewalsOverdueView from "../staff/components/StaffRenewalsOverdueView";
+import StaffLoginModal from "../staff/components/StaffLoginModal";
 
 export default function ManagerPortalPage() {
   const router = useRouter();
 
   // Navigation & Sub-views State (Manager defaults to 'dashboard')
-  const [activeTab, setActiveTab] = useState<ManagerTab>('dashboard');
-  const [flowStep, setFlowStep] = useState<FlowStep>('queue');
+  const [activeTab, setActiveTab] = useState<ManagerTab>("dashboard");
+  const [flowStep, setFlowStep] = useState<FlowStep>("queue");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const handleToggleSidebar = () => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
       setIsMobileSidebarOpen((prev) => !prev);
     } else {
       setIsSidebarCollapsed((prev) => !prev);
@@ -83,47 +96,50 @@ export default function ManagerPortalPage() {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
+      if (
+        notifMenuRef.current &&
+        !notifMenuRef.current.contains(e.target as Node)
+      ) {
         setNotificationOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Sync tab with URL query parameter (?tab=support, etc.)
   const syncTabFromUrl = useCallback(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const tabParam = params.get('tab') as ManagerTab | null;
+    const tabParam = params.get("tab") as ManagerTab | null;
     if (tabParam) {
       const validTabs: ManagerTab[] = [
-        'dashboard',
-        'facility',
-        'facility_photos',
-        'unit_types',
-        'checkout',
-        'queue',
-        'support',
-        'profile',
-        'settings',
+        "dashboard",
+        "facility",
+        "facility_photos",
+        "unit_types",
+        "checkout",
+        "queue",
+        "support",
+        "profile",
+        "settings",
       ];
       if (validTabs.includes(tabParam)) {
         setActiveTab(tabParam);
-        if (tabParam === 'queue') setFlowStep('queue');
+        if (tabParam === "queue") setFlowStep("queue");
       }
     }
   }, []);
 
   useEffect(() => {
     syncTabFromUrl();
-    window.addEventListener('popstate', syncTabFromUrl);
-    window.addEventListener('manager-tab-change', syncTabFromUrl);
-    window.addEventListener('custom-tab-change', syncTabFromUrl);
+    window.addEventListener("popstate", syncTabFromUrl);
+    window.addEventListener("manager-tab-change", syncTabFromUrl);
+    window.addEventListener("custom-tab-change", syncTabFromUrl);
     return () => {
-      window.removeEventListener('popstate', syncTabFromUrl);
-      window.removeEventListener('manager-tab-change', syncTabFromUrl);
-      window.removeEventListener('custom-tab-change', syncTabFromUrl);
+      window.removeEventListener("popstate", syncTabFromUrl);
+      window.removeEventListener("manager-tab-change", syncTabFromUrl);
+      window.removeEventListener("custom-tab-change", syncTabFromUrl);
     };
   }, [syncTabFromUrl]);
 
@@ -133,64 +149,77 @@ export default function ManagerPortalPage() {
     }
     setNotificationOpen(false);
 
-    const notifType = String(notif.type || '').toUpperCase();
-    const entityType = String(notif.entityType || '').toUpperCase();
+    const notifType = String(notif.type || "").toUpperCase();
+    const entityType = String(notif.entityType || "").toUpperCase();
     const entityId = notif.entityId;
-    const text = `${notif.title || ''} ${notif.body || ''}`.toLowerCase();
+    const text = `${notif.title || ""} ${notif.body || ""}`.toLowerCase();
 
-    let targetTab: ManagerTab = 'dashboard';
-    let extraQuery = '';
+    let targetTab: ManagerTab = "dashboard";
+    let extraQuery = "";
 
     if (
-      notifType === 'SUPPORT' ||
-      entityType === 'SUPPORT_REQUEST' ||
-      text.includes('hỗ trợ') ||
-      text.includes('sự cố') ||
-      text.includes('khiếu nại')
+      notifType === "SUPPORT" ||
+      entityType === "SUPPORT_REQUEST" ||
+      text.includes("hỗ trợ") ||
+      text.includes("sự cố") ||
+      text.includes("khiếu nại")
     ) {
-      targetTab = 'support';
+      targetTab = "support";
       if (entityId) extraQuery = `&ticketId=${entityId}`;
     } else if (
-      notifType === 'RENEWAL' ||
-      notifType === 'OVERDUE' ||
-      text.includes('gia hạn') ||
-      text.includes('quá hạn')
+      notifType === "RENEWAL" ||
+      notifType === "OVERDUE" ||
+      text.includes("gia hạn") ||
+      text.includes("quá hạn")
     ) {
-      targetTab = 'checkout';
+      targetTab = "checkout";
     } else if (
-      notifType === 'RESERVATION' ||
-      notifType === 'HANDOVER' ||
-      text.includes('nhận kho') ||
-      text.includes('bàn giao') ||
-      text.includes('đặt chỗ')
+      notifType === "RESERVATION" ||
+      notifType === "HANDOVER" ||
+      text.includes("nhận kho") ||
+      text.includes("bàn giao") ||
+      text.includes("đặt chỗ")
     ) {
-      targetTab = 'queue';
-      setFlowStep('queue');
-    } else if (notifType === 'FACILITY' || text.includes('cơ sở') || text.includes('ảnh')) {
-      targetTab = 'facility_photos';
+      targetTab = "queue";
+      setFlowStep("queue");
+    } else if (
+      notifType === "FACILITY" ||
+      text.includes("cơ sở") ||
+      text.includes("ảnh")
+    ) {
+      targetTab = "facility_photos";
     } else {
-      targetTab = 'dashboard';
+      targetTab = "dashboard";
     }
 
     setActiveTab(targetTab);
-    if (typeof window !== 'undefined') {
-      window.history.pushState({}, '', `/manager?tab=${targetTab}${extraQuery}`);
-      window.dispatchEvent(new Event('manager-tab-change'));
-      window.dispatchEvent(new Event('custom-tab-change'));
+    if (typeof window !== "undefined") {
+      window.history.pushState(
+        {},
+        "",
+        `/manager?tab=${targetTab}${extraQuery}`,
+      );
+      window.dispatchEvent(new Event("manager-tab-change"));
+      window.dispatchEvent(new Event("custom-tab-change"));
     }
   };
 
   // Appointments & Units State
   const [appointments, setAppointments] = useState<CheckInAppointment[]>([]);
   const [availableUnits, setAvailableUnits] = useState<AvailableUnit[]>([]);
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('');
+  const [selectedAppointmentId, setSelectedAppointmentId] =
+    useState<string>("");
 
   // Handover Operations State (if Manager executes check-in)
-  const [selectedUnitCode, setSelectedUnitCode] = useState<string>('');
-  const [customPin, setCustomPin] = useState<string>('');
-  const [customRfid, setCustomRfid] = useState<string>('');
-  const [handoverCondition, setHandoverCondition] = useState('Kho sạch sẽ, không hư hỏng, khóa cửa hoạt động tốt');
-  const [handoverNotes, setHandoverNotes] = useState('Quản lý trực tiếp bàn giao mã PIN và hướng dẫn khách sử dụng');
+  const [selectedUnitCode, setSelectedUnitCode] = useState<string>("");
+  const [customPin, setCustomPin] = useState<string>("");
+  const [customRfid, setCustomRfid] = useState<string>("");
+  const [handoverCondition, setHandoverCondition] = useState(
+    "Kho sạch sẽ, không hư hỏng, khóa cửa hoạt động tốt",
+  );
+  const [handoverNotes, setHandoverNotes] = useState(
+    "Quản lý trực tiếp bàn giao mã PIN và hướng dẫn khách sử dụng",
+  );
   const [isSubmittingCheckIn, setIsSubmittingCheckIn] = useState(false);
 
   // Modals & Feedback State
@@ -199,12 +228,15 @@ export default function ManagerPortalPage() {
 
   // Cuộc hẹn đang được xử lý
   const currentAppointment = useMemo(() => {
-    return appointments.find((a) => a.id === selectedAppointmentId) || appointments[0];
+    return (
+      appointments.find((a) => a.id === selectedAppointmentId) ||
+      appointments[0]
+    );
   }, [appointments, selectedAppointmentId]);
 
   // Đếm số lượng đơn đang chờ
   const pendingCount = useMemo(() => {
-    return appointments.filter((a) => a.status !== 'completed').length;
+    return appointments.filter((a) => a.status !== "completed").length;
   }, [appointments]);
 
   // Helper avatar initials
@@ -217,68 +249,86 @@ export default function ManagerPortalPage() {
       return name.slice(0, 2).toUpperCase();
     }
     if (email) return email.slice(0, 2).toUpperCase();
-    return 'QL';
+    return "QL";
   };
 
   // Hàm tải dữ liệu từ Backend API
-  const loadBackendData = useCallback(async (showToast = false, facilityIdOverride?: string | number) => {
-    setIsLoadingQueue(true);
-    setIsRefreshing(true);
-    try {
-      const isOnline = await handoversApi.checkHealth();
-      setIsBackendOnline(isOnline);
+  const loadBackendData = useCallback(
+    async (showToast = false, facilityIdOverride?: string | number) => {
+      setIsLoadingQueue(true);
+      setIsRefreshing(true);
+      try {
+        const isOnline = await handoversApi.checkHealth();
+        setIsBackendOnline(isOnline);
 
-      const storedUser = handoversApi.getStoredUser();
-      const managerFacilityId = facilityIdOverride !== undefined ? facilityIdOverride : storedUser?.facilityId;
+        const storedUser = handoversApi.getStoredUser();
+        const managerFacilityId =
+          facilityIdOverride !== undefined
+            ? facilityIdOverride
+            : storedUser?.facilityId;
 
-      if (isOnline) {
-        // Lấy queue đơn đặt chỗ từ Backend API
-        const queueRes = await handoversApi.fetchCheckInQueue({
-          facilityId: managerFacilityId,
-        });
-        if (queueRes.items && queueRes.items.length > 0) {
-          const enhanced = queueRes.items.map((item) => approvalRequestsService.attachToAppointment(item));
-          setAppointments(enhanced);
-          setSelectedAppointmentId(enhanced[0].id);
-          setUsingLiveApi(true);
-          const facName = storedUser?.assignedFacility?.name || 'cơ sở';
-          if (showToast) toast.success(`Đã cập nhật ${enhanced.length} đơn nhận kho của ${facName}.`);
-        } else {
-          setAppointments([]);
-          setSelectedAppointmentId('');
-          setUsingLiveApi(true);
-          if (showToast) toast.info('Cơ sở hiện chưa có đơn nhận kho mới.');
-        }
-
-        // Lấy danh sách ô kho trống khả dụng
-        const unitsRes = await handoversApi.fetchAvailableUnits(managerFacilityId);
-        setAvailableUnits(unitsRes || []);
-
-        // Lấy số lượng yêu cầu gia hạn đang chờ duyệt
-        try {
-          const renRes = await renewalsApi.getRenewals({
-            facilityId: managerFacilityId ? String(managerFacilityId) : undefined,
-            status: 'PENDING',
+        if (isOnline) {
+          // Lấy queue đơn đặt chỗ từ Backend API
+          const queueRes = await handoversApi.fetchCheckInQueue({
+            facilityId: managerFacilityId,
           });
-          const renItems = Array.isArray(renRes) ? renRes : (renRes as any)?.data || [];
-          setPendingRenewalsCount(renItems.filter((r: any) => r.status === 'PENDING').length);
-        } catch {
-          // Bỏ qua lỗi phụ nếu chưa có dữ liệu gia hạn
+          if (queueRes.items && queueRes.items.length > 0) {
+            const enhanced = queueRes.items.map((item) =>
+              approvalRequestsService.attachToAppointment(item),
+            );
+            setAppointments(enhanced);
+            setSelectedAppointmentId(enhanced[0].id);
+            setUsingLiveApi(true);
+            const facName = storedUser?.assignedFacility?.name || "cơ sở";
+            if (showToast)
+              toast.success(
+                `Đã cập nhật ${enhanced.length} đơn nhận kho của ${facName}.`,
+              );
+          } else {
+            setAppointments([]);
+            setSelectedAppointmentId("");
+            setUsingLiveApi(true);
+            if (showToast) toast.info("Cơ sở hiện chưa có đơn nhận kho mới.");
+          }
+
+          // Lấy danh sách ô kho trống khả dụng
+          const unitsRes =
+            await handoversApi.fetchAvailableUnits(managerFacilityId);
+          setAvailableUnits(unitsRes || []);
+
+          // Lấy số lượng yêu cầu gia hạn đang chờ duyệt
+          try {
+            const renRes = await renewalsApi.getRenewals({
+              facilityId: managerFacilityId
+                ? String(managerFacilityId)
+                : undefined,
+              status: "PENDING",
+            });
+            const renItems = Array.isArray(renRes)
+              ? renRes
+              : (renRes as any)?.data || [];
+            setPendingRenewalsCount(
+              renItems.filter((r: any) => r.status === "PENDING").length,
+            );
+          } catch {
+            // Bỏ qua lỗi phụ nếu chưa có dữ liệu gia hạn
+          }
+        } else {
+          setUsingLiveApi(false);
+          setAppointments([]);
+          if (showToast) toast.info("Không thể kết nối đến máy chủ.");
         }
-      } else {
+      } catch {
+        setIsBackendOnline(false);
         setUsingLiveApi(false);
         setAppointments([]);
-        if (showToast) toast.info('Không thể kết nối đến máy chủ.');
+      } finally {
+        setIsLoadingQueue(false);
+        setIsRefreshing(false);
       }
-    } catch {
-      setIsBackendOnline(false);
-      setUsingLiveApi(false);
-      setAppointments([]);
-    } finally {
-      setIsLoadingQueue(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   // Khởi tạo kiểm tra kết nối & quyền truy cập Role Quản Lý
   useEffect(() => {
@@ -286,37 +336,39 @@ export default function ManagerPortalPage() {
     const stored = handoversApi.getStoredUser();
 
     if (!stored) {
-      if (typeof window !== 'undefined') {
-        window.location.replace('/login?redirect=/manager');
+      if (typeof window !== "undefined") {
+        window.location.replace("/login?redirect=/manager");
       }
       return;
     }
 
-    const roleName = (stored.role || '').toUpperCase();
+    const roleName = (stored.role || "").toUpperCase();
 
     // 1. Nếu là Khách hàng -> Chuyển về Dashboard
-    if (roleName === 'STORAGE_CUSTOMER') {
-      toast.error('Tài khoản Khách hàng không có quyền truy cập Cổng Quản Lý.');
-      if (typeof window !== 'undefined') {
-        window.location.replace('/dashboard');
+    if (roleName === "STORAGE_CUSTOMER") {
+      toast.error("Tài khoản Khách hàng không có quyền truy cập Cổng Quản Lý.");
+      if (typeof window !== "undefined") {
+        window.location.replace("/dashboard");
       }
       return;
     }
 
     // 2. Nếu là Nhân viên thuần (không phải Manager hay Admin) -> Chuyển về Cổng Nhân Viên /staff
-    const isManagerOrAdmin = 
-      roleName === 'FACILITY_MANAGER' ||
-      roleName === 'BUSINESS_OPERATIONS_MANAGER' ||
-      roleName === 'MANAGER' ||
-      roleName === 'SYSTEM_ADMINISTRATOR' ||
-      roleName === 'ADMIN' ||
-      roleName.includes('MANAGER') ||
-      roleName.includes('ADMIN');
+    const isManagerOrAdmin =
+      roleName === "FACILITY_MANAGER" ||
+      roleName === "BUSINESS_OPERATIONS_MANAGER" ||
+      roleName === "MANAGER" ||
+      roleName === "SYSTEM_ADMINISTRATOR" ||
+      roleName === "ADMIN" ||
+      roleName.includes("MANAGER") ||
+      roleName.includes("ADMIN");
 
     if (!isManagerOrAdmin) {
-      toast.warning('Tài khoản Nhân viên không có quyền truy cập Cổng Quản Lý. Đã chuyển về Cổng Nhân Viên.');
-      if (typeof window !== 'undefined') {
-        window.location.replace('/staff');
+      toast.warning(
+        "Tài khoản Nhân viên không có quyền truy cập Cổng Quản Lý. Đã chuyển về Cổng Nhân Viên.",
+      );
+      if (typeof window !== "undefined") {
+        window.location.replace("/staff");
       }
       return;
     }
@@ -326,28 +378,37 @@ export default function ManagerPortalPage() {
 
     // Kiểm tra query param tab (e.g. /manager?tab=facility)
     const checkTabQuery = () => {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
-        const tabParam = params.get('tab') as ManagerTab;
+        const tabParam = params.get("tab") as ManagerTab;
         if (
           tabParam &&
-          ['dashboard', 'facility', 'facility_photos', 'unit_types', 'checkout', 'queue', 'support', 'profile'].includes(tabParam)
+          [
+            "dashboard",
+            "facility",
+            "facility_photos",
+            "unit_types",
+            "checkout",
+            "queue",
+            "support",
+            "profile",
+          ].includes(tabParam)
         ) {
           setActiveTab(tabParam);
-          if (tabParam === 'queue') setFlowStep('queue');
+          if (tabParam === "queue") setFlowStep("queue");
         }
       }
     };
     checkTabQuery();
-    window.addEventListener('popstate', checkTabQuery);
-    return () => window.removeEventListener('popstate', checkTabQuery);
+    window.addEventListener("popstate", checkTabQuery);
+    return () => window.removeEventListener("popstate", checkTabQuery);
   }, [loadBackendData]);
 
   // Lắng nghe cập nhật phê duyệt từ localStorage (Cross-tab sync giữa Staff & Manager)
   useEffect(() => {
     const unsubscribe = approvalRequestsService.subscribe(() => {
       setAppointments((prev) =>
-        prev.map((item) => approvalRequestsService.attachToAppointment(item))
+        prev.map((item) => approvalRequestsService.attachToAppointment(item)),
       );
     });
     return () => unsubscribe();
@@ -357,23 +418,33 @@ export default function ManagerPortalPage() {
   const handleSelectAppointment = (appointment: CheckInAppointment) => {
     setSelectedAppointmentId(appointment.id);
     setSelectedUnitCode(appointment.assignedUnit);
-    setCustomPin(appointment.accessPin || Math.floor(100000 + Math.random() * 900000).toString());
-    setCustomRfid(appointment.rfidCard || `RFID-${Math.floor(1000 + Math.random() * 9000)}`);
+    setCustomPin(
+      appointment.accessPin ||
+        Math.floor(100000 + Math.random() * 900000).toString(),
+    );
+    setCustomRfid(
+      appointment.rfidCard || `RFID-${Math.floor(1000 + Math.random() * 9000)}`,
+    );
   };
 
   // Action: Bắt đầu nhận kho
   const handleStartCheckIn = async (apt: CheckInAppointment) => {
     const eligibility = checkAppointmentEligibility(apt);
     if (!eligibility.allowed) {
-      toast.warning(eligibility.reason || 'Chưa tới thời gian nhận kho (chỉ mở trước giờ hẹn 1 tiếng).');
+      toast.warning(
+        eligibility.reason ||
+          "Chưa tới thời gian nhận kho (chỉ mở trước giờ hẹn 1 tiếng).",
+      );
       return;
     }
 
     handleSelectAppointment(apt);
     setAppointments((prev) =>
-      prev.map((item) => (item.id === apt.id ? { ...item, status: 'in_progress' } : item)),
+      prev.map((item) =>
+        item.id === apt.id ? { ...item, status: "in_progress" } : item,
+      ),
     );
-    setFlowStep('handover');
+    setFlowStep("handover");
     toast.info(`Quản lý tiếp nhận bàn giao cho khách: ${apt.customerName}`);
   };
 
@@ -390,16 +461,19 @@ export default function ManagerPortalPage() {
     },
   ) => {
     if (!selectedUnitCode) {
-      toast.error('Vui lòng chọn ô kho được cấp cho khách.');
+      toast.error("Vui lòng chọn ô kho được cấp cho khách.");
       return;
     }
     if (!customPin || customPin.length < 4) {
-      toast.error('Vui lòng nhập mã PIN bảo mật tối thiểu 4 số.');
+      toast.error("Vui lòng nhập mã PIN bảo mật tối thiểu 4 số.");
       return;
     }
 
     setIsSubmittingCheckIn(true);
-    const nowTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const nowTime = new Date().toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     const finalUnit = selectedUnitCode || currentAppointment.assignedUnit;
 
     try {
@@ -417,7 +491,8 @@ export default function ManagerPortalPage() {
           isIdentityVerified: identityData?.isIdentityVerified,
         });
 
-        const backendAccessCode = response.contractItems?.[0]?.accessCode || customPin;
+        const backendAccessCode =
+          response.contractItems?.[0]?.accessCode || customPin;
         const backendContractCode = response.contract?.contractCode;
 
         setAppointments((prev) =>
@@ -425,7 +500,7 @@ export default function ManagerPortalPage() {
             item.id === currentAppointment.id
               ? {
                   ...item,
-                  status: 'completed',
+                  status: "completed",
                   assignedUnit: finalUnit,
                   accessPin: backendAccessCode,
                   contractCode: backendContractCode,
@@ -437,11 +512,13 @@ export default function ManagerPortalPage() {
         );
 
         setAvailableUnits((prev) =>
-          prev.map((u) => (u.code === finalUnit ? { ...u, status: 'occupied' } : u)),
+          prev.map((u) =>
+            u.code === finalUnit ? { ...u, status: "occupied" } : u,
+          ),
         );
 
         setCustomPin(backendAccessCode);
-        setFlowStep('success');
+        setFlowStep("success");
         toast.success(`Bàn giao thành công ô kho ${finalUnit}!`);
         return;
       } else {
@@ -451,7 +528,7 @@ export default function ManagerPortalPage() {
             item.id === selectedAppointmentId
               ? {
                   ...item,
-                  status: 'completed',
+                  status: "completed",
                   assignedUnit: finalUnit,
                   accessPin: customPin,
                   rfidCard: customRfid,
@@ -460,10 +537,10 @@ export default function ManagerPortalPage() {
               : item,
           ),
         );
-        setFlowStep('success');
+        setFlowStep("success");
       }
     } catch (err: any) {
-      toast.error(err.message || 'Có lỗi xảy ra khi hoàn tất bàn giao.');
+      toast.error(err.message || "Có lỗi xảy ra khi hoàn tất bàn giao.");
     } finally {
       setIsSubmittingCheckIn(false);
     }
@@ -473,7 +550,7 @@ export default function ManagerPortalPage() {
     apt: CheckInAppointment,
     newDateIso: string,
     newSlotTime: string,
-    notes?: string
+    notes?: string,
   ) => {
     try {
       if (isBackendOnline && apt.rawId) {
@@ -481,15 +558,15 @@ export default function ManagerPortalPage() {
       }
 
       const dateObj = new Date(newDateIso);
-      const day = dateObj.getDate().toString().padStart(2, '0');
-      const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+      const day = dateObj.getDate().toString().padStart(2, "0");
+      const month = (dateObj.getMonth() + 1).toString().padStart(2, "0");
       const year = dateObj.getFullYear();
       const startDateStr = `${day}/${month}/${year}`;
 
       const now = new Date();
       let dateDisplay = `${day}/${month}/${year}`;
       if (dateObj.toDateString() === now.toDateString()) {
-        dateDisplay = 'Hôm nay';
+        dateDisplay = "Hôm nay";
       }
 
       setAppointments((prev) =>
@@ -503,13 +580,15 @@ export default function ManagerPortalPage() {
                 dateDisplay,
                 specialNotes: notes ? `Dời hẹn: ${notes}` : item.specialNotes,
               }
-            : item
-        )
+            : item,
+        ),
       );
 
-      toast.success(`Đã dời lịch hẹn của khách ${apt.customerName} sang ${dateDisplay} (${newSlotTime}).`);
+      toast.success(
+        `Đã dời lịch hẹn của khách ${apt.customerName} sang ${dateDisplay} (${newSlotTime}).`,
+      );
     } catch (err: any) {
-      toast.error(err?.message || 'Không thể dời lịch hẹn.');
+      toast.error(err?.message || "Không thể dời lịch hẹn.");
       throw err;
     }
   };
@@ -517,7 +596,7 @@ export default function ManagerPortalPage() {
   const handleCancelOrNoShow = async (
     apt: CheckInAppointment,
     reason: string,
-    depositHandling: 'forfeit' = 'forfeit'
+    depositHandling: "forfeit" = "forfeit",
   ) => {
     try {
       if (isBackendOnline && apt.rawId) {
@@ -529,20 +608,22 @@ export default function ManagerPortalPage() {
           item.id === apt.id
             ? {
                 ...item,
-                status: 'cancelled',
+                status: "cancelled",
                 cancelReason: `${reason} (Khấu trừ 100% tiền cọc về hệ thống)`,
               }
-            : item
-        )
+            : item,
+        ),
       );
 
       setAvailableUnits((prev) =>
-        prev.map((u) => (u.code === apt.assignedUnit ? { ...u, status: 'vacant' } : u))
+        prev.map((u) =>
+          u.code === apt.assignedUnit ? { ...u, status: "vacant" } : u,
+        ),
       );
 
       toast.success(`Đã hủy lịch hẹn ${apt.id} và giải phóng ô kho.`);
     } catch (err: any) {
-      toast.error(err?.message || 'Không thể hủy lịch hẹn.');
+      toast.error(err?.message || "Không thể hủy lịch hẹn.");
       throw err;
     }
   };
@@ -551,29 +632,37 @@ export default function ManagerPortalPage() {
   const handleManagerReopen = async (
     apt: CheckInAppointment,
     reason: string,
-    managerName: string
+    managerName: string,
   ) => {
     const now = new Date();
     const nowIso = now.toISOString();
-    const nowTime = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const nowTime = now.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
     const expiryIso = endOfDay.toISOString();
 
-    approvalRequestsService.approveRequest(apt.id, managerName, reason, expiryIso);
+    approvalRequestsService.approveRequest(
+      apt.id,
+      managerName,
+      reason,
+      expiryIso,
+    );
 
     setAppointments((prev) =>
       prev.map((item) =>
         item.id === apt.id
           ? {
               ...item,
-              status: 'confirmed',
+              status: "confirmed",
               appointmentDateRaw: nowIso,
               slotTime: `${nowTime} (Đã duyệt)`,
-              dateDisplay: 'Hôm nay',
-              timeCategory: now.getHours() < 12 ? 'morning' : 'afternoon',
-              managerApprovalStatus: 'approved',
+              dateDisplay: "Hôm nay",
+              timeCategory: now.getHours() < 12 ? "morning" : "afternoon",
+              managerApprovalStatus: "approved",
               managerApprovedAt: nowIso,
               managerApprovedExpiry: expiryIso,
               managerApproverName: managerName,
@@ -584,18 +673,21 @@ export default function ManagerPortalPage() {
                 ? `${item.specialNotes} | [Quản lý duyệt mở lại - Hạn hết ngày]: ${reason} (Duyệt: ${managerName})`
                 : `[Quản lý duyệt mở lại - Hạn hết ngày]: ${reason} (Duyệt: ${managerName})`,
             }
-          : item
-      )
+          : item,
+      ),
     );
 
     toast.success(
-      `Quản lý đã phê duyệt mở lại đơn ${apt.id} (hiệu lực đến hết hôm nay 23:59)! Ô kho ${apt.assignedUnit} sẵn sàng bàn giao.`
+      `Quản lý đã phê duyệt mở lại đơn ${apt.id} (hiệu lực đến hết hôm nay 23:59)! Ô kho ${apt.assignedUnit} sẵn sàng bàn giao.`,
     );
   };
 
   // Action: Quản lý từ chối mở lại đơn quá hạn
-  const handleManagerReject = async (apt: CheckInAppointment, reason: string) => {
-    const managerName = currentUser?.fullName || 'Quản lý cơ sở';
+  const handleManagerReject = async (
+    apt: CheckInAppointment,
+    reason: string,
+  ) => {
+    const managerName = currentUser?.fullName || "Quản lý cơ sở";
     approvalRequestsService.rejectRequest(apt.id, managerName, reason);
 
     setAppointments((prev) =>
@@ -603,12 +695,12 @@ export default function ManagerPortalPage() {
         item.id === apt.id
           ? {
               ...item,
-              managerApprovalStatus: 'rejected',
+              managerApprovalStatus: "rejected",
               managerApprovalRejectReason: reason,
               managerApproverName: managerName,
             }
-          : item
-      )
+          : item,
+      ),
     );
 
     toast.info(`Quản lý đã từ chối yêu cầu mở lại đơn ${apt.id}.`);
@@ -625,12 +717,12 @@ export default function ManagerPortalPage() {
     try {
       handoversApi.logout();
       setCurrentUser(null);
-      toast.success('Đã đăng xuất tài khoản Quản lý.');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login?redirect=/manager';
+      toast.success("Đã đăng xuất tài khoản Quản lý.");
+      if (typeof window !== "undefined") {
+        window.location.href = "/login?redirect=/manager";
       }
     } catch {
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
   };
 
@@ -639,20 +731,22 @@ export default function ManagerPortalPage() {
   const rawFacilityName =
     currentUser?.assignedFacility?.name ||
     currentUser?.facilityName ||
-    'Trụ Sở Chính Võ Nguyên Giáp';
-  const facilityName = rawFacilityName.replace(/^Kho\s+Tự\s+Quản\s+/i, '').trim();
+    "Trụ Sở Chính Võ Nguyên Giáp";
+  const facilityName = rawFacilityName
+    .replace(/^Kho\s+Tự\s+Quản\s+/i, "")
+    .trim();
 
   const currentTabLabel = {
-    dashboard: 'Bảng Điều Khiển Tổng Quan',
-    facility: 'Sơ Đồ Cơ Sở & Phân Công Nhân Sự',
-    facility_photos: 'Quản Lý Hình Ảnh Cơ Sở',
-    unit_types: 'Quản Lý Loại Kho & Bảng Giá',
-    fee_types: 'Cấu Hình Phí Phụ Thu',
-    checkout: 'Thủ Tục Trả Kho & Phê Duyệt Gia Hạn',
-    queue: 'Giám Sát Quầy Nhận Kho',
-    support: 'Giám Sát Xử Lý Sự Cố & Khiếu Nại',
-    profile: 'Hồ Sơ Quản Lý & Bảo Mật',
-    settings: 'Cài Đặt Cổng Chi Nhánh',
+    dashboard: "Bảng Điều Khiển Tổng Quan",
+    facility: "Sơ Đồ Cơ Sở & Phân Công Nhân Sự",
+    facility_photos: "Quản Lý Hình Ảnh Cơ Sở",
+    unit_types: "Quản Lý Loại Kho & Bảng Giá",
+    fee_types: "Cấu Hình Phí Phạt",
+    checkout: "Thủ Tục Trả Kho & Phê Duyệt Gia Hạn",
+    queue: "Giám Sát Quầy Nhận Kho",
+    support: "Giám Sát Xử Lý Sự Cố & Khiếu Nại",
+    profile: "Hồ Sơ Quản Lý & Bảo Mật",
+    settings: "Cài Đặt Cổng Chi Nhánh",
   }[activeTab];
 
   return (
@@ -671,7 +765,11 @@ export default function ManagerPortalPage() {
           </button>
 
           {/* Logo hệ thống chuẩn nhận diện thương hiệu giống /staff */}
-          <Link href="/" className="inline-flex items-center group py-1 pl-1" title="Về trang chủ SelfStorage">
+          <Link
+            href="/"
+            className="inline-flex items-center group py-1 pl-1"
+            title="Về trang chủ SelfStorage"
+          >
             <img
               src="/logo.png"
               alt="SelfStorage Logo"
@@ -689,7 +787,6 @@ export default function ManagerPortalPage() {
 
         {/* Right: Actions, Facility Badge & Manager Profile */}
         <div className="flex items-center gap-2.5 sm:gap-4">
-
           {/* Notification Bell with Badge & Dropdown */}
           <div className="relative" ref={notifMenuRef}>
             <button
@@ -702,7 +799,7 @@ export default function ManagerPortalPage() {
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-white animate-pulse">
-                  {unreadCount > 99 ? '99+' : unreadCount}
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
             </button>
@@ -737,8 +834,8 @@ export default function ManagerPortalPage() {
                         onClick={() => handleNotificationClick(notif)}
                         className={`p-2.5 rounded-xl border transition-all cursor-pointer space-y-1 hover:border-indigo-300 hover:shadow-xs group ${
                           notif.isRead
-                            ? 'bg-slate-50/60 border-slate-100 opacity-75'
-                            : 'bg-indigo-50/40 border-indigo-100/80 shadow-2xs'
+                            ? "bg-slate-50/60 border-slate-100 opacity-75"
+                            : "bg-indigo-50/40 border-indigo-100/80 shadow-2xs"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1.5 text-[11px]">
@@ -749,10 +846,13 @@ export default function ManagerPortalPage() {
                             {notif.title}
                           </span>
                           <span className="text-[10px] text-slate-400 shrink-0">
-                            {new Date(notif.createdAt).toLocaleDateString('vi-VN', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
+                            {new Date(notif.createdAt).toLocaleDateString(
+                              "vi-VN",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
@@ -777,7 +877,7 @@ export default function ManagerPortalPage() {
             <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
               <button
                 type="button"
-                onClick={() => setActiveTab('profile')}
+                onClick={() => setActiveTab("profile")}
                 className="flex items-center gap-2 text-left cursor-pointer group hover:opacity-85 transition-opacity"
                 title="Hồ sơ & Đổi mật khẩu Quản lý"
               >
@@ -789,7 +889,9 @@ export default function ManagerPortalPage() {
                     {currentUser.fullName}
                   </div>
                   <div className="text-[10px] text-indigo-600 font-extrabold uppercase tracking-wider">
-                    {currentUser.role === 'BUSINESS_OPERATIONS_MANAGER' ? 'GIÁM ĐỐC VẬN HÀNH' : 'QUẢN LÝ CHI NHÁNH'}
+                    {currentUser.role === "BUSINESS_OPERATIONS_MANAGER"
+                      ? "GIÁM ĐỐC VẬN HÀNH"
+                      : "QUẢN LÝ CHI NHÁNH"}
                   </div>
                 </div>
               </button>
@@ -822,7 +924,7 @@ export default function ManagerPortalPage() {
           activeTab={activeTab}
           onSelectTab={(tab) => {
             setActiveTab(tab);
-            if (tab === 'queue') setFlowStep('queue');
+            if (tab === "queue") setFlowStep("queue");
           }}
           pendingCount={pendingCount}
           pendingRenewalsCount={pendingRenewalsCount}
@@ -846,15 +948,17 @@ export default function ManagerPortalPage() {
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
           <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
             {/* TAB 1: BẢNG ĐIỀU KHIỂN TỔNG QUAN QUẢN LÝ (DEFAULT) */}
-            {activeTab === 'dashboard' && (
+            {activeTab === "dashboard" && (
               <ManagerOverviewDashboard
-                facilityName={currentUser?.assignedFacility?.name || 'Chi nhánh Landmark 81'}
+                facilityName={
+                  currentUser?.assignedFacility?.name || "Chi nhánh Landmark 81"
+                }
                 facilityId={currentUser?.facilityId}
                 managerName={currentUser?.fullName}
                 managerRole={currentUser?.role}
                 onNavigateTab={(tab) => {
                   setActiveTab(tab);
-                  if (tab === 'queue') setFlowStep('queue');
+                  if (tab === "queue") setFlowStep("queue");
                 }}
                 pendingCheckInsCount={pendingCount}
                 pendingRenewalsCount={pendingRenewalsCount}
@@ -862,41 +966,53 @@ export default function ManagerPortalPage() {
             )}
 
             {/* TAB 2: SƠ ĐỒ MẶT BẰNG & PHÂN CÔNG NHÂN SỰ & HÌNH ẢNH */}
-            {(activeTab === 'facility' || activeTab === 'facility_photos') && (
+            {(activeTab === "facility" || activeTab === "facility_photos") && (
               <FacilityLayoutView
-                facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''}
-                userRole={currentUser?.role || 'FACILITY_MANAGER'}
-                initialSubTab={activeTab === 'facility_photos' ? 'photos' : 'layout'}
+                facilityId={
+                  currentUser?.facilityId ||
+                  currentUser?.assignedFacility?.id ||
+                  ""
+                }
+                userRole={currentUser?.role || "FACILITY_MANAGER"}
+                initialSubTab={
+                  activeTab === "facility_photos" ? "photos" : "layout"
+                }
               />
             )}
 
             {/* TAB 3: QUẢN LÝ LOẠI KHO & BẢNG GIÁ (CHỈ MỞ CHO MANAGER & ADMIN) */}
-            {activeTab === 'unit_types' && (
+            {activeTab === "unit_types" && (
               <UnitTypesPricingManager
                 currentFacilityId={currentUser?.facilityId}
                 currentUser={currentUser}
               />
             )}
 
-            {/* TAB MỚI: CẤU HÌNH PHÍ PHỤ THU CỦA QUẢN LÝ CƠ SỞ (FACILITY MANAGER) */}
-            {activeTab === 'fee_types' && (
+            {/* TAB MỚI: Cấu hình phí phạt CỦA QUẢN LÝ CƠ SỞ (FACILITY MANAGER) */}
+            {activeTab === "fee_types" && (
               <FeeTypesManagerTab currentUser={currentUser} />
             )}
 
             {/* TAB 4: PHÊ DUYỆT GIA HẠN & XỬ LÝ QUÁ HẠN (CRON SCAN & MIỄN GIẢM PHẠT) */}
-            {activeTab === 'checkout' && (
+            {activeTab === "checkout" && (
               <StaffRenewalsOverdueView
-                facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''}
+                facilityId={
+                  currentUser?.facilityId ||
+                  currentUser?.assignedFacility?.id ||
+                  ""
+                }
               />
             )}
 
             {/* TAB 5: GIÁM SÁT TIẾP NHẬN BÀN GIAO TẠI QUẦY */}
-            {activeTab === 'queue' && flowStep === 'queue' && (
+            {activeTab === "queue" && flowStep === "queue" && (
               <div className="space-y-4">
                 <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 flex items-center gap-2.5 text-xs text-indigo-900 font-semibold">
                   <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0" />
                   <span>
-                    Đang xem <strong>Hàng đợi nhận kho tại cơ sở</strong> dưới quyền Quản Lý. Bạn có thể giám sát tiến độ hoặc trực tiếp hỗ trợ thực hiện thủ tục bàn giao.
+                    Đang xem <strong>Hàng đợi nhận kho tại cơ sở</strong> dưới
+                    quyền Quản Lý. Bạn có thể giám sát tiến độ hoặc trực tiếp hỗ
+                    trợ thực hiện thủ tục bàn giao.
                   </span>
                 </div>
 
@@ -914,7 +1030,7 @@ export default function ManagerPortalPage() {
             )}
 
             {/* FLOW BÀN GIAO (NẾU QUẢN LÝ THỰC HIỆN CHECK-IN) */}
-            {activeTab === 'queue' && flowStep === 'handover' && (
+            {activeTab === "queue" && flowStep === "handover" && (
               <HandoverProcess
                 appointment={currentAppointment}
                 availableUnits={availableUnits}
@@ -929,15 +1045,15 @@ export default function ManagerPortalPage() {
                 notes={handoverNotes}
                 onChangeNotes={setHandoverNotes}
                 isSubmitting={isSubmittingCheckIn}
-                staffName={currentUser?.fullName || 'Quản lý cơ sở'}
-                onBackToQueue={() => setFlowStep('queue')}
+                staffName={currentUser?.fullName || "Quản lý cơ sở"}
+                onBackToQueue={() => setFlowStep("queue")}
                 onOpenContractModal={() => setIsContractModalOpen(true)}
                 onOpenPrintModal={() => setIsPrintModalOpen(true)}
                 onCompleteHandover={handleCompleteHandover}
               />
             )}
 
-            {activeTab === 'queue' && flowStep === 'success' && (
+            {activeTab === "queue" && flowStep === "success" && (
               <HandoverSuccess
                 appointment={currentAppointment}
                 assignedUnit={selectedUnitCode}
@@ -945,21 +1061,27 @@ export default function ManagerPortalPage() {
                 customRfid={customRfid}
                 onOpenPrintModal={() => setIsPrintModalOpen(true)}
                 onSendNotification={() => {
-                  toast.success(`Đã gửi SMS & Email mã khóa cho khách: ${currentAppointment.phone}`);
+                  toast.success(
+                    `Đã gửi SMS & Email mã khóa cho khách: ${currentAppointment.phone}`,
+                  );
                 }}
-                onBackToQueue={() => setFlowStep('queue')}
+                onBackToQueue={() => setFlowStep("queue")}
               />
             )}
 
             {/* TAB 6: GIÁM SÁT SỰ CỐ & HỖ TRỢ KỸ THUẬT */}
-            {activeTab === 'support' && (
+            {activeTab === "support" && (
               <StaffSupportTicketsView
-                facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''}
+                facilityId={
+                  currentUser?.facilityId ||
+                  currentUser?.assignedFacility?.id ||
+                  ""
+                }
               />
             )}
 
             {/* TAB 7: HỒ SƠ QUẢN LÝ & BẢO MẬT */}
-            {activeTab === 'profile' && (
+            {activeTab === "profile" && (
               <StaffProfileView
                 currentUser={currentUser}
                 onUserUpdated={(updated) => setCurrentUser(updated)}
@@ -993,7 +1115,9 @@ export default function ManagerPortalPage() {
         onClose={() => setIsLoginModalOpen(false)}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
-          toast.success(`Đăng nhập thành công: ${user.fullName} (${user.role})`);
+          toast.success(
+            `Đăng nhập thành công: ${user.fullName} (${user.role})`,
+          );
           loadBackendData(true, user.facilityId);
         }}
       />
