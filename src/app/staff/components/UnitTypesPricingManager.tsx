@@ -35,16 +35,41 @@ interface Facility {
   address?: string;
 }
 
+export function parsePenaltyFees(desc?: string | null) {
+  let description = desc || '';
+  let lateFeePerDay = 50000;
+  let cleaningFee = 50000;
+  let damageFee = 100000;
+
+  const match = description.match(/\[PENALTY:\s*lateFeePerDay=(\d+),\s*cleaningFee=(\d+),\s*damageFee=(\d+)\]/i);
+  if (match) {
+    lateFeePerDay = parseInt(match[1], 10) || 50000;
+    cleaningFee = parseInt(match[2], 10) || 50000;
+    damageFee = parseInt(match[3], 10) || 100000;
+    description = description.replace(match[0], '').trim();
+  }
+  return { description, lateFeePerDay, cleaningFee, damageFee };
+}
+
+export function formatPenaltyDescription(desc: string, lateFeePerDay: number, cleaningFee: number, damageFee: number) {
+  const clean = (desc || '').replace(/\[PENALTY:[^\]]*\]/gi, '').trim();
+  return `${clean} [PENALTY: lateFeePerDay=${lateFeePerDay}, cleaningFee=${cleaningFee}, damageFee=${damageFee}]`.trim();
+}
+
 export interface UnitTypeItem {
   id: string | number;
   facilityId: string | number;
   name: string;
   code: string;
   description: string | null;
+  cleanDescription?: string;
   size: number | string;
   sizeUnit: string;
   price: number;
   depositAmount: number | string;
+  lateFeePerDay?: number;
+  cleaningFee?: number;
+  damageFee?: number;
   status: 'ACTIVE' | 'INACTIVE';
   totalUnits: number;
   availableUnits: number;
@@ -110,6 +135,9 @@ export default function UnitTypesPricingManager({
     sizeUnit: 'm2',
     price: 1500000,
     depositAmount: 1500000,
+    lateFeePerDay: 50000,
+    cleaningFee: 50000,
+    damageFee: 100000,
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE',
     initialUnitsCount: 0,
     initialUnitsFloor: '1',
@@ -165,7 +193,17 @@ export default function UnitTypesPricingManager({
       const data = await api.get(
         `/storage-unit-types?facilityId=${selectedFacilityId}`,
       );
-      const list = Array.isArray(data) ? data : data?.data || [];
+      const rawList = Array.isArray(data) ? data : data?.data || [];
+      const list = rawList.map((u: any) => {
+        const { description, lateFeePerDay, cleaningFee, damageFee } = parsePenaltyFees(u.description);
+        return {
+          ...u,
+          cleanDescription: description,
+          lateFeePerDay: u.lateFeePerDay || lateFeePerDay,
+          cleaningFee: u.cleaningFee || cleaningFee,
+          damageFee: u.damageFee || damageFee,
+        };
+      });
       setUnitTypes(list);
     } catch (err: any) {
       console.error('Failed to load unit types', err);
@@ -209,6 +247,9 @@ export default function UnitTypesPricingManager({
       sizeUnit: 'm2',
       price: 1600000,
       depositAmount: 1500000,
+      lateFeePerDay: 50000,
+      cleaningFee: 50000,
+      damageFee: 100000,
       status: 'ACTIVE',
       initialUnitsCount: 2, // Gợi ý khởi tạo sẵn 2 ô trống khi tạo loại kho mới
       initialUnitsFloor: '1',
@@ -234,14 +275,18 @@ export default function UnitTypesPricingManager({
       return;
     }
     setEditingItem(item);
+    const { description: cleanDesc, lateFeePerDay, cleaningFee, damageFee } = parsePenaltyFees(item.description);
     setFormData({
       name: item.name,
       code: item.code,
-      description: item.description || '',
+      description: item.cleanDescription || cleanDesc,
       size: Number(item.size),
       sizeUnit: item.sizeUnit || 'm2',
       price: Number(item.price || item.depositAmount),
       depositAmount: Number(item.depositAmount),
+      lateFeePerDay: item.lateFeePerDay || lateFeePerDay,
+      cleaningFee: item.cleaningFee || cleaningFee,
+      damageFee: item.damageFee || damageFee,
       status: item.status,
       initialUnitsCount: 0,
       initialUnitsFloor: '1',
@@ -356,11 +401,18 @@ export default function UnitTypesPricingManager({
       let unitTypeId = editingItem ? editingItem.id : null;
 
       if (editingItem) {
+        const combinedDescription = formatPenaltyDescription(
+          formData.description,
+          formData.lateFeePerDay,
+          formData.cleaningFee,
+          formData.damageFee,
+        );
+
         // UPDATE PATCH
         await api.patch(`/storage-unit-types/${editingItem.id}`, {
           name: formData.name.trim(),
           code: formData.code.trim().toUpperCase(),
-          description: formData.description.trim() || null,
+          description: combinedDescription || null,
           size: Number(formData.size),
           sizeUnit: formData.sizeUnit.trim(),
           price: Number(formData.price),
@@ -369,12 +421,19 @@ export default function UnitTypesPricingManager({
         });
         toast.success(`Đã cập nhật bảng giá loại kho "${formData.name}" thành công!`);
       } else {
+        const combinedDescription = formatPenaltyDescription(
+          formData.description,
+          formData.lateFeePerDay,
+          formData.cleaningFee,
+          formData.damageFee,
+        );
+
         // CREATE POST
         const createRes = await api.post('/storage-unit-types', {
           facilityId: targetFacilityId,
           name: formData.name.trim(),
           code: formData.code.trim().toUpperCase(),
-          description: formData.description.trim() || null,
+          description: combinedDescription || null,
           size: Number(formData.size),
           sizeUnit: formData.sizeUnit.trim(),
           price: Number(formData.price),
@@ -673,9 +732,17 @@ export default function UnitTypesPricingManager({
                                 {item.code}
                               </span>
                             </div>
-                            {item.description && (
+                            <div className="mt-1 flex flex-wrap gap-1.5 items-center">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title="Phí phạt trễ hẹn trả kho mỗi ngày">
+                                Phạt trễ: {(item.lateFeePerDay || 50000).toLocaleString('vi-VN')} đ/ngày
+                              </span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200" title="Phụ phí vệ sinh khi trả kho dơ">
+                                Vệ sinh: {(item.cleaningFee || 50000).toLocaleString('vi-VN')} đ
+                              </span>
+                            </div>
+                            {item.cleanDescription && (
                               <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1 max-w-xs">
-                                {item.description}
+                                {item.cleanDescription}
                               </p>
                             )}
                           </div>
@@ -811,17 +878,17 @@ export default function UnitTypesPricingManager({
         )}
       </div>
 
-      {/* MODAL: CREATE / EDIT UNIT TYPE */}
+      {/* MODAL: CREATE / EDIT UNIT TYPE (FIXED COMPACT HEIGHT & ALWAYS VISIBLE CLOSE BUTTON) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-slide-up-fade">
-            {/* Modal Header */}
-            <div className="p-6 bg-gradient-to-r from-blue-900 to-indigo-900 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto animate-slide-up-fade">
+            {/* Modal Header - Always fixed at top */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-900 to-indigo-900 text-white flex items-center justify-between shrink-0 shadow-xs z-10">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-blue-200">
                   {editingItem ? 'CẬP NHẬT LOẠI KHO' : 'TẠO MỚI LOẠI KHO'}
                 </span>
-                <h3 className="text-lg font-black mt-0.5">
+                <h3 className="text-base sm:text-lg font-black mt-0.5">
                   {editingItem
                     ? `Chỉnh Sửa: ${editingItem.name}`
                     : 'Thêm Loại Ngăn Kho & Thiết Lập Bảng Giá'}
@@ -830,14 +897,15 @@ export default function UnitTypesPricingManager({
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 text-white/70 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+                className="p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 transition cursor-pointer"
+                title="Đóng cửa sổ"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSubmitForm} className="p-6 space-y-4">
+            {/* Modal Form - Scrollable Body */}
+            <form onSubmit={handleSubmitForm} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
               <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-2xl flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Building2 className="w-5 h-5 text-blue-600 shrink-0" />
@@ -978,6 +1046,88 @@ export default function UnitTypesPricingManager({
                 </div>
               </div>
 
+              {/* BIỂU PHÍ PHẠT & PHỤ PHÍ KHI TRẢ KHO CỦA LOẠI KHO NÀY */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/90 to-orange-50/50 border border-amber-200/90 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4 text-amber-600" />
+                    <span>Cấu Hình Phí Phạt &amp; Phụ Phí (Loại Kho Này)</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-amber-800 bg-white px-2 py-0.5 rounded-md border border-amber-200">
+                    Áp dụng khi trả kho
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Phạt trễ hẹn (VNĐ/ngày) *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="5000"
+                      required
+                      value={formData.lateFeePerDay}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          lateFeePerDay: Math.max(0, parseInt(e.target.value) || 0),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs sm:text-sm font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                    <span className="text-[10px] text-amber-700 mt-1 block">
+                      Tự nhân ngày trễ (Tối đa 30 ngày)
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Phụ phí vệ sinh (VNĐ)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="5000"
+                      value={formData.cleaningFee}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          cleaningFee: Math.max(0, parseInt(e.target.value) || 0),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Kho còn rác / vết dơ
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Bồi thường hư hại (VNĐ)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10000"
+                      value={formData.damageFee}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          damageFee: Math.max(0, parseInt(e.target.value) || 0),
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">
+                      Trầy xước vách, hỏng chốt...
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Mô tả chi tiết */}
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1.5">
@@ -1111,19 +1261,19 @@ export default function UnitTypesPricingManager({
                 </div>
               </div>
 
-              {/* Modal Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              {/* Modal Buttons - Sticky at bottom */}
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white/95 backdrop-blur-xs -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 shrink-0 shadow-lg z-10">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 >
-                  Hủy Bỏ
+                  Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-600/25 transition cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-md shadow-blue-600/25 transition cursor-pointer disabled:opacity-50"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>{editingItem ? 'Lưu Thay Đổi' : 'Tạo Loại Kho Mới'}</span>

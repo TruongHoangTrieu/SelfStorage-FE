@@ -56,7 +56,7 @@ import PrintModal from "../staff/components/PrintModal";
 import StaffProfileView from "../staff/components/StaffProfileView";
 import UnitTypesPricingManager from "../staff/components/UnitTypesPricingManager";
 import FacilityLayoutView from "../staff/components/FacilityLayoutView";
-import FeeTypesManagerTab from "./components/FeeTypesManagerTab";
+
 import StaffSupportTicketsView from "../staff/components/StaffSupportTicketsView";
 import StaffRenewalsOverdueView from "../staff/components/StaffRenewalsOverdueView";
 import StaffLoginModal from "../staff/components/StaffLoginModal";
@@ -988,10 +988,7 @@ export default function ManagerPortalPage() {
               />
             )}
 
-            {/* TAB MỚI: Cấu hình phí phạt CỦA QUẢN LÝ CƠ SỞ (FACILITY MANAGER) */}
-            {activeTab === "fee_types" && (
-              <FeeTypesManagerTab currentUser={currentUser} />
-            )}
+
 
             {/* TAB 4: PHÊ DUYỆT GIA HẠN & XỬ LÝ QUÁ HẠN (CRON SCAN & MIỄN GIẢM PHẠT) */}
             {activeTab === "checkout" && (

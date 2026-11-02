@@ -95,11 +95,7 @@ export default function ManagerSidebar({
       label: "Loại kho & Bảng giá",
       icon: Boxes,
     },
-    {
-      id: "fee_types" as ManagerTab,
-      label: "Cấu hình phí phạt",
-      icon: Receipt,
-    },
+
     {
       id: "checkout" as ManagerTab,
       label: "Thủ tục trả kho & Gia hạn",
