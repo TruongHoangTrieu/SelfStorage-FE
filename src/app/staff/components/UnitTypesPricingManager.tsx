@@ -148,15 +148,7 @@ export function formatPenaltyDescription(desc: string, penaltyFees: UnitPenaltyF
     .replace(/\[PENALTIES_JSON:[\s\S]*?\]/gi, '')
     .replace(/\[PENALTY:[^\]]*\]/gi, '')
     .trim();
-
-  const lateFee = penaltyFees.find((p) => p.code === 'LATE_FEE' || p.isLateFee)?.amount || 50000;
-  const cleanFee = penaltyFees.find((p) => p.code === 'CLEANING')?.amount || 50000;
-  const damageFee = penaltyFees.find((p) => p.code === 'SCRATCHES')?.amount || 100000;
-
-  const legacyTag = `[PENALTY: lateFeePerDay=${lateFee}, cleaningFee=${cleanFee}, damageFee=${damageFee}]`;
-  const jsonTag = `[PENALTIES_JSON: ${JSON.stringify(penaltyFees)}]`;
-
-  return `${clean} ${legacyTag} ${jsonTag}`.trim();
+  return clean;
 }
 
 export interface UnitTypeItem {
@@ -306,7 +298,21 @@ export default function UnitTypesPricingManager({
       );
       const rawList = Array.isArray(data) ? data : data?.data || [];
       const list = rawList.map((u: any) => {
-        const { cleanDescription, penaltyFees, lateFeePerDay, cleaningFee, damageFee } = parsePenaltyFees(u.description);
+        let { cleanDescription, penaltyFees, lateFeePerDay, cleaningFee, damageFee } = parsePenaltyFees(u.description);
+        if (typeof window !== 'undefined') {
+          const cached = localStorage.getItem(`unit_penalties_${u.id}`);
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                penaltyFees = parsed;
+                lateFeePerDay = penaltyFees.find((p) => p.code === 'LATE_FEE' || p.isLateFee)?.amount || lateFeePerDay;
+                cleaningFee = penaltyFees.find((p) => p.code === 'CLEANING')?.amount || cleaningFee;
+                damageFee = penaltyFees.find((p) => p.code === 'SCRATCHES')?.amount || damageFee;
+              }
+            } catch {}
+          }
+        }
         return {
           ...u,
           cleanDescription,
@@ -595,6 +601,10 @@ export default function UnitTypesPricingManager({
           formData.penaltyFees,
         );
 
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`unit_penalties_${editingItem.id}`, JSON.stringify(formData.penaltyFees));
+        }
+
         // UPDATE PATCH
         await api.patch(`/storage-unit-types/${editingItem.id}`, {
           name: formData.name.trim(),
@@ -626,6 +636,9 @@ export default function UnitTypesPricingManager({
           status: formData.status,
         });
         unitTypeId = createRes?.id || createRes?.data?.id;
+        if (unitTypeId && typeof window !== 'undefined') {
+          localStorage.setItem(`unit_penalties_${unitTypeId}`, JSON.stringify(formData.penaltyFees));
+        }
         toast.success(`Đã tạo loại ngăn kho mới "${formData.name}" thành công!`);
       }
 

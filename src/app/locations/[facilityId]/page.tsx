@@ -653,7 +653,7 @@ export default function FacilityDetailPage({
                           {/* 4. Description if provided */}
                           {unit.description && (
                             <p className="text-[11px] text-slate-600 leading-relaxed mb-4 line-clamp-2">
-                              {unit.description}
+                              {unit.description.replace(/\[PENALTIES_JSON:[\s\S]*?\]/gi, '').replace(/\[PENALTY:[^\]]*\]/gi, '').trim()}
                             </p>
                           )}
 

@@ -1093,7 +1093,7 @@ function BookingFlowContent() {
                               </h3>
 
                               <p className="text-xs text-slate-500 font-medium line-clamp-3 mb-4 leading-relaxed">
-                                {ut.description || `Kho tiêu chuẩn kích thước ${ut.size} ${ut.sizeUnit}`}
+                                {(ut.description ? ut.description.replace(/\[PENALTIES_JSON:[\s\S]*?\]/gi, '').replace(/\[PENALTY:[^\]]*\]/gi, '').trim() : '') || `Kho tiêu chuẩn kích thước ${ut.size} ${ut.sizeUnit}`}
                               </p>
                             </div>
 
