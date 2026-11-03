@@ -35,6 +35,10 @@ export const notificationsApi = {
     return api.get<NotificationResponse>(`/notifications${queryString ? `?${queryString}` : ''}`);
   },
 
+  getDetail: (id: string) => {
+    return api.get<NotificationItem & { relatedEntity?: any }>('/notifications/' + id);
+  },
+
   getUnreadCount: () => {
     return api.get<{ unreadCount: number }>('/notifications/unread-count');
   },

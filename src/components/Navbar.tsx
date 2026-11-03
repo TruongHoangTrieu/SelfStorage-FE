@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useNotifications } from "@/lib/useNotifications";
+import NotificationDetailModal from "@/components/NotificationDetailModal";
 
 type UserType = {
   id?: number | string;
@@ -38,6 +39,8 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [viewingNotif, setViewingNotif] = useState<any>(null);
+  const [viewingTargetUrl, setViewingTargetUrl] = useState<string>("");
 
   const { notifications, unreadCount, markAsRead, markAllAsRead } =
     useNotifications(user?.id);
@@ -244,7 +247,7 @@ export default function Navbar() {
 
   const handleNotificationClick = (notif: any) => {
     if (!notif.isRead) {
-      markAsRead(notif.id);
+      markAsRead(notif.id).catch(() => {});
     }
     setNotificationOpen(false);
 
@@ -258,12 +261,9 @@ export default function Navbar() {
 
     const notifType = String(notif.type || '').toUpperCase();
     const entityType = String(notif.entityType || '').toUpperCase();
-    const entityId = notif.entityId;
     const text = `${notif.title || ''} ${notif.body || ''}`.toLowerCase();
 
     let targetUrl = '';
-
-    // 1. Yêu cầu hỗ trợ / Sự cố / Khiếu nại
     if (
       notifType === 'SUPPORT' ||
       entityType === 'SUPPORT_REQUEST' ||
@@ -271,91 +271,37 @@ export default function Navbar() {
       text.includes('sự cố') ||
       text.includes('khiếu nại')
     ) {
-      if (isManagerRole || isPureStaffRole) {
-        targetUrl = `/manager?tab=support${entityId ? `&ticketId=${entityId}` : ''}`;
-      } else {
-        targetUrl = `/dashboard?tab=support`;
-      }
-    }
-    // 2. Gia hạn / Quá hạn
-    else if (
+      targetUrl = isManagerRole ? '/manager?tab=support' : isPureStaffRole ? '/staff?tab=support' : '/dashboard?tab=support';
+    } else if (
       notifType === 'RENEWAL' ||
       notifType === 'OVERDUE' ||
+      notifType === 'CHECKOUT' ||
       text.includes('gia hạn') ||
-      text.includes('quá hạn')
+      text.includes('quá hạn') ||
+      text.includes('trả kho')
     ) {
-      if (isManagerRole || isPureStaffRole) {
-        targetUrl = '/manager?tab=checkout';
-      } else {
-        targetUrl = '/dashboard?tab=billing';
-      }
-    }
-    // 3. Đặt chỗ / Nhận kho / Bàn giao
-    else if (
+      targetUrl = isManagerRole ? '/manager?tab=checkout' : isPureStaffRole ? '/staff?tab=checkout' : '/dashboard?tab=billing';
+    } else if (
       notifType === 'RESERVATION' ||
       notifType === 'HANDOVER' ||
       text.includes('nhận kho') ||
       text.includes('bàn giao') ||
       text.includes('đặt chỗ')
     ) {
-      if (isManagerRole || isPureStaffRole) {
-        targetUrl = '/manager?tab=queue';
-      } else {
-        targetUrl = '/dashboard?tab=my_units';
-      }
-    }
-    // 4. Hợp đồng
-    else if (notifType === 'CONTRACT' || text.includes('hợp đồng')) {
-      if (isManagerRole || isPureStaffRole) {
-        targetUrl = '/manager?tab=checkout';
-      } else {
-        targetUrl = '/dashboard?tab=documents';
-      }
-    }
-    // 5. Thanh toán / Hóa đơn
-    else if (notifType === 'PAYMENT' || text.includes('thanh toán') || text.includes('hóa đơn')) {
-      if (isManagerRole || isPureStaffRole) {
-        targetUrl = '/manager?tab=dashboard';
-      } else {
-        targetUrl = '/dashboard?tab=billing';
-      }
-    }
-    // 6. Cơ sở / Mặt bằng / Ảnh
-    else if (notifType === 'FACILITY' || text.includes('cơ sở') || text.includes('mặt bằng')) {
-      if (isManagerRole || isPureStaffRole) {
-        targetUrl = '/manager?tab=facility_photos';
-      } else {
-        targetUrl = '/locations';
-      }
-    }
-    // 7. Mặc định theo vai trò
-    else {
-      if (isManagerRole) {
-        targetUrl = '/manager';
-      } else if (isPureStaffRole) {
-        targetUrl = '/staff';
-      } else {
-        targetUrl = '/dashboard';
-      }
+      targetUrl = isManagerRole ? '/manager?tab=queue' : isPureStaffRole ? '/staff?tab=queue' : '/dashboard?tab=my_units';
+    } else if (notifType === 'CONTRACT' || text.includes('hợp đồng')) {
+      targetUrl = isManagerRole ? '/manager?tab=checkout' : isPureStaffRole ? '/staff?tab=checkout' : '/dashboard?tab=documents';
+    } else if (notifType === 'PAYMENT' || text.includes('thanh toán') || text.includes('hóa đơn')) {
+      targetUrl = isManagerRole ? '/manager?tab=dashboard' : isPureStaffRole ? '/staff?tab=dashboard' : '/dashboard?tab=billing';
+    } else if (notifType === 'FACILITY' || text.includes('cơ sở') || text.includes('mặt bằng')) {
+      targetUrl = isManagerRole ? '/manager?tab=facility_photos' : isPureStaffRole ? '/staff?tab=facility' : '/locations';
+    } else {
+      targetUrl = isManagerRole ? '/manager' : isPureStaffRole ? '/staff' : '/dashboard';
     }
 
-    if (targetUrl) {
-      const [targetPath] = targetUrl.split('?');
-      if (typeof window !== 'undefined') {
-        if (window.location.pathname === targetPath) {
-          window.history.pushState({}, '', targetUrl);
-          window.dispatchEvent(new Event('manager-tab-change'));
-          window.dispatchEvent(new Event('custom-tab-change'));
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        } else {
-          router.push(targetUrl);
-        }
-      } else {
-        router.push(targetUrl);
-      }
-    }
+    setViewingTargetUrl(targetUrl);
+    setViewingNotif(notif);
   };
-
   // Optimized, non-redundant nav links
   const navLinks = [
     { label: "Dịch Vụ", href: "/#services" },
@@ -466,7 +412,10 @@ export default function Navbar() {
                         notifications.map((notif) => (
                           <div
                             key={notif.id}
-                            onClick={() => handleNotificationClick(notif)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNotificationClick(notif);
+                            }}
                             className={`p-2.5 rounded-xl border transition-all cursor-pointer space-y-1 hover:border-blue-300 hover:shadow-xs group ${
                               notif.isRead
                                 ? 'bg-slate-50/60 border-slate-100 opacity-75'
@@ -980,6 +929,25 @@ export default function Navbar() {
           )}
         </div>
       )}
+
+      {/* Notification In-Place Detail Modal */}
+      <NotificationDetailModal
+        isOpen={Boolean(viewingNotif)}
+        notification={viewingNotif}
+        onClose={() => setViewingNotif(null)}
+        targetUrl={viewingTargetUrl}
+        onNavigate={(url) => {
+          setViewingNotif(null);
+          const [targetPath] = url.split('?');
+          if (typeof window !== 'undefined' && window.location.pathname === targetPath) {
+            window.history.replaceState({}, '', url);
+            window.dispatchEvent(new Event('manager-tab-change'));
+            window.dispatchEvent(new Event('custom-tab-change'));
+          } else {
+            router.push(url);
+          }
+        }}
+      />
     </header>
   );
 }

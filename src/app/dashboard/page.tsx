@@ -48,7 +48,16 @@ import CustomerBillingView from './components/CustomerBillingView';
 
 export default function CustomerDashboardPage() {
   // Navigation & Sub-views State
-  const [activeTab, setActiveTab] = useState<CustomerTab>('my_units');
+  const [activeTab, setActiveTab] = useState<CustomerTab>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') as CustomerTab;
+      if (tabParam && ['my_units', 'billing', 'access', 'documents', 'support', 'profile'].includes(tabParam)) {
+        return tabParam;
+      }
+    }
+    return 'my_units';
+  });
   const [viewMode, setViewMode] = useState<'grid' | 'details'>('grid');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -223,6 +232,20 @@ export default function CustomerDashboardPage() {
         const tabParam = params.get('tab') as CustomerTab;
         if (tabParam && ['my_units', 'billing', 'access', 'documents', 'support', 'profile'].includes(tabParam)) {
           setActiveTab(tabParam);
+        }
+        const unitId = params.get('unitId');
+        const contractId = params.get('contractId');
+        if ((unitId || contractId) && units && units.length > 0) {
+          const matched = units.find(
+            (u) =>
+              String(u.id) === String(unitId) ||
+              String(u.rawContractId) === String(contractId) ||
+              String(u.contractId) === String(contractId) ||
+              String(u.unitNumber).toLowerCase() === String(unitId || '').toLowerCase()
+          );
+          if (matched) {
+            setSelectedUnitId(matched.id);
+          }
         }
       }
     };
@@ -514,7 +537,12 @@ export default function CustomerDashboardPage() {
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
-                onClick={() => setActiveTab('profile')}
+                onClick={() => {
+                  setActiveTab('profile');
+                  if (typeof window !== 'undefined') {
+                    window.history.replaceState({}, '', '/dashboard?tab=profile');
+                  }
+                }}
                 className="flex items-center gap-2 text-left hover:opacity-85 transition cursor-pointer"
                 title="Xem hồ sơ cá nhân"
               >
@@ -559,6 +587,10 @@ export default function CustomerDashboardPage() {
             setActiveTab(tab);
             if (tab === 'my_units') setViewMode('grid');
             setIsMobileSidebarOpen(false);
+            if (typeof window !== 'undefined') {
+              const targetUrl = tab === 'my_units' ? '/dashboard' : `/dashboard?tab=${tab}`;
+              window.history.replaceState({}, '', targetUrl);
+            }
           }}
           activeUnitCount={units.length}
           customerUser={customerUser}

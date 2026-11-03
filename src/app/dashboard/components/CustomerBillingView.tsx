@@ -26,10 +26,15 @@ interface CustomerBillingViewProps {
 export default function CustomerBillingView({ units }: CustomerBillingViewProps) {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<PaymentRecord | null>(null);
 
-  const loadPayments = async () => {
-    setLoading(true);
+  const loadPayments = async (showFullLoading = false) => {
+    if (showFullLoading || payments.length === 0) {
+      setLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
     try {
       const data = await customerUnitsApi.fetchPayments();
       if (data && data.length > 0) {
@@ -66,12 +71,69 @@ export default function CustomerBillingView({ units }: CustomerBillingViewProps)
       console.warn('Could not load payments:', e);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
     loadPayments();
-  }, [units]);
+  }, []);
+
+  // Cập nhật dữ liệu hóa đơn dự phòng khi danh sách units từ server tải xong
+  useEffect(() => {
+    if (payments.length === 0 && units.length > 0) {
+      const unitPayments = units.flatMap((u) => u.paymentHistory || []);
+      if (unitPayments.length > 0) {
+        setPayments(unitPayments);
+      }
+    }
+  }, [units, payments.length]);
+
+  const handleCloseInvoiceModal = () => {
+    setSelectedInvoice(null);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('paymentId')) {
+        params.delete('paymentId');
+        const newQuery = params.toString();
+        const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  };
+
+  // Tự động mở chi tiết hóa đơn khi có tham số paymentId trên URL và dọn sạch URL sau khi mở
+  useEffect(() => {
+    const checkPaymentQuery = () => {
+      if (typeof window !== 'undefined' && payments.length > 0) {
+        const params = new URLSearchParams(window.location.search);
+        const paymentId = params.get('paymentId');
+        if (paymentId) {
+          const found = payments.find(
+            (p) =>
+              String(p.id).toLowerCase() === String(paymentId).toLowerCase() ||
+              String(p.invoiceNumber).toLowerCase() === String(paymentId).toLowerCase() ||
+              String((p as any).paymentCode || '').toLowerCase() === String(paymentId).toLowerCase() ||
+              String(p.id).toLowerCase().includes(String(paymentId).toLowerCase()) ||
+              String(paymentId).toLowerCase().includes(String(p.id).toLowerCase()) ||
+              (p.invoiceNumber && p.invoiceNumber.toLowerCase().includes(paymentId.toLowerCase()))
+          );
+          if (found) {
+            setSelectedInvoice(found);
+            params.delete('paymentId');
+            const newQuery = params.toString();
+            const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+          }
+        }
+      }
+    };
+    checkPaymentQuery();
+    window.addEventListener('custom-tab-change', checkPaymentQuery);
+    return () => {
+      window.removeEventListener('custom-tab-change', checkPaymentQuery);
+    };
+  }, [payments]);
 
   // Aggregate stats
   const totalPaidNum = payments
@@ -123,16 +185,20 @@ export default function CustomerBillingView({ units }: CustomerBillingViewProps)
           <h3 className="text-xs font-bold text-slate-700">Lịch Sử Giao Dịch & Hóa Đơn</h3>
           <button
             type="button"
-            onClick={loadPayments}
-            className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+            onClick={() => loadPayments(false)}
+            disabled={isRefreshing || loading}
+            className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Làm mới</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
+            <span>{isRefreshing ? 'Đang cập nhật...' : 'Làm mới'}</span>
           </button>
         </div>
 
-        {loading ? (
-          <div className="p-8 text-center text-slate-400 text-xs">Đang tải lịch sử thanh toán...</div>
+        {loading && payments.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+            <span>Đang tải lịch sử thanh toán...</span>
+          </div>
         ) : payments.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-xs">Chưa có giao dịch thanh toán nào.</div>
         ) : (
@@ -195,7 +261,7 @@ export default function CustomerBillingView({ units }: CustomerBillingViewProps)
       {selectedInvoice && (
         <div
           className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setSelectedInvoice(null)}
+          onClick={handleCloseInvoiceModal}
         >
           <div
             className="bg-white rounded-3xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-slide-up-fade"
@@ -218,7 +284,7 @@ export default function CustomerBillingView({ units }: CustomerBillingViewProps)
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedInvoice(null)}
+                onClick={handleCloseInvoiceModal}
                 className="w-8 h-8 rounded-full hover:bg-slate-200/80 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer"
                 aria-label="Đóng"
               >
@@ -317,7 +383,7 @@ export default function CustomerBillingView({ units }: CustomerBillingViewProps)
             <div className="p-4 sm:px-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
               <button
                 type="button"
-                onClick={() => setSelectedInvoice(null)}
+                onClick={handleCloseInvoiceModal}
                 className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition cursor-pointer"
               >
                 Đóng

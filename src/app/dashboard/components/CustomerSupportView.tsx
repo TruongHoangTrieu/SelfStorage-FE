@@ -152,6 +152,16 @@ export default function CustomerSupportView({
 
   useEffect(() => {
     loadTickets();
+    const handleUrlTicketChange = () => {
+      if (typeof window === 'undefined') return;
+      const searchParams = new URLSearchParams(window.location.search);
+      const targetTicketId = searchParams.get('ticketId');
+      if (targetTicketId) {
+        loadTickets();
+      }
+    };
+    window.addEventListener('popstate', handleUrlTicketChange);
+    window.addEventListener('custom-tab-change', handleUrlTicketChange);
 
     const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
     const token =
@@ -217,6 +227,8 @@ export default function CustomerSupportView({
     socket.on('support_ticket_note_added', handleNoteAdded);
 
     return () => {
+      window.removeEventListener('popstate', handleUrlTicketChange);
+      window.removeEventListener('custom-tab-change', handleUrlTicketChange);
       socket.disconnect();
     };
   }, []);
