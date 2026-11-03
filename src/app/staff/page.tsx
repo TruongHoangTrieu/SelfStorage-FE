@@ -52,6 +52,8 @@ import StaffSupportTicketsView from './components/StaffSupportTicketsView';
 import StaffRenewalsOverdueView from './components/StaffRenewalsOverdueView';
 import StaffOverviewDashboard from './components/StaffOverviewDashboard';
 import RentalPaymentModal from './components/RentalPaymentModal';
+import NotificationDetailModal from '@/components/NotificationDetailModal';
+import { subscribeSupportRealtimeEvent } from '@/lib/api/support';
 
 export default function StaffPortalPage() {
   const router = useRouter();
@@ -97,6 +99,8 @@ export default function StaffPortalPage() {
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [viewingNotif, setViewingNotif] = useState<any>(null);
+  const [viewingTargetUrl, setViewingTargetUrl] = useState<string>('');
   const notifRef = React.useRef<HTMLDivElement>(null);
   const [rentalPaymentApt, setRentalPaymentApt] = useState<CheckInAppointment | null>(null);
 
@@ -185,12 +189,8 @@ export default function StaffPortalPage() {
       setFlowStep('queue');
     }
 
-    setActiveTab(targetTab);
-    if (typeof window !== 'undefined') {
-      window.history.pushState({}, '', `/staff?tab=${targetTab}${extraQuery}`);
-      window.dispatchEvent(new Event('manager-tab-change'));
-      window.dispatchEvent(new Event('custom-tab-change'));
-    }
+    setViewingTargetUrl(`/staff?tab=${targetTab}${extraQuery}`);
+    setViewingNotif(notif);
   };
 
   // Cuộc hẹn đang được xử lý
@@ -468,6 +468,13 @@ export default function StaffPortalPage() {
 
     socket.on('checkin_queue_updated', handleQueueUpdate);
     socket.on('facility_event', handleQueueUpdate);
+    socket.on('support_ticket_created', (tk: any) => {
+      playNotificationChime();
+      toast.info(`Sự cố mới #${tk?.requestCode || tk?.id || ''}`, {
+        description: tk?.subject || 'Khách hàng vừa gửi phiếu yêu cầu hỗ trợ kỹ thuật',
+        duration: 5000,
+      });
+    });
     socket.on('notification', (notif: any) => {
       playNotificationChime();
       if (notif.type === 'RESERVATION' || notif.type === 'PAYMENT' || notif.type === 'HANDOVER') {
@@ -475,7 +482,18 @@ export default function StaffPortalPage() {
       }
     });
 
+    const unsubSupport = subscribeSupportRealtimeEvent((ev) => {
+      if (ev.type === 'support_ticket_created') {
+        playNotificationChime();
+        toast.info(`Sự cố mới #${ev.ticket.requestCode || ev.ticket.id}`, {
+          description: ev.ticket.subject || 'Khách hàng vừa gửi phiếu yêu cầu hỗ trợ kỹ thuật',
+          duration: 5000,
+        });
+      }
+    });
+
     return () => {
+      unsubSupport();
       socket.disconnect();
     };
   }, [currentUser, loadBackendData]);
@@ -1346,6 +1364,21 @@ export default function StaffPortalPage() {
             toast.success(
               `Đã xác nhận thu tiền thuê cho đơn ${rentalPaymentApt.id} của khách ${rentalPaymentApt.customerName}!`
             );
+          }
+        }}
+      />
+
+      {/* MODAL 5: XEM CHI TIẾT THÔNG BÁO & ĐƠN HÀNG */}
+      <NotificationDetailModal
+        notification={viewingNotif}
+        isOpen={Boolean(viewingNotif)}
+        onClose={() => setViewingNotif(null)}
+        targetUrl={viewingTargetUrl}
+        onNavigate={(url) => {
+          if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', url);
+            window.dispatchEvent(new Event('manager-tab-change'));
+            window.dispatchEvent(new Event('custom-tab-change'));
           }
         }}
       />

@@ -1,15 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   ShieldAlert,
-  AlertTriangle,
   Upload,
   Send,
-  CheckCircle2
+  X,
+  Loader2,
+  Image as ImageIcon,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { CustomerUnit, SupportTicket } from '../types';
 import { customerUnitsApi } from '../../../lib/api/customerUnits';
+import { supportApi, emitSupportRealtimeEvent } from '../../../lib/api/support';
 
 // Map frontend categories to backend enum values
 const CATEGORY_MAP: Record<string, string> = {
@@ -45,9 +48,39 @@ export default function IncidentReportModal({
   const [category, setCategory] = useState('Lỗi ổ khóa / Mã PIN không mở được');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<'normal' | 'high' | 'urgent'>('high');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of files) {
+        const res = await supportApi.uploadPhoto(file);
+        if (res?.url) uploadedUrls.push(res.url);
+      }
+      if (uploadedUrls.length > 0) {
+        setPhotos((prev) => [...prev, ...uploadedUrls]);
+        toast.success(`Đã tải lên ${uploadedUrls.length} hình ảnh đính kèm`);
+      }
+    } catch {
+      toast.error('Không thể tải ảnh lên. Vui lòng thử lại.');
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = (idx: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,15 +95,17 @@ export default function IncidentReportModal({
         subject: ticketTitle,
         description: description.trim(),
         priority: URGENCY_MAP[urgency] || 'HIGH',
+        photos: photos.length > 0 ? photos : undefined,
       });
 
       onSubmitTicket(createdTicket);
+      setPhotos([]);
       onClose();
     } catch (err) {
       console.warn('Backend support request creation offline, fallback to local state', err);
-      // Fallback: still show local ticket in UI
+      const mockCode = `TK-${Math.floor(1000 + Math.random() * 9000)}`;
       const newTicket: SupportTicket = {
-        id: `TK-${Math.floor(1000 + Math.random() * 9000)}`,
+        id: mockCode,
         title: ticketTitle,
         unitCode: unit.unitNumber,
         category: category,
@@ -78,7 +113,30 @@ export default function IncidentReportModal({
         status: 'open',
         lastReply: 'Đã tiếp nhận yêu cầu. Kỹ thuật viên cơ sở đang chuẩn bị xử lý.',
       };
+      emitSupportRealtimeEvent({
+        type: 'support_ticket_created',
+        ticket: {
+          id: mockCode,
+          requestCode: mockCode,
+          customerId: 'cust-local',
+          facilityId: String(unit.facilityId || '1'),
+          category: (CATEGORY_MAP[category] || 'OTHER') as any,
+          subject: ticketTitle,
+          description: description.trim(),
+          priority: (URGENCY_MAP[urgency] || 'HIGH') as any,
+          status: 'OPEN',
+          photos: photos.length > 0 ? photos : undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          facility: { id: String(unit.facilityId || '1'), name: unit.facilityName },
+          contractItem: {
+            id: String(unit.rawContractItemId || '1'),
+            unit: { id: String(unit.rawUnitId || unit.id), unitNumber: unit.unitNumber, floor: unit.floor },
+          },
+        },
+      });
       onSubmitTicket(newTicket);
+      setPhotos([]);
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -179,6 +237,69 @@ export default function IncidentReportModal({
               onChange={(e) => setDescription(e.target.value)}
               className="w-full text-xs bg-white border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
             />
+          </div>
+
+          {/* Upload Hình Ảnh Đính Kèm */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+              Hình ảnh hiện trạng sự cố (Tùy chọn):
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                disabled={isUploadingPhoto}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/40 text-xs font-semibold text-slate-700 transition cursor-pointer disabled:opacity-50"
+              >
+                {isUploadingPhoto ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                    <span>Đang tải ảnh...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Tải ảnh lên từ máy</span>
+                  </>
+                )}
+              </button>
+              <span className="text-[11px] text-slate-400">
+                Hỗ trợ JPG, PNG, WEBP ({photos.length} ảnh đã chọn)
+              </span>
+            </div>
+
+            {photos.length > 0 && (
+              <div className="mt-2.5 grid grid-cols-4 gap-2">
+                {photos.map((url, idx) => (
+                  <div
+                    key={idx}
+                    className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100"
+                  >
+                    <img
+                      src={url}
+                      alt={`Ảnh sự cố ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(idx)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/75 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                      title="Xóa ảnh"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Footer actions */}

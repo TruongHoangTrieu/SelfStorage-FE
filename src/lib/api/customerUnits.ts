@@ -2,6 +2,7 @@ import { api, ApiError } from '../api';
 import { calculateRentalDates } from '../dateUtils';
 import { CustomerUnit, CustomerUser, PaymentRecord, SupportTicket } from '../../app/dashboard/types';
 import { authenticateSampleCustomer } from '../../app/staff/mockTodayAppointments';
+import { emitSupportRealtimeEvent } from './support';
 
 /**
  * Normalizes backend RentalContract items to frontend CustomerUnit[]
@@ -407,6 +408,9 @@ export const customerUnitsApi = {
       facilityId: String(payload.facilityId),
       contractItemId: payload.contractItemId ? String(payload.contractItemId) : undefined,
     });
+    if (res) {
+      emitSupportRealtimeEvent({ type: 'support_ticket_created', ticket: res });
+    }
     return normalizeSupportRequest(res);
   },
 

@@ -19,6 +19,7 @@ import {
   Building,
 } from 'lucide-react';
 import { NotificationItem, notificationsApi } from '@/lib/api/notifications';
+import { api } from '@/lib/api';
 
 interface NotificationDetailModalProps {
   notification: NotificationItem | any | null;
@@ -119,26 +120,107 @@ export default function NotificationDetailModal({
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && notification?.id) {
-      setDetailData(notification);
-      setLoading(true);
-
-      notificationsApi
-        .getDetail(notification.id)
-        .then((res: any) => {
-          if (res) {
-            setDetailData(res);
-          }
-        })
-        .catch(() => {
-          // Keep existing notification data if backend API is not responding
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
+    if (!isOpen || !notification) {
       setDetailData(null);
+      return;
     }
+
+    let cancelled = false;
+    setDetailData(notification);
+    setLoading(true);
+
+    const resolveDetails = async () => {
+      let currentDetail: any = {
+        ...notification,
+        relatedEntity: notification.relatedEntity || notification.metadata?.relatedEntity,
+      };
+
+      // 1. Thử lấy chi tiết từ /notifications/:id
+      if (notification.id && !String(notification.id).startsWith('notif-tk-')) {
+        try {
+          const res: any = await notificationsApi.getDetail(notification.id);
+          if (res) {
+            currentDetail = { ...currentDetail, ...res };
+          }
+        } catch {}
+      }
+
+      // 2. Nếu chưa có relatedEntity đầy đủ, tự động truy vấn chi tiết đơn hàng/hợp đồng/hóa đơn/sự cố
+      if (!currentDetail.relatedEntity) {
+        const rawType = String(currentDetail.type || currentDetail.entityType || '').toUpperCase();
+        const text = `${currentDetail.title || ''} ${currentDetail.body || ''}`;
+        const entityId = currentDetail.entityId || currentDetail.metadata?.entityId || currentDetail.metadata?.reservationId || currentDetail.metadata?.contractId;
+
+        const rsvMatch = text.match(/RSV-[A-Z0-9-]+/i)?.[0];
+        const conMatch = text.match(/CON-[A-Z0-9-]+/i)?.[0];
+        const tkMatch = text.match(/TK-[A-Z0-9-]+/i)?.[0];
+        const payMatch = text.match(/SS(?:DEP|REN)[A-Z0-9]+/i)?.[0];
+
+        try {
+          if (rawType.includes('RESERVATION') || rawType.includes('HANDOVER') || rsvMatch) {
+            if (entityId && !String(entityId).startsWith('RSV-')) {
+              const rsv = await api.get(`/handovers/reservations/${entityId}`).catch(() =>
+                api.get(`/reservations/${entityId}`).catch(() => null)
+              );
+              if (rsv) currentDetail.relatedEntity = rsv;
+            }
+            if (!currentDetail.relatedEntity) {
+              const listRes: any = await api.get('/reservations?limit=50').catch(() => null);
+              const list = Array.isArray(listRes) ? listRes : listRes?.data || [];
+              const found = list.find(
+                (r: any) =>
+                  (entityId && (String(r.id) === String(entityId) || String(r.reservationCode) === String(entityId))) ||
+                  (rsvMatch && String(r.reservationCode).toUpperCase() === rsvMatch.toUpperCase())
+              ) || list[0];
+              if (found) currentDetail.relatedEntity = found;
+            }
+          } else if (rawType.includes('CONTRACT') || rawType.includes('RENEWAL') || rawType.includes('OVERDUE') || conMatch) {
+            const listRes: any = await api.get('/contracts').catch(() => null);
+            const list = Array.isArray(listRes) ? listRes : listRes?.data || [];
+            const found = list.find(
+              (c: any) =>
+                (entityId && (String(c.id) === String(entityId) || String(c.contractCode) === String(entityId))) ||
+                (conMatch && String(c.contractCode).toUpperCase() === conMatch.toUpperCase())
+            ) || list[0];
+            if (found) currentDetail.relatedEntity = found;
+          } else if (rawType.includes('PAYMENT') || payMatch) {
+            const listRes: any = await api.get('/payments?limit=50').catch(() => null);
+            const list = Array.isArray(listRes) ? listRes : listRes?.data || [];
+            const found = list.find(
+              (p: any) =>
+                (entityId && (String(p.id) === String(entityId) || String(p.paymentCode) === String(entityId))) ||
+                (payMatch && String(p.paymentCode).toUpperCase() === payMatch.toUpperCase())
+            ) || list[0];
+            if (found) currentDetail.relatedEntity = found;
+          } else if (rawType.includes('SUPPORT') || tkMatch) {
+            if (entityId && !String(entityId).startsWith('TK-')) {
+              const tk = await api.get(`/support/requests/${entityId}`).catch(() => null);
+              if (tk) currentDetail.relatedEntity = tk;
+            }
+            if (!currentDetail.relatedEntity) {
+              const listRes: any = await api.get('/support/requests?limit=50').catch(() => null);
+              const list = Array.isArray(listRes) ? listRes : listRes?.data || [];
+              const found = list.find(
+                (t: any) =>
+                  (entityId && (String(t.id) === String(entityId) || String(t.requestCode) === String(entityId))) ||
+                  (tkMatch && String(t.requestCode).toUpperCase() === tkMatch.toUpperCase())
+              );
+              if (found) currentDetail.relatedEntity = found;
+            }
+          }
+        } catch {}
+      }
+
+      if (!cancelled) {
+        setDetailData(currentDetail);
+        setLoading(false);
+      }
+    };
+
+    resolveDetails();
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, notification]);
 
   if (!isOpen || !notification || !mounted) return null;
@@ -295,7 +377,7 @@ export default function NotificationDetailModal({
                   {entity.subject && (
                     <div className="flex justify-between items-center pt-2">
                       <span className="text-slate-500">Tiêu đề:</span>
-                      <span className="font-bold text-slate-800">{entity.subject}</span>
+                      <span className="font-bold text-slate-800 text-right">{entity.subject}</span>
                     </div>
                   )}
                   {entity.category && (
@@ -310,34 +392,90 @@ export default function NotificationDetailModal({
                       <span className="font-semibold text-amber-700">{entity.priority}</span>
                     </div>
                   )}
+                  {entity.photos && entity.photos.length > 0 && (
+                    <div className="pt-2 space-y-1.5">
+                      <span className="text-slate-500 block">Hình ảnh đính kèm:</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {entity.photos.map((url: string, idx: number) => (
+                          <a
+                            key={idx}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="aspect-video rounded-lg overflow-hidden border border-slate-200 bg-white block"
+                          >
+                            <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {entity.logs && entity.logs.length > 0 && (
                     <div className="pt-2 text-[11px] text-slate-600 space-y-1">
                       <span className="font-bold text-slate-700 block">Nhật ký xử lý:</span>
                       <p className="bg-white p-2 rounded-lg border border-slate-200">
-                        {entity.logs[0]?.message || entity.logs[0]?.notes || 'Đã ghi nhận yêu cầu'}
+                        {entity.logs[0]?.note || entity.logs[0]?.message || entity.logs[0]?.notes || 'Đã ghi nhận yêu cầu'}
                       </p>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* RESERVATION DETAILS */}
+              {/* RESERVATION / ORDER DETAILS */}
               {entity.reservationCode && (
                 <div className="space-y-2 text-xs divide-y divide-slate-100">
                   <div className="flex justify-between items-center pt-1">
-                    <span className="text-slate-500">Mã đặt chỗ:</span>
-                    <span className="font-mono font-bold text-slate-800">#{entity.reservationCode}</span>
+                    <span className="text-slate-500">Mã đơn đặt kho:</span>
+                    <span className="font-mono font-bold text-blue-700">#{entity.reservationCode}</span>
                   </div>
+                  {entity.customer && (
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-slate-500">Khách hàng:</span>
+                      <span className="font-bold text-slate-800">
+                        {entity.customer.fullName}
+                        {entity.customer.phone ? ` • ${entity.customer.phone}` : ''}
+                      </span>
+                    </div>
+                  )}
                   {entity.facility && (
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-slate-500">Cơ sở:</span>
-                      <span className="font-semibold text-slate-800">{entity.facility.name}</span>
+                      <span className="text-slate-500">Cơ sở lưu trữ:</span>
+                      <span className="font-semibold text-slate-800 text-right max-w-[65%]">{entity.facility.name}</span>
+                    </div>
+                  )}
+                  {entity.items && entity.items[0] && (
+                    <>
+                      <div className="flex justify-between items-center pt-2">
+                        <span className="text-slate-500">Loại kho / Ngăn kho:</span>
+                        <span className="font-bold text-slate-800 text-right">
+                          {entity.items[0].unitType?.name || 'Ngăn kho tiêu chuẩn'}
+                          {entity.items[0].unit?.unitNumber ? ` (Ô ${entity.items[0].unit.unitNumber})` : ''}
+                        </span>
+                      </div>
+                      {entity.items[0].depositAmount !== undefined && (
+                        <div className="flex justify-between items-center pt-2">
+                          <span className="text-slate-500">Tiền cọc giữ chỗ:</span>
+                          <span className="font-bold text-emerald-600">{formatVND(entity.items[0].depositAmount)}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {entity.rentalPeriod && (
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-slate-500">Thời hạn thuê:</span>
+                      <span className="font-semibold text-slate-800">{entity.rentalPeriod} tháng</span>
+                    </div>
+                  )}
+                  {entity.totalAmount !== undefined && (
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-slate-500">Tổng giá trị đơn hàng:</span>
+                      <span className="font-extrabold text-blue-700 text-sm">{formatVND(entity.totalAmount)}</span>
                     </div>
                   )}
                   {entity.appointmentDate && (
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-slate-500">Hẹn nhận kho:</span>
-                      <span className="text-slate-700">{new Date(entity.appointmentDate).toLocaleString('vi-VN')}</span>
+                      <span className="text-slate-500">Lịch hẹn nhận kho:</span>
+                      <span className="font-semibold text-slate-800">{new Date(entity.appointmentDate).toLocaleString('vi-VN')}</span>
                     </div>
                   )}
                 </div>
@@ -348,12 +486,36 @@ export default function NotificationDetailModal({
                 <div className="space-y-2 text-xs divide-y divide-slate-100">
                   <div className="flex justify-between items-center pt-1">
                     <span className="text-slate-500">Mã hợp đồng:</span>
-                    <span className="font-mono font-bold text-slate-800">#{entity.contractCode}</span>
+                    <span className="font-mono font-bold text-blue-700">#{entity.contractCode}</span>
                   </div>
+                  {entity.customer && (
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-slate-500">Khách thuê:</span>
+                      <span className="font-bold text-slate-800">
+                        {entity.customer.fullName}
+                        {entity.customer.phone ? ` • ${entity.customer.phone}` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {entity.facility && (
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-slate-500">Cơ sở:</span>
+                      <span className="font-semibold text-slate-800 text-right max-w-[65%]">{entity.facility.name}</span>
+                    </div>
+                  )}
+                  {entity.contractItems && entity.contractItems[0]?.unit && (
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-slate-500">Ngăn kho:</span>
+                      <span className="font-bold text-slate-800">
+                        Ô {entity.contractItems[0].unit.unitNumber}
+                        {entity.contractItems[0].price ? ` • ${formatVND(entity.contractItems[0].price)}/tháng` : ''}
+                      </span>
+                    </div>
+                  )}
                   {entity.startDate && entity.endDate && (
                     <div className="flex justify-between items-center pt-2">
-                      <span className="text-slate-500">Thời hạn:</span>
-                      <span className="text-slate-700">
+                      <span className="text-slate-500">Thời hạn hiệu lực:</span>
+                      <span className="font-semibold text-slate-700">
                         {new Date(entity.startDate).toLocaleDateString('vi-VN')} - {new Date(entity.endDate).toLocaleDateString('vi-VN')}
                       </span>
                     </div>

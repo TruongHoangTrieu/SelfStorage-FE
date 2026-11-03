@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LifeBuoy,
   Clock,
@@ -18,6 +18,11 @@ import {
   Boxes,
   HelpCircle,
   Eye,
+  Image as ImageIcon,
+  Upload,
+  X,
+  Loader2,
+  ZoomIn,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { io } from 'socket.io-client';
@@ -27,6 +32,8 @@ import {
   SupportStatus,
   SupportPriority,
   SupportCategory,
+  subscribeSupportRealtimeEvent,
+  emitSupportRealtimeEvent,
 } from '@/lib/api/support';
 
 interface StaffSupportTicketsViewProps {
@@ -46,11 +53,39 @@ export default function StaffSupportTicketsView({
   const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
   const [progressStatus, setProgressStatus] = useState<SupportStatus>('IN_PROGRESS');
   const [progressNote, setProgressNote] = useState('');
+  const [progressPhotos, setProgressPhotos] = useState<string[]>([]);
+  const [isUploadingProgressPhoto, setIsUploadingProgressPhoto] = useState(false);
   const [isSubmittingProgress, setIsSubmittingProgress] = useState(false);
+  const progressFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox xem ảnh phóng to
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   // Quick note/reply
   const [replyNote, setReplyNote] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
+
+  const handleUploadProgressFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setIsUploadingProgressPhoto(true);
+    try {
+      const urls: string[] = [];
+      for (const file of files) {
+        const res = await supportApi.uploadPhoto(file);
+        if (res?.url) urls.push(res.url);
+      }
+      if (urls.length > 0) {
+        setProgressPhotos((prev) => [...prev, ...urls]);
+        toast.success(`Đã đính kèm ${urls.length} ảnh nghiệm thu xử lý`);
+      }
+    } catch {
+      toast.error('Không thể tải ảnh lên.');
+    } finally {
+      setIsUploadingProgressPhoto(false);
+      if (progressFileInputRef.current) progressFileInputRef.current.value = '';
+    }
+  };
 
   const loadTickets = async (silent?: any) => {
     const isSilent = silent === true;
@@ -89,6 +124,9 @@ export default function StaffSupportTicketsView({
           description: 'Khách hàng có mặt tại cửa ngăn kho, nhập đúng PIN 883921 nhưng không nghe tiếng chốt mở.',
           priority: 'HIGH',
           status: 'OPEN',
+          photos: [
+            'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=900&q=80',
+          ],
           createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
           updatedAt: new Date().toISOString(),
           customer: { id: 'cust-1', fullName: 'Trần Minh Quân', phone: '0903112233', email: 'quan@gmail.com' },
@@ -186,7 +224,12 @@ export default function StaffSupportTicketsView({
 
     const handleCreated = (newTicket: SupportTicketItem) => {
       console.log('Realtime support_ticket_created:', newTicket);
-      toast.info(`Phiếu hỗ trợ mới #${newTicket.requestCode || ''}`, {
+      setTickets((prev) => {
+        if (prev.some((t) => String(t.id) === String(newTicket.id))) return prev;
+        return [newTicket, ...prev];
+      });
+      setSelectedTicket((prev) => prev || newTicket);
+      toast.info(`Phiếu hỗ trợ mới #${newTicket.requestCode || newTicket.id}`, {
         description: newTicket.subject || 'Khách hàng vừa tạo phiếu hỗ trợ mới',
         duration: 5000,
       });
@@ -195,11 +238,40 @@ export default function StaffSupportTicketsView({
 
     const handleUpdated = (updatedTicket: SupportTicketItem) => {
       console.log('Realtime support_ticket_updated:', updatedTicket);
+      setTickets((prev) =>
+        prev.map((t) => (String(t.id) === String(updatedTicket.id) ? { ...t, ...updatedTicket } : t))
+      );
+      setSelectedTicket((prev) =>
+        prev && String(prev.id) === String(updatedTicket.id) ? { ...prev, ...updatedTicket } : prev
+      );
       loadTickets(true);
     };
 
     const handleNoteAdded = (payload: { ticketId: string; log: any }) => {
       console.log('Realtime support_ticket_note_added:', payload);
+      setTickets((prev) =>
+        prev.map((t) => {
+          if (String(t.id) !== String(payload.ticketId)) return t;
+          const currentLogs = t.logs || [];
+          if (currentLogs.some((l) => String(l.id) === String(payload.log?.id))) return t;
+          return { ...t, logs: [...currentLogs, payload.log] };
+        })
+      );
+      setSelectedTicket((prev) => {
+        if (prev && String(prev.id) === String(payload.ticketId)) {
+          const currentLogs = prev.logs || [];
+          if (!currentLogs.some((l) => String(l.id) === String(payload.log?.id))) {
+            return {
+              ...prev,
+              logs: [...currentLogs, payload.log],
+            };
+          }
+        }
+        return prev;
+      });
+      if (payload?.log?.user?.role === 'STORAGE_CUSTOMER' || payload?.log?.userId === 'me') {
+        toast.info('Khách hàng vừa gửi phản hồi mới trong phiếu hỗ trợ');
+      }
       loadTickets(true);
     };
 
@@ -208,11 +280,19 @@ export default function StaffSupportTicketsView({
     socket.on('support_ticket_note_added', handleNoteAdded);
     socket.on('notification', (notif: any) => {
       if (notif?.type === 'SUPPORT' || notif?.entityType === 'SUPPORT_REQUEST') {
-        loadTickets();
+        loadTickets(true);
       }
     });
 
+    const unsubRealtime = subscribeSupportRealtimeEvent((ev) => {
+      if (ev.type === 'support_ticket_created') handleCreated(ev.ticket);
+      else if (ev.type === 'support_ticket_updated') handleUpdated(ev.ticket);
+      else if (ev.type === 'support_ticket_note_added')
+        handleNoteAdded({ ticketId: ev.ticketId, log: ev.log });
+    });
+
     return () => {
+      unsubRealtime();
       socket.disconnect();
     };
   }, [facilityId]);
@@ -250,21 +330,28 @@ export default function StaffSupportTicketsView({
     }
 
     setIsSubmittingProgress(true);
+    const mergedPhotos = [
+      ...(selectedTicket.photos || []),
+      ...progressPhotos,
+    ];
     try {
       await supportApi.updateProgress(selectedTicket.id, {
         status: progressStatus,
         note: progressNote.trim(),
+        photos: progressPhotos.length > 0 ? mergedPhotos : undefined,
       });
       toast.success('Cập nhật tiến độ xử lý sự cố thành công!');
       setIsProgressModalOpen(false);
       setProgressNote('');
-      await loadTickets();
+      setProgressPhotos([]);
+      await loadTickets(true);
     } catch (err: any) {
       // Local optimistic update
       const updated: SupportTicketItem = {
         ...selectedTicket,
         status: progressStatus,
         resolutionNotes: progressNote.trim(),
+        photos: mergedPhotos.length > 0 ? mergedPhotos : selectedTicket.photos,
         logs: [
           ...(selectedTicket.logs || []),
           {
@@ -280,8 +367,10 @@ export default function StaffSupportTicketsView({
       };
       setSelectedTicket(updated);
       setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      emitSupportRealtimeEvent({ type: 'support_ticket_updated', ticket: updated });
       setIsProgressModalOpen(false);
       setProgressNote('');
+      setProgressPhotos([]);
       toast.success('Đã lưu tiến độ xử lý vào hệ thống!');
     } finally {
       setIsSubmittingProgress(false);
@@ -303,22 +392,25 @@ export default function StaffSupportTicketsView({
       setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
     } catch (err: any) {
       // Local optimistic append
+      const newLog = {
+        id: `loc-reply-${Date.now()}`,
+        supportRequestId: selectedTicket.id,
+        userId: 'staff-me',
+        note: replyNote.trim(),
+        createdAt: new Date().toISOString(),
+        user: { id: 'staff-me', fullName: 'Nhân viên kỹ thuật cơ sở', role: 'FACILITY_STAFF' },
+      };
       const updated: SupportTicketItem = {
         ...selectedTicket,
-        logs: [
-          ...(selectedTicket.logs || []),
-          {
-            id: `loc-reply-${Date.now()}`,
-            supportRequestId: selectedTicket.id,
-            userId: 'staff-me',
-            note: replyNote.trim(),
-            createdAt: new Date().toISOString(),
-            user: { id: 'staff-me', fullName: 'Nhân viên kỹ thuật cơ sở', role: 'FACILITY_STAFF' },
-          },
-        ],
+        logs: [...(selectedTicket.logs || []), newLog],
       };
       setSelectedTicket(updated);
       setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      emitSupportRealtimeEvent({
+        type: 'support_ticket_note_added',
+        ticketId: selectedTicket.id,
+        log: newLog,
+      });
       setReplyNote('');
       toast.success('Đã lưu phản hồi vào nhật ký');
     } finally {
@@ -476,6 +568,36 @@ export default function StaffSupportTicketsView({
                   <p className="text-slate-800 leading-relaxed whitespace-pre-line">
                     {selectedTicket.description}
                   </p>
+
+                  {selectedTicket.photos && selectedTicket.photos.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200/70 space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
+                        <ImageIcon className="w-4 h-4 text-indigo-600" />
+                        <span>Hình ảnh đính kèm ({selectedTicket.photos.length}):</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        {selectedTicket.photos.map((imgUrl, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => setPreviewPhoto(imgUrl)}
+                            className="group relative aspect-video rounded-xl overflow-hidden border border-slate-200 bg-white shadow-2xs cursor-pointer"
+                          >
+                            <img
+                              src={imgUrl}
+                              alt={`Ảnh sự cố ${idx + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/35 transition flex items-center justify-center">
+                              <span className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/95 text-slate-900 text-[11px] font-bold shadow-sm transition">
+                                <ZoomIn className="w-3.5 h-3.5 text-indigo-600" />
+                                Phóng to
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Resolution Notes if any */}
@@ -588,6 +710,57 @@ export default function StaffSupportTicketsView({
                 />
               </div>
 
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Đính kèm hình ảnh xử lý / nghiệm thu (Tùy chọn):
+                </label>
+                <input
+                  ref={progressFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleUploadProgressFiles}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  disabled={isUploadingProgressPhoto}
+                  onClick={() => progressFileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/50 hover:bg-indigo-50 text-xs font-semibold text-indigo-700 transition cursor-pointer disabled:opacity-50"
+                >
+                  {isUploadingProgressPhoto ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang tải ảnh...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Tải ảnh nghiệm thu</span>
+                    </>
+                  )}
+                </button>
+                {progressPhotos.length > 0 && (
+                  <div className="mt-2 grid grid-cols-4 gap-2">
+                    {progressPhotos.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100"
+                      >
+                        <img src={url} alt={`Ảnh nghiệm thu ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setProgressPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/75 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="pt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -598,13 +771,40 @@ export default function StaffSupportTicketsView({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingProgress}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition cursor-pointer"
+                  disabled={isSubmittingProgress || isUploadingProgressPhoto}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl transition cursor-pointer"
                 >
                   {isSubmittingProgress ? 'Đang lưu...' : 'Lưu Thay Đổi'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox xem ảnh phóng to */}
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 z-[99999] bg-slate-950/85 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full max-h-[88vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewPhoto(null)}
+              className="absolute -top-3 -right-3 w-9 h-9 rounded-full bg-white text-slate-800 hover:bg-slate-100 shadow-lg flex items-center justify-center cursor-pointer z-10"
+              aria-label="Đóng xem ảnh"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <img
+              src={previewPhoto}
+              alt="Xem chi tiết ảnh sự cố"
+              className="max-h-[82vh] w-auto max-w-full rounded-2xl object-contain border border-white/20 shadow-2xl bg-slate-900"
+            />
           </div>
         </div>
       )}

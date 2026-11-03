@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { notificationsApi, NotificationItem } from './api/notifications';
+import { subscribeSupportRealtimeEvent } from './api/support';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
@@ -60,9 +61,20 @@ export function useNotifications(userId?: string | number | null) {
         ? localStorage.getItem('token') || localStorage.getItem('access_token')
         : null;
 
+    let storedUser: any = null;
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      if (raw) storedUser = JSON.parse(raw);
+    } catch {}
+
     // Initialize socket connection
     const socket = io(`${SOCKET_URL}/notifications`, {
-      auth: { token },
+      auth: {
+        token,
+        userId: userId || storedUser?.id,
+        role: storedUser?.role,
+        facilityId: storedUser?.facilityId,
+      },
       withCredentials: true,
       transports: ['websocket', 'polling'],
       autoConnect: true,
@@ -72,11 +84,17 @@ export function useNotifications(userId?: string | number | null) {
 
     socket.on('connect', () => {
       console.log('🔔 Connected to notifications socket');
+      if (storedUser?.facilityId) {
+        socket.emit('join_facility', String(storedUser.facilityId));
+      }
     });
 
     socket.on('notification', (newNotif: NotificationItem) => {
-      // Prepend to notifications list
-      setNotifications((prev) => [newNotif, ...prev]);
+      // Prepend to notifications list without duplicate
+      setNotifications((prev) => {
+        if (prev.some((n) => String(n.id) === String(newNotif.id))) return prev;
+        return [newNotif, ...prev];
+      });
       setUnreadCount((prev) => prev + 1);
 
       // Trigger modern toast notification
@@ -99,7 +117,39 @@ export function useNotifications(userId?: string | number | null) {
       });
     });
 
+    const unsubSupport = subscribeSupportRealtimeEvent((ev) => {
+      if (ev.type === 'support_ticket_created') {
+        const tk = ev.ticket;
+        const synthNotif: NotificationItem = {
+          id: `notif-tk-${tk.id}`,
+          userId: String(userId),
+          title: `Phiếu hỗ trợ mới #${tk.requestCode || tk.id}`,
+          body: `${tk.subject} — ${tk.description}`,
+          type: 'SUPPORT',
+          entityType: 'SUPPORT_REQUEST',
+          entityId: String(tk.id),
+          metadata: { relatedEntity: tk },
+          isRead: false,
+          createdAt: tk.createdAt || new Date().toISOString(),
+        };
+        setNotifications((prev) => {
+          if (
+            prev.some(
+              (n) =>
+                String(n.id) === String(synthNotif.id) ||
+                (n.type === 'SUPPORT' && String(n.entityId) === String(tk.id))
+            )
+          ) {
+            return prev;
+          }
+          setUnreadCount((c) => c + 1);
+          return [synthNotif, ...prev];
+        });
+      }
+    });
+
     return () => {
+      unsubSupport();
       socket.disconnect();
       socketRef.current = null;
     };

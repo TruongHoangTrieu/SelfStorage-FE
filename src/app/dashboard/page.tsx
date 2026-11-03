@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   CreditCard,
@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   Trash2,
   Loader2,
+  Bell,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,6 +29,8 @@ import { toast } from 'sonner';
 import { CustomerUnit, CustomerTab, GuestPass, SupportTicket, CustomerUser } from './types';
 import { customerUnitsApi } from '@/lib/api/customerUnits';
 import { renewalsApi } from '@/lib/api/renewals';
+import { useNotifications } from '@/lib/useNotifications';
+import NotificationDetailModal from '@/components/NotificationDetailModal';
 import { getSampleCustomerDashboardData } from '../staff/mockTodayAppointments';
 
 // Modular Components
@@ -92,6 +95,54 @@ export default function CustomerDashboardPage() {
   const [isReturnUnitModalOpen, setIsReturnUnitModalOpen] = useState(false);
   const [cancelReservationId, setCancelReservationId] = useState<number | null>(null);
   const [isCancellingReservation, setIsCancellingReservation] = useState(false);
+
+  // Notifications State
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications(customerUser?.id);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [viewingNotif, setViewingNotif] = useState<any>(null);
+  const [viewingTargetUrl, setViewingTargetUrl] = useState<string>('');
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    if (isNotifOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isNotifOpen]);
+
+  const handleNotificationClick = (notif: any) => {
+    if (!notif.isRead) {
+      markAsRead(notif.id).catch(() => {});
+    }
+    setIsNotifOpen(false);
+
+    const notifType = String(notif.type || '').toUpperCase();
+    const entityType = String(notif.entityType || '').toUpperCase();
+    const entityId = notif.entityId;
+    const text = `${notif.title || ''} ${notif.body || ''}`.toLowerCase();
+
+    let targetTab: CustomerTab = 'my_units';
+    let extraQuery = '';
+
+    if (notifType === 'SUPPORT' || entityType === 'SUPPORT_REQUEST' || text.includes('hỗ trợ') || text.includes('sự cố')) {
+      targetTab = 'support';
+      if (entityId) extraQuery = `&ticketId=${entityId}`;
+    } else if (notifType === 'PAYMENT' || notifType === 'RENEWAL' || notifType === 'OVERDUE' || text.includes('thanh toán') || text.includes('hóa đơn')) {
+      targetTab = 'billing';
+    } else if (notifType === 'CONTRACT' || text.includes('hợp đồng')) {
+      targetTab = 'documents';
+    } else {
+      targetTab = 'my_units';
+    }
+
+    setViewingTargetUrl(`/dashboard?tab=${targetTab}${extraQuery}`);
+    setViewingNotif(notif);
+  };
 
   // Toast Notification State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -530,6 +581,88 @@ export default function CustomerDashboardPage() {
             <span>+ Thuê Thêm Kho</span>
           </Link>
 
+          {/* Notification Bell */}
+          <div className="relative" ref={notifRef}>
+            <button
+              type="button"
+              onClick={() => setIsNotifOpen((prev) => !prev)}
+              className="relative p-2.5 rounded-full text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+              title="Thông báo của bạn"
+              aria-label="Thông báo"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-white animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {isNotifOpen && (
+              <div className="absolute right-0 mt-2.5 w-84 bg-white rounded-2xl shadow-xl border border-slate-200 p-3 z-50 animate-slide-up-fade">
+                <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
+                  <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Thông Báo ({unreadCount})</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllAsRead()}
+                      className="text-[10px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      Đã đọc tất cả
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 text-xs max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="py-6 text-center text-slate-400 text-xs">
+                      Chưa có thông báo nào
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => handleNotificationClick(notif)}
+                        className={`p-2.5 rounded-xl border transition-all cursor-pointer space-y-1 hover:border-blue-300 hover:shadow-xs group ${
+                          notif.isRead
+                            ? 'bg-slate-50/60 border-slate-100 opacity-75'
+                            : 'bg-blue-50/50 border-blue-200 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1.5 text-[11px]">
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
+                            {!notif.isRead && (
+                              <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                            )}
+                            {notif.title}
+                          </span>
+                          <span className="text-[10px] text-slate-400 shrink-0">
+                            {new Date(notif.createdAt).toLocaleDateString('vi-VN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
+                          {notif.body}
+                        </p>
+                        <div className="flex items-center justify-end pt-0.5">
+                          <span className="text-[10px] font-semibold text-blue-600 group-hover:underline flex items-center gap-0.5">
+                            <span>Xem chi tiết đơn</span>
+                            <span>&rarr;</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 
           {/* Customer User Info / Login Modal Trigger */}
@@ -763,6 +896,20 @@ export default function CustomerDashboardPage() {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* 7. Modal [ Xem chi tiết thông báo & đơn hàng ] */}
+      <NotificationDetailModal
+        notification={viewingNotif}
+        isOpen={Boolean(viewingNotif)}
+        onClose={() => setViewingNotif(null)}
+        targetUrl={viewingTargetUrl}
+        onNavigate={(url) => {
+          if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', url);
+            window.dispatchEvent(new Event('custom-tab-change'));
+          }
+        }}
       />
 
       {/* 6. Modal [ Xác nhận hủy đơn đặt chỗ (Thay thế window.confirm) ] */}

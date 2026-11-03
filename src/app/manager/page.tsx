@@ -60,6 +60,7 @@ import FacilityLayoutView from "../staff/components/FacilityLayoutView";
 import StaffSupportTicketsView from "../staff/components/StaffSupportTicketsView";
 import StaffRenewalsOverdueView from "../staff/components/StaffRenewalsOverdueView";
 import StaffLoginModal from "../staff/components/StaffLoginModal";
+import NotificationDetailModal from "@/components/NotificationDetailModal";
 
 export default function ManagerPortalPage() {
   const router = useRouter();
@@ -92,6 +93,8 @@ export default function ManagerPortalPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } =
     useNotifications(currentUser?.id);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [viewingNotif, setViewingNotif] = useState<any>(null);
+  const [viewingTargetUrl, setViewingTargetUrl] = useState<string>("");
   const notifMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -192,16 +195,8 @@ export default function ManagerPortalPage() {
       targetTab = "dashboard";
     }
 
-    setActiveTab(targetTab);
-    if (typeof window !== "undefined") {
-      window.history.pushState(
-        {},
-        "",
-        `/manager?tab=${targetTab}${extraQuery}`,
-      );
-      window.dispatchEvent(new Event("manager-tab-change"));
-      window.dispatchEvent(new Event("custom-tab-change"));
-    }
+    setViewingTargetUrl(`/manager?tab=${targetTab}${extraQuery}`);
+    setViewingNotif(notif);
   };
 
   // Appointments & Units State
@@ -1116,6 +1111,20 @@ export default function ManagerPortalPage() {
             `Đăng nhập thành công: ${user.fullName} (${user.role})`,
           );
           loadBackendData(true, user.facilityId);
+        }}
+      />
+
+      <NotificationDetailModal
+        notification={viewingNotif}
+        isOpen={Boolean(viewingNotif)}
+        onClose={() => setViewingNotif(null)}
+        targetUrl={viewingTargetUrl}
+        onNavigate={(url) => {
+          if (typeof window !== "undefined") {
+            window.history.pushState({}, "", url);
+            window.dispatchEvent(new Event("manager-tab-change"));
+            window.dispatchEvent(new Event("custom-tab-change"));
+          }
         }}
       />
     </div>
