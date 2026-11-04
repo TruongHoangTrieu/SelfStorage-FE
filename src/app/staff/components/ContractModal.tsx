@@ -3,7 +3,10 @@
 import React, { useRef, useState } from 'react';
 import {
   Printer,
+  CheckCircle2,
+  Lock,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { CheckInAppointment } from '../types';
 import { handoversApi } from '../../../lib/api/handovers';
 import { calculateRentalDates } from '@/lib/dateUtils';
@@ -24,6 +27,7 @@ export default function ContractModal({
 }: ContractModalProps) {
   const printContentRef = useRef<HTMLDivElement>(null);
   const [isEditable, setIsEditable] = useState(false);
+  const [isAgreed, setIsAgreed] = useState(false);
 
   if (!isOpen || !appointment) return null;
 
@@ -324,19 +328,19 @@ export default function ContractModal({
               {/* Điều 2 */}
               <div className="space-y-2 border-t border-slate-200 pt-4">
                 <div className="font-extrabold text-slate-900">
-                  Điều 2. THỜI HẠN CỦA HỢP ĐỒNG VÀ GIA HẠN
+                  Điều 2. THỜI HẠN THUÊ VÀ CHÍNH SÁCH TRẢ KHO SỚM
                 </div>
                 <p>
-                  <strong>2.1.</strong> Thời hạn thuê kho là <strong>{appointment.durationMonths} tháng</strong>, bắt đầu tính từ ngày <strong>{appointment.startDate}</strong> đến hết ngày <strong>{rentalDates?.endDateFormatted || 'kết thúc chu kỳ'}</strong> (ngày kết thúc là trước ngày tới hạn thanh toán kỳ tiếp theo <strong>{rentalDates?.dueDateFormatted || ''}</strong> 01 ngày).
+                  <strong>2.1. Thời hạn thuê:</strong> Thời hạn thuê kho là <strong>{appointment.durationMonths} tháng</strong>, bắt đầu tính từ ngày <strong>{appointment.startDate}</strong> đến hết ngày <strong>{rentalDates?.endDateFormatted || 'kết thúc chu kỳ'}</strong> (ngày kết thúc là trước ngày tới hạn thanh toán kỳ tiếp theo <strong>{rentalDates?.dueDateFormatted || ''}</strong> 01 ngày).
                 </p>
                 <p>
-                  <strong>2.2.</strong> Khi hết hạn hợp đồng, tùy theo nhu cầu thực tế hai Bên có thể thỏa thuận ký gia hạn hợp đồng hoặc gia hạn tự động thông qua Cổng quản lý khách hàng (Customer Portal).
+                  <strong>2.2. Gia hạn hợp đồng:</strong> Khi hết hạn hợp đồng, tùy theo nhu cầu thực tế hai Bên có thể thỏa thuận ký gia hạn hợp đồng hoặc gia hạn tự động thông qua Cổng quản lý khách hàng (Customer Portal).
                 </p>
                 <p>
-                  <strong>2.3.</strong> Trường hợp một trong hai bên có nhu cầu chấm dứt hợp đồng trước thời hạn thì phải thông báo bằng văn bản hoặc thông báo trên ứng dụng cho bên kia biết trước ít nhất <strong>30 ngày</strong>.
+                  <strong>2.3. Quyền trả kho trước hạn:</strong> Bên B có quyền làm thủ tục chấm dứt hợp đồng và hoàn trả ngăn kho trước ngày kết thúc thời hạn thuê khi không còn nhu cầu sử dụng.
                 </p>
                 <p>
-                  <strong>2.4.</strong> Trong trường hợp hợp đồng kết thúc, Bên A có trách nhiệm hoàn lại tiền đặt cọc cho Bên B sau khi đã khấu trừ các khoản phí hợp lệ; Bên B có trách nhiệm dọn sạch tài sản và bàn giao ngăn kho nguyên trạng.
+                  <strong>2.4. Chính sách không hoàn tiền:</strong> Do toàn bộ tiền đặt cọc ban đầu đã được khấu trừ trọn gói vào tiền thuê theo Điều 3, Bên A <strong>không hoàn lại bất kỳ khoản tiền nào</strong> (bao gồm tiền thuê của các ngày/tháng còn lại chưa sử dụng). Bên B có trách nhiệm dọn sạch tài sản, rác thải và bàn giao nguyên trạng thiết bị; trường hợp có hư hại tài sản hoặc phát sinh phí vệ sinh đặc biệt, Bên B có nghĩa vụ thanh toán chi phí bồi thường cho Bên A tại thời điểm bàn giao.
                 </p>
               </div>
 
@@ -349,7 +353,7 @@ export default function ContractModal({
                   <strong>3.1. Giá thuê kho:</strong> <strong>{appointment.monthlyRent}</strong> (Đã bao gồm thuế GTGT 10%, phí an ninh giám sát 24/7 và phí quản lý bảo trì cơ sở).
                 </p>
                 <p>
-                  <strong>3.2. Tiền đặt cọc bảo đảm:</strong> <strong>{appointment.depositAmount}</strong> (Tương đương 100% tiền đặt cọc quy định). Bên B đã hoàn tất thanh toán khoản tiền cọc này qua cổng thanh toán trực tuyến.
+                  <strong>3.2. Quyết toán tiền đặt cọc:</strong> Toàn bộ khoản tiền đặt cọc ban đầu (<strong>{appointment.depositAmount}</strong>) <strong>đã được Bên A khấu trừ trực tiếp 100% vào tổng tiền thuê kho</strong> của kỳ hạn này. Do đó, số dư tiền cọc bảo đảm tại thời điểm ký kết hợp đồng bằng 0 VNĐ.
                 </p>
                 <p>
                   <strong>3.3. Phương thức thanh toán:</strong> Thanh toán chuyển khoản tự động qua hệ thống mã VietQR/SePay hoặc thẻ tín dụng. Kỳ thanh toán vào ngày đầu mỗi chu kỳ thuê. Bên A có trách nhiệm xuất hóa đơn điện tử VAT hợp pháp cho Bên B.
@@ -409,6 +413,28 @@ export default function ContractModal({
               </div>
             </div>
 
+            {/* Khối Checkbox Đồng Ý Điều Khoản (Bắt buộc tích chọn trước khi ký/in) */}
+            <div className={`mt-8 p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 select-none ${
+              isAgreed 
+                ? 'bg-blue-50/70 border-blue-400 shadow-xs' 
+                : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+            }`}>
+              <label className="flex items-start gap-3.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="contract-agreement-checkbox"
+                  checked={isAgreed}
+                  onChange={(e) => setIsAgreed(e.target.checked)}
+                  className="mt-0.5 w-5 h-5 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                />
+                <span className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+                  <strong className="text-slate-900 font-bold block sm:inline">
+                    Tôi xác nhận đã đọc, hiểu rõ và đồng ý với toàn bộ điều khoản Hợp đồng
+                  </strong>  
+                </span>
+              </label>
+            </div>
+
             {/* 6. Chữ ký 2 bên (Format chuẩn văn bản) */}
             <div className="pt-8 border-t border-slate-300">
               <div className="grid grid-cols-2 gap-8 text-center">
@@ -449,22 +475,37 @@ export default function ContractModal({
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
-          <div className="text-xs text-slate-500 hidden sm:flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Hợp đồng có hiệu lực pháp lý ngay sau khi bàn giao mã mở khóa kho.</span>
+        <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+          <div className="text-xs text-slate-500 flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${isAgreed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span>
+              {isAgreed
+                ? 'Đã xác nhận đồng ý điều khoản. Hợp đồng sẵn sàng ký và in.'
+                : 'Vui lòng tích chọn ô "Tôi đồng ý điều khoản" ở trên để kích hoạt ký & in hợp đồng.'}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
             >
               Đóng xem trước
             </button>
             <button
-              onClick={() => handlePrintPdf(false)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+              onClick={() => {
+                if (!isAgreed) {
+                  toast.error('Vui lòng tích chọn vào ô xác nhận đồng ý với tất cả điều khoản hợp đồng trước khi in/ký.');
+                  return;
+                }
+                handlePrintPdf(false);
+              }}
+              disabled={!isAgreed}
+              className={`inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold rounded-xl shadow-xs transition-all ${
+                isAgreed
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 cursor-pointer shadow-blue-600/20'
+                  : 'bg-slate-300 text-slate-500 opacity-70 cursor-not-allowed'
+              }`}
             >
               <Printer className="w-4 h-4" />
               <span>In Hợp Đồng</span>

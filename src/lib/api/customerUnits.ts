@@ -1,4 +1,5 @@
 import { api, ApiError } from '../api';
+import { clearClientAuth } from '../authUtils';
 import { calculateRentalDates } from '../dateUtils';
 import { CustomerUnit, CustomerUser, PaymentRecord, SupportTicket } from '../../app/dashboard/types';
 import { authenticateSampleCustomer } from '../../app/staff/mockTodayAppointments';
@@ -283,16 +284,7 @@ export const customerUnitsApi = {
    * Logout customer
    */
   async logout() {
-    try {
-      await api.post('/auth/logout');
-    } catch (err) {
-      console.warn('Backend customer logout notice:', err);
-    } finally {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        localStorage.removeItem('customer_user');
-      }
-    }
+    clearClientAuth();
   },
 
   /**

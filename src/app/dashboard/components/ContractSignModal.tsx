@@ -242,19 +242,19 @@ export default function ContractSignModal({
               {/* Điều 2 */}
               <div className="space-y-2 border-t border-slate-200 pt-4">
                 <div className="font-extrabold text-slate-900">
-                  Điều 2. THỜI HẠN CỦA HỢP ĐỒNG VÀ GIA HẠN
+                  Điều 2. THỜI HẠN THUÊ VÀ CHÍNH SÁCH TRẢ KHO SỚM
                 </div>
                 <p>
-                  <strong>2.1.</strong> Thời hạn thuê kho bắt đầu tính từ ngày <strong>{unit.contractStartDate}</strong> đến hết ngày <strong>{unit.contractEndDate} (23:59)</strong>. Kỳ hạn thanh toán kế tiếp là ngày <strong>{unit.nextBillingDate}</strong>.
+                  <strong>2.1. Thời hạn thuê:</strong> Thời hạn thuê kho bắt đầu tính từ ngày <strong>{unit.contractStartDate}</strong> đến hết ngày <strong>{unit.contractEndDate} (23:59)</strong>. Kỳ hạn thanh toán kế tiếp là ngày <strong>{unit.nextBillingDate}</strong>.
                 </p>
                 <p>
-                  <strong>2.2.</strong> Khi hết hạn hợp đồng, tùy theo nhu cầu thực tế hai Bên có thể thỏa thuận ký gia hạn hợp đồng hoặc gia hạn tự động thông qua Cổng quản lý khách hàng (Customer Portal).
+                  <strong>2.2. Gia hạn hợp đồng:</strong> Khi hết hạn hợp đồng, tùy theo nhu cầu thực tế hai Bên có thể thỏa thuận ký gia hạn hợp đồng hoặc gia hạn tự động thông qua Cổng quản lý khách hàng (Customer Portal).
                 </p>
                 <p>
-                  <strong>2.3.</strong> Trường hợp một trong hai bên có nhu cầu chấm dứt hợp đồng trước thời hạn thì phải thông báo bằng văn bản hoặc thông báo trên ứng dụng cho bên kia biết trước ít nhất <strong>30 ngày</strong>.
+                  <strong>2.3. Quyền trả kho trước hạn:</strong> Bên B có quyền làm thủ tục chấm dứt hợp đồng và hoàn trả ngăn kho trước ngày kết thúc thời hạn thuê khi không còn nhu cầu sử dụng.
                 </p>
                 <p>
-                  <strong>2.4.</strong> Trong trường hợp hợp đồng kết thúc, Bên A có trách nhiệm hoàn lại tiền đặt cọc cho Bên B sau khi đã khấu trừ các khoản phí hợp lệ; Bên B có trách nhiệm dọn sạch tài sản và bàn giao ngăn kho nguyên trạng.
+                  <strong>2.4. Chính sách không hoàn tiền:</strong> Do toàn bộ tiền đặt cọc ban đầu đã được khấu trừ trọn gói vào tiền thuê theo Điều 3, Bên A <strong>không hoàn lại bất kỳ khoản tiền nào</strong> (bao gồm tiền thuê của các ngày/tháng còn lại chưa sử dụng). Bên B có trách nhiệm dọn sạch tài sản, rác thải và bàn giao nguyên trạng thiết bị; trường hợp có hư hại tài sản hoặc phát sinh phí vệ sinh đặc biệt, Bên B có nghĩa vụ thanh toán chi phí bồi thường cho Bên A tại thời điểm bàn giao.
                 </p>
               </div>
 
@@ -267,7 +267,7 @@ export default function ContractSignModal({
                   <strong>3.1. Giá thuê kho:</strong> <strong>{unit.monthlyRent}</strong> (Đã bao gồm thuế GTGT 10%, phí an ninh giám sát 24/7 và phí quản lý bảo trì cơ sở).
                 </p>
                 <p>
-                  <strong>3.2. Tiền đặt cọc giữ chỗ / bảo đảm:</strong> <strong>{depositFormatted}</strong>. Bên B đã hoàn tất thanh toán qua cổng thanh toán trực tuyến.
+                  <strong>3.2. Quyết toán tiền đặt cọc:</strong> Toàn bộ khoản tiền đặt cọc ban đầu (<strong>{depositFormatted}</strong>) <strong>đã được Bên A khấu trừ trực tiếp 100% vào tổng tiền thuê kho</strong> của kỳ hạn này. Do đó, số dư tiền cọc bảo đảm tại thời điểm ký kết hợp đồng bằng 0 VNĐ.
                 </p>
                 <p>
                   <strong>3.3. Phương thức thanh toán:</strong> Thanh toán chuyển khoản tự động qua hệ thống mã VietQR/SePay hoặc thẻ tín dụng. Kỳ thanh toán vào ngày đầu mỗi chu kỳ thuê.
@@ -405,15 +405,15 @@ export default function ContractSignModal({
                     </p>
                   </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                  <label className="flex items-start gap-2.5 cursor-pointer pt-1 select-none">
                     <input
                       type="checkbox"
                       checked={agreedTerms}
                       onChange={(e) => setAgreedTerms(e.target.checked)}
-                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                      className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
                     />
-                    <span className="text-xs font-semibold text-slate-800">
-                      Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ các điều khoản hợp đồng ở trên.
+                    <span className="text-xs font-semibold text-slate-800 leading-relaxed">
+                      <strong>Tôi xác nhận đã đọc, hiểu rõ và đồng ý với toàn bộ điều khoản Hợp đồng</strong>, bao gồm việc khấu trừ tiền cọc vào tiền thuê và chính sách không hoàn lại tiền khi trả kho trước hạn.
                     </span>
                   </label>
                 </div>

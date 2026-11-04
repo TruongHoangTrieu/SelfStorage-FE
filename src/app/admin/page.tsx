@@ -35,12 +35,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { clearClientAuth } from "@/lib/authUtils";
 import { usersApi, UserItem, ActivityLogItem, LoginHistoryItem } from "@/lib/api/users";
 import { facilitiesApi, FacilityItem } from "@/lib/api/facilities";
 
 type AdminTab = "accounts" | "roles" | "facility_access" | "login_history" | "audit_logs";
 
-export const SYSTEM_ROLES = [
+const SYSTEM_ROLES = [
   {
     name: "STORAGE_CUSTOMER",
     title: "1. Storage Customer",
@@ -178,17 +179,10 @@ export default function SystemAdministratorPage() {
     return "AD";
   };
 
-  const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch (e) {
-      console.warn("Logout notice:", e);
-    } finally {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("user");
-        sessionStorage.clear();
-        window.location.replace("/login");
-      }
+  const handleLogout = () => {
+    clearClientAuth();
+    if (typeof window !== "undefined") {
+      window.location.replace("/login");
     }
   };
 

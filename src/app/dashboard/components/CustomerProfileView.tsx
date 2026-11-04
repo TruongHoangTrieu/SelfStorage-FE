@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { clearClientAuth } from '@/lib/authUtils';
 import { CustomerUser } from '../types';
 
 interface CustomerProfileViewProps {
@@ -194,13 +195,7 @@ export default function CustomerProfileView({
       }
 
       // Đăng xuất và dọn dẹp phiên đăng nhập cũ
-      try {
-        await api.post('/auth/logout');
-      } catch (logoutErr) {
-        console.warn('Backend logout notice:', logoutErr);
-      }
-      localStorage.removeItem('user');
-      localStorage.removeItem('customer_user');
+      clearClientAuth();
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('auth-change'));
 

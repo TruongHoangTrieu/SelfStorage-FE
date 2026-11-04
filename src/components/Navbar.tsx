@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { clearClientAuth } from "@/lib/authUtils";
 import { useNotifications } from "@/lib/useNotifications";
 import NotificationDetailModal from "@/components/NotificationDetailModal";
 
@@ -47,45 +48,96 @@ export default function Navbar() {
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifMenuRef = useRef<HTMLDivElement>(null);
+  const isLoggingOutRef = useRef(false);
 
   // Sync auth state from localStorage and verify session with backend via /auth/me
   const verifySession = async () => {
-    try {
-      const raw = localStorage.getItem("user");
-      if (raw) {
-        setUser(JSON.parse(raw));
-      }
-    } catch {
+    if (isLoggingOutRef.current) {
       setUser(null);
+      setHydrated(true);
+      return;
     }
 
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("token") || localStorage.getItem("access_token")
+        : null;
+    const raw =
+      typeof window !== "undefined"
+        ? localStorage.getItem("user") || localStorage.getItem("customer_user")
+        : null;
+
+    if (!token && !raw) {
+      setUser(null);
+      setHydrated(true);
+      return;
+    }
+
+    if (raw) {
+      try {
+        setUser(JSON.parse(raw));
+      } catch {
+        setUser(null);
+      }
+    }
+    setHydrated(true);
+
     try {
-      const me = await api.get("/auth/me");
+      const me = await api.get("/auth/me", { timeoutMs: 4000 });
+      // Prevent late /auth/me response from restoring session if user clicked logout while in-flight
+      if (isLoggingOutRef.current) return;
+      const stillHasAuth =
+        typeof window !== "undefined" &&
+        Boolean(
+          localStorage.getItem("user") ||
+            localStorage.getItem("customer_user") ||
+            localStorage.getItem("token") ||
+            localStorage.getItem("access_token")
+        );
+      if (!stillHasAuth) return;
+
       if (me && me.id) {
         setUser(me);
         localStorage.setItem("user", JSON.stringify(me));
       } else {
+        clearClientAuth();
         setUser(null);
-        localStorage.removeItem("user");
-        localStorage.removeItem("customer_user");
       }
-    } catch {
-      // Session expired or unauthenticated
-      setUser(null);
-      localStorage.removeItem("user");
-      localStorage.removeItem("customer_user");
+    } catch (err: any) {
+      if (isLoggingOutRef.current) return;
+      // Only wipe local session if backend explicitly rejected token with 401/403
+      if (err?.status === 401 || err?.status === 403) {
+        clearClientAuth();
+        setUser(null);
+      }
     } finally {
       setHydrated(true);
     }
   };
 
   useEffect(() => {
+    isLoggingOutRef.current = false;
     verifySession();
   }, [pathname]);
 
   // Listen to storage & custom auth-change events
   useEffect(() => {
     const handleAuthSync = () => {
+      const hasStoredUser =
+        typeof window !== "undefined" &&
+        Boolean(
+          localStorage.getItem("user") ||
+            localStorage.getItem("customer_user") ||
+            localStorage.getItem("token") ||
+            localStorage.getItem("access_token")
+        );
+      if (!hasStoredUser) {
+        setUser(null);
+        setUserMenuOpen(false);
+        setNotificationOpen(false);
+        return;
+      }
+      isLoggingOutRef.current = false;
       verifySession();
     };
 
@@ -118,21 +170,22 @@ export default function Navbar() {
     };
   }, [userMenuOpen, notificationOpen]);
 
-  const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch (err) {
-      console.warn("Backend logout notice:", err);
-    } finally {
-      localStorage.removeItem("user");
-      localStorage.removeItem("customer_user");
-      sessionStorage.clear();
-      setUser(null);
-      setUserMenuOpen(false);
-      setNotificationOpen(false);
-      window.dispatchEvent(new Event("storage"));
-      window.dispatchEvent(new Event("auth-change"));
-      toast.success("Đã đăng xuất tài khoản thành công");
+  const handleLogout = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    isLoggingOutRef.current = true;
+    clearClientAuth();
+    setUser(null);
+    setUserMenuOpen(false);
+    setNotificationOpen(false);
+    setMobileMenuOpen(false);
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("auth-change"));
+    toast.success("Đã đăng xuất tài khoản thành công");
+
+    if (pathname && pathname !== "/") {
       window.location.href = "/";
     }
   };

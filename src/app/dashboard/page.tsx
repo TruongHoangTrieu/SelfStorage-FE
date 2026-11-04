@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 // Types & API
 import { CustomerUnit, CustomerTab, GuestPass, SupportTicket, CustomerUser } from './types';
 import { customerUnitsApi } from '@/lib/api/customerUnits';
+import { clearClientAuth } from '@/lib/authUtils';
 import { renewalsApi } from '@/lib/api/renewals';
 import { useNotifications } from '@/lib/useNotifications';
 import NotificationDetailModal from '@/components/NotificationDetailModal';
@@ -324,22 +325,12 @@ export default function CustomerDashboardPage() {
   };
 
   // Handle Logout
-  const handleLogout = async () => {
-    try {
-      await customerUnitsApi.logout();
-    } catch (e) {
-      console.warn('Customer logout notice:', e);
-    } finally {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        localStorage.removeItem('customer_user');
-        sessionStorage.clear();
-      }
-      setCustomerUser(null);
-      triggerToast('Đã đăng xuất khỏi tài khoản thành công.');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      }
+  const handleLogout = () => {
+    clearClientAuth();
+    setCustomerUser(null);
+    triggerToast('Đã đăng xuất khỏi tài khoản thành công.');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
     }
   };
 

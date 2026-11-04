@@ -1,4 +1,5 @@
 import { api, ApiError } from '../api';
+import { clearClientAuth } from '../authUtils';
 import { CheckInAppointment, AvailableUnit, StaffUser } from '../../app/staff/types';
 
 export interface BackendCheckInResponse {
@@ -351,15 +352,7 @@ export const handoversApi = {
    * Staff logout
    */
   async logout() {
-    try {
-      await api.post('/auth/logout');
-    } catch (err) {
-      console.warn('Backend staff logout notice:', err);
-    } finally {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-      }
-    }
+    clearClientAuth();
   },
 
   /**

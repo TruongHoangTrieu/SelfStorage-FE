@@ -39,6 +39,7 @@ import {
 } from "../staff/types";
 import { ManagerTab } from "./types";
 import { handoversApi } from "@/lib/api/handovers";
+import { clearClientAuth } from "@/lib/authUtils";
 import { renewalsApi } from "@/lib/api/renewals";
 import { approvalRequestsService } from "../staff/services/approvalRequests";
 import { useNotifications } from "@/lib/useNotifications";
@@ -708,16 +709,12 @@ export default function ManagerPortalPage() {
     }, 300);
   };
 
-  const handleLogout = async () => {
-    try {
-      handoversApi.logout();
-      setCurrentUser(null);
-      toast.success("Đã đăng xuất tài khoản Quản lý.");
-      if (typeof window !== "undefined") {
-        window.location.href = "/login?redirect=/manager";
-      }
-    } catch {
-      window.location.href = "/login";
+  const handleLogout = () => {
+    clearClientAuth();
+    setCurrentUser(null);
+    toast.success("Đã đăng xuất tài khoản Quản lý.");
+    if (typeof window !== "undefined") {
+      window.location.href = "/login?redirect=/manager";
     }
   };
 
