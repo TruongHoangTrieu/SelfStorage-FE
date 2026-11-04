@@ -745,7 +745,7 @@ export default function ManagerPortalPage() {
   }[activeTab];
 
   return (
-    <div className="h-screen bg-[#F8FAFC] font-sans text-slate-900 antialiased flex flex-col overflow-hidden selection:bg-indigo-600/20 selection:text-indigo-600">
+    <div className="h-screen bg-[#F8FAFC] font-sans text-slate-900 antialiased flex flex-col overflow-hidden selection:bg-blue-600/20 selection:text-blue-600">
       {/* 1. TOP EXECUTIVE HEADER (Matching /staff proportions & spacing) */}
       <header className="h-18 bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 shrink-0 z-40 flex items-center justify-between shadow-2xs">
         {/* Left: Sidebar Toggle, Brand Logo & Breadcrumb */}
@@ -776,7 +776,7 @@ export default function ManagerPortalPage() {
           <div className="hidden md:flex items-center gap-2 pl-3 ml-1 border-l border-slate-200 text-xs font-semibold text-slate-500">
             <span className="text-slate-400">Quản Lý</span>
             <span>/</span>
-            <span className="text-indigo-900 font-bold">{currentTabLabel}</span>
+            <span className="text-blue-900 font-bold">{currentTabLabel}</span>
           </div>
         </div>
 
@@ -787,7 +787,7 @@ export default function ManagerPortalPage() {
             <button
               type="button"
               onClick={() => setNotificationOpen((prev) => !prev)}
-              className="relative p-2 rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/80 transition-colors cursor-pointer border border-transparent hover:border-indigo-100"
+              className="relative p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50/80 transition-colors cursor-pointer border border-transparent hover:border-blue-100"
               aria-label="Thông báo quản lý"
               title="Thông báo hệ thống"
             >
@@ -803,14 +803,14 @@ export default function ManagerPortalPage() {
               <div className="absolute right-0 mt-2.5 w-84 bg-white rounded-2xl shadow-xl border border-slate-100 p-3 z-50 animate-slide-up-fade">
                 <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100">
                   <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
-                    <Bell className="w-3.5 h-3.5 text-indigo-600" />
+                    <Bell className="w-3.5 h-3.5 text-blue-600" />
                     <span>Thông Báo Quản Lý ({unreadCount})</span>
                   </div>
                   {unreadCount > 0 && (
                     <button
                       type="button"
                       onClick={() => markAllAsRead()}
-                      className="text-[10px] font-semibold text-indigo-600 hover:underline cursor-pointer"
+                      className="text-[10px] font-semibold text-blue-600 hover:underline cursor-pointer"
                     >
                       Đã đọc tất cả
                     </button>
@@ -827,16 +827,16 @@ export default function ManagerPortalPage() {
                       <div
                         key={notif.id}
                         onClick={() => handleNotificationClick(notif)}
-                        className={`p-2.5 rounded-xl border transition-all cursor-pointer space-y-1 hover:border-indigo-300 hover:shadow-xs group ${
+                        className={`p-2.5 rounded-xl border transition-all cursor-pointer space-y-1 hover:border-blue-300 hover:shadow-xs group ${
                           notif.isRead
                             ? "bg-slate-50/60 border-slate-100 opacity-75"
-                            : "bg-indigo-50/40 border-indigo-100/80 shadow-2xs"
+                            : "bg-blue-50/40 border-blue-100/80 shadow-2xs"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1.5 text-[11px]">
-                          <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-indigo-600 transition-colors">
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
                             {!notif.isRead && (
-                              <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
+                              <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
                             )}
                             {notif.title}
                           </span>
@@ -854,7 +854,7 @@ export default function ManagerPortalPage() {
                           {notif.body}
                         </p>
                         <div className="flex items-center justify-end pt-0.5">
-                          <span className="text-[10px] font-semibold text-indigo-600 group-hover:underline flex items-center gap-0.5">
+                          <span className="text-[10px] font-semibold text-blue-600 group-hover:underline flex items-center gap-0.5">
                             <span>Xem chi tiết</span>
                             <span>&rarr;</span>
                           </span>
@@ -876,14 +876,14 @@ export default function ManagerPortalPage() {
                 className="flex items-center gap-2 text-left cursor-pointer group hover:opacity-85 transition-opacity"
                 title="Hồ sơ & Đổi mật khẩu Quản lý"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs transition-transform">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs transition-transform">
                   {getInitials(currentUser.fullName, currentUser.email)}
                 </div>
                 <div className="hidden md:block">
-                  <div className="text-xs font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">
+                  <div className="text-xs font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">
                     {currentUser.fullName}
                   </div>
-                  <div className="text-[10px] text-indigo-600 font-extrabold uppercase tracking-wider">
+                  <div className="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider">
                     {currentUser.role === "BUSINESS_OPERATIONS_MANAGER"
                       ? "GIÁM ĐỐC VẬN HÀNH"
                       : "QUẢN LÝ CHI NHÁNH"}
@@ -903,7 +903,7 @@ export default function ManagerPortalPage() {
             <button
               type="button"
               onClick={() => setIsLoginModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-xs transition-all active:scale-95 cursor-pointer"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>Đăng nhập Manager</span>
@@ -999,8 +999,8 @@ export default function ManagerPortalPage() {
             {/* TAB 5: GIÁM SÁT TIẾP NHẬN BÀN GIAO TẠI QUẦY */}
             {activeTab === "queue" && flowStep === "queue" && (
               <div className="space-y-4">
-                <div className="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 flex items-center gap-2.5 text-xs text-indigo-900 font-semibold">
-                  <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0" />
+                <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-4 flex items-center gap-2.5 text-xs text-blue-900 font-semibold">
+                  <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
                   <span>
                     Đang xem <strong>Hàng đợi nhận kho tại cơ sở</strong> dưới
                     quyền Quản Lý. Bạn có thể giám sát tiến độ hoặc trực tiếp hỗ

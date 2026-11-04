@@ -323,6 +323,10 @@ export const handoversApi = {
     if (res?.user) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('user', JSON.stringify(res.user));
+        if (res?.accessToken) {
+          localStorage.setItem('token', res.accessToken);
+          localStorage.setItem('access_token', res.accessToken);
+        }
       }
       return { user: res.user };
     }

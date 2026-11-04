@@ -82,7 +82,8 @@ export interface FacilityItem {
   email?: string;
   images?: string[];
   operatingHours?: string;
-  isActive: boolean;
+  isActive?: boolean;
+  status?: string;
   totalFloors?: number;
   storageUnitsCount?: number;
 }
@@ -167,5 +168,36 @@ export const facilitiesApi = {
   // Cập nhật danh sách ảnh cơ sở kho
   updateFacilityImages: async (facilityId: string, images: string[]) => {
     return api.patch<any>(`/facilities/${facilityId}`, { images });
+  },
+
+  // Flow 4: Tạo cơ sở mới (Operations & Admin)
+  createFacility: async (dto: {
+    name: string;
+    code: string;
+    address: string;
+    description?: string;
+    phone?: string;
+    email?: string;
+    images?: string[];
+    status?: 'ACTIVE' | 'INACTIVE' | 'UNDER_MAINTENANCE';
+  }) => {
+    return api.post<FacilityItem>('/facilities', dto);
+  },
+
+  // Flow 4: Cập nhật thông tin cơ sở
+  updateFacility: async (
+    facilityId: string,
+    dto: Partial<{
+      name: string;
+      code: string;
+      address: string;
+      description?: string;
+      phone?: string;
+      email?: string;
+      images?: string[];
+      status?: 'ACTIVE' | 'INACTIVE' | 'UNDER_MAINTENANCE';
+    }>
+  ) => {
+    return api.patch<FacilityItem>(`/facilities/${facilityId}`, dto);
   },
 };

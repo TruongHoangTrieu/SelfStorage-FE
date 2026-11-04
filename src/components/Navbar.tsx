@@ -141,28 +141,35 @@ export default function Navbar() {
     typeof user?.role === "string" ? user.role : user?.role?.name ?? ""
   ).toUpperCase();
 
-  const isManager =
-    roleName === "FACILITY_MANAGER" ||
+  const isOps =
     roleName === "BUSINESS_OPERATIONS_MANAGER" ||
-    roleName === "MANAGER" ||
-    roleName.includes("MANAGER");
+    roleName === "OPS" ||
+    roleName.includes("OPERATIONS_MANAGER");
+
+  const isManager =
+    !isOps && (
+      roleName === "FACILITY_MANAGER" ||
+      roleName === "MANAGER" ||
+      roleName.includes("MANAGER")
+    );
 
   const isPureStaff =
-    !isManager && (
+    !isManager &&
+    !isOps && (
       roleName === "STAFF" ||
       roleName === "FACILITY_STAFF" ||
       roleName === "OPERATIONS_STAFF" ||
       roleName.includes("STAFF")
     );
 
-  const isStaff = isPureStaff || isManager;
+  const isStaff = isPureStaff || isManager || isOps;
 
   const isAdmin =
     roleName === "ADMIN" ||
     roleName === "SYSTEM_ADMINISTRATOR" ||
     roleName.includes("ADMIN");
 
-  const isStaffOrAdmin = isPureStaff || isManager || isAdmin;
+  const isStaffOrAdmin = isPureStaff || isManager || isOps || isAdmin;
   const isStorageCustomer = Boolean(user && roleName === "STORAGE_CUSTOMER");
   // Chỉ khách vãng lai hoặc tài khoản STORAGE_CUSTOMER mới thấy các nút thuê kho
   const canRentStorage = !user || isStorageCustomer;
@@ -525,31 +532,31 @@ export default function Navbar() {
                           <Link
                             href="/admin"
                             onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-rose-50/70 border border-rose-200/60 text-rose-900 hover:bg-rose-100/70 transition"
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-blue-50/70 border border-blue-200/60 text-blue-900 hover:bg-blue-100/70 transition"
                           >
-                            <Settings className="w-4 h-4 text-rose-600 shrink-0" />
+                            <Settings className="w-4 h-4 text-blue-600 shrink-0" />
                             <div className="flex-1">
-                              <div className="text-rose-950 font-bold">Quản Trị Hệ Thống</div>
-                              <div className="text-[10px] text-rose-700/80 font-normal">
-                                Toàn quyền cấu hình nền tảng &amp; phân quyền
+                              <div className="text-blue-950 font-bold">Cổng Quản Trị Hệ Thống</div>
+                              <div className="text-[10px] text-blue-700/80 font-normal">
+                                Quản trị người dùng, phân quyền IAM &amp; nhật ký audit
                               </div>
                             </div>
                           </Link>
+                        </>
+                      ) : isOps ? (
+                        <>
                           <Link
-                            href="/manager"
+                            href="/operations"
                             onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-indigo-50 text-indigo-700 transition"
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-blue-50/70 border border-blue-200/60 text-blue-900 hover:bg-blue-100/70 transition"
                           >
-                            <Building2 className="w-4 h-4 shrink-0" />
-                            <span className="font-bold text-xs">Cổng Quản Lý Chi Nhánh</span>
-                          </Link>
-                          <Link
-                            href="/staff"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-emerald-50 text-emerald-700 transition"
-                          >
-                            <ShieldCheck className="w-4 h-4 shrink-0" />
-                            <span className="font-bold text-xs">Cổng Nhân Viên Vận Hành</span>
+                            <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                            <div className="flex-1">
+                              <div className="text-blue-950 font-bold">Cổng Vận Hành Chuỗi (Ops)</div>
+                              <div className="text-[10px] text-blue-700/80 font-normal">
+                                Quản lý cơ sở, chính sách chung &amp; báo cáo toàn mạng lưới
+                              </div>
+                            </div>
                           </Link>
                         </>
                       ) : isManager ? (
@@ -585,16 +592,7 @@ export default function Navbar() {
                           </Link>
 
                           {/* Quick link to Staff desk */}
-                          <Link
-                            href="/staff"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-50 text-slate-600 hover:text-indigo-600 transition"
-                          >
-                            <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
-                            <div className="flex-1 text-[11px] font-semibold">
-                              Chuyển sang Quầy Nhân Viên
-                            </div>
-                          </Link>
+                          
                         </>
                       ) : isPureStaff ? (
                         <>
@@ -766,16 +764,9 @@ export default function Navbar() {
                     <Link
                       href="/admin"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="py-2.5 px-3 text-center bg-rose-600 text-white font-bold rounded-xl text-xs hover:bg-rose-700 transition shadow-xs"
+                      className="col-span-2 py-2.5 px-3 text-center bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition shadow-xs"
                     >
-                      Quản Trị Viên
-                    </Link>
-                    <Link
-                      href="/manager"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="py-2.5 px-3 text-center bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition shadow-xs"
-                    >
-                      Cổng Quản Lý
+                      Cổng Quản Trị Hệ Thống
                     </Link>
                   </>
                 ) : isManager ? (
@@ -885,6 +876,16 @@ export default function Navbar() {
               Gợi ý ngay
             </span>
           </button>
+
+          {hydrated && isOps && (
+            <Link
+              href="/operations"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2.5 rounded-lg text-base font-semibold text-amber-700 hover:bg-amber-50 transition"
+            >
+              Cổng Vận Hành Chuỗi (Ops)
+            </Link>
+          )}
 
           {hydrated && isManager && (
             <Link

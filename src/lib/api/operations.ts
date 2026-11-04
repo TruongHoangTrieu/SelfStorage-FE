@@ -210,6 +210,25 @@ export const operationsApi = {
     return await api.post('/operations/fee-types', payload);
   },
 
+  async updateFeeType(
+    id: string | number,
+    payload: Partial<{
+      name: string;
+      code: string;
+      description?: string;
+      defaultAmount: number;
+      amountType?: string;
+      appliesTo?: string;
+      status?: string;
+    }>
+  ): Promise<FeeTypeItem> {
+    return await api.put(`/operations/fee-types/${id}`, payload);
+  },
+
+  async deleteFeeType(id: string | number): Promise<any> {
+    return await api.delete(`/operations/fee-types/${id}`);
+  },
+
   // ==================== EXTRA CHARGES ====================
   async getExtraCharges(contractId?: number, reservationId?: number): Promise<ExtraChargeItem[]> {
     try {
@@ -437,5 +456,38 @@ export const operationsApi = {
         total: 5,
       };
     }
+  },
+
+  // ==================== MULTI-BRANCH ANALYTICS & REPORTS ====================
+  async getMultiBranchAnalytics(): Promise<{
+    success: boolean;
+    summary: {
+      totalSystemRevenue: number;
+      totalDeposit: number;
+      totalRental: number;
+      totalPending: number;
+      totalPaidTransactions: number;
+      totalUnits: number;
+      totalOccupiedUnits: number;
+      systemOccupancyRate: number;
+    };
+    branchData: any[];
+    facilities: any[];
+    payments: any[];
+  }> {
+    return await api.get('/operations/analytics/multi-branch');
+  },
+
+  async getReportContracts(): Promise<any[]> {
+    try {
+      const res = await api.get('/operations/reports/contracts');
+      return Array.isArray(res) ? res : (res?.data || []);
+    } catch {
+      return [];
+    }
+  },
+
+  async terminateContract(id: string): Promise<any> {
+    return await api.patch(`/operations/contracts/${id}/terminate`);
   },
 };

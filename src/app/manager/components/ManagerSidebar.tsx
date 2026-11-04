@@ -148,14 +148,14 @@ export default function ManagerSidebar({
           )}
         </div>
         <Link href="/" className="inline-flex items-center gap-2 pr-4">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
+          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
             <Building2 className="w-4 h-4" />
           </div>
           <div>
             <span className="font-black text-base tracking-tight text-slate-900">
               SmartStorage
             </span>
-            <span className="block text-[10px] text-indigo-600 font-bold uppercase tracking-wider">
+            <span className="block text-[10px] text-blue-600 font-bold uppercase tracking-wider">
               Cổng Quản Lý Cơ Sở
             </span>
           </div>
@@ -185,14 +185,14 @@ export default function ManagerSidebar({
               onClick={() => onSelectTab(item.id)}
               className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
-                  ? "bg-indigo-50 text-indigo-700 font-bold shadow-2xs"
+                  ? "bg-blue-50 text-blue-700 font-bold shadow-2xs"
                   : "text-slate-700 hover:bg-slate-100 font-medium"
               }`}
               title={item.label}
             >
               <div className="w-[50px] h-12 shrink-0 flex items-center justify-center">
                 <Icon
-                  className={`w-5 h-5 shrink-0 transition-colors ${isActive ? "text-indigo-600" : "text-slate-600"}`}
+                  className={`w-5 h-5 shrink-0 transition-colors ${isActive ? "text-blue-600" : "text-slate-600"}`}
                 />
               </div>
 
@@ -212,8 +212,8 @@ export default function ManagerSidebar({
                 <span
                   className={`mr-2 text-xs font-bold px-2 py-0.5 rounded-full transition-all duration-300 ease-in-out shrink-0 ${
                     isActive
-                      ? "bg-indigo-600 text-white"
-                      : "bg-indigo-100 text-indigo-800"
+                      ? "bg-blue-600 text-white"
+                      : "bg-blue-100 text-blue-800"
                   } ${isCollapsed ? "max-w-0 opacity-0 overflow-hidden px-0 pointer-events-none" : "max-w-[40px] opacity-100"}`}
                 >
                   {item.badge}
@@ -247,14 +247,14 @@ export default function ManagerSidebar({
               onClick={() => onSelectTab(item.id)}
               className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
-                  ? "bg-indigo-50 text-indigo-700 font-bold shadow-2xs"
+                  ? "bg-blue-50 text-blue-700 font-bold shadow-2xs"
                   : "text-slate-700 hover:bg-slate-100 font-medium"
               }`}
               title={item.label}
             >
               <div className="w-[50px] h-12 shrink-0 flex items-center justify-center">
                 <Icon
-                  className={`w-5 h-5 shrink-0 transition-colors ${isActive ? "text-indigo-600" : "text-slate-600"}`}
+                  className={`w-5 h-5 shrink-0 transition-colors ${isActive ? "text-blue-600" : "text-slate-600"}`}
                 />
               </div>
 
@@ -274,8 +274,8 @@ export default function ManagerSidebar({
                 <span
                   className={`mr-2 text-xs font-bold px-2 py-0.5 rounded-full transition-all duration-300 ease-in-out shrink-0 ${
                     isActive
-                      ? "bg-indigo-600 text-white"
-                      : "bg-indigo-100 text-indigo-800"
+                      ? "bg-blue-600 text-white"
+                      : "bg-blue-100 text-blue-800"
                   } ${isCollapsed ? "max-w-0 opacity-0 overflow-hidden px-0 pointer-events-none" : "max-w-[40px] opacity-100"}`}
                 >
                   {item.badge}
@@ -284,7 +284,7 @@ export default function ManagerSidebar({
 
               {item.dot && (
                 <span
-                  className={`mr-3 w-2 h-2 rounded-full bg-indigo-500 shrink-0 transition-opacity duration-300 ${
+                  className={`mr-3 w-2 h-2 rounded-full bg-blue-500 shrink-0 transition-opacity duration-300 ${
                     isCollapsed ? "opacity-0" : "opacity-100"
                   }`}
                 />
@@ -317,14 +317,14 @@ export default function ManagerSidebar({
               onClick={() => onSelectTab(item.id)}
               className={`w-full flex items-center h-12 rounded-xl transition-all duration-200 cursor-pointer relative group ${
                 isActive
-                  ? "bg-indigo-50 text-indigo-700 font-bold shadow-2xs"
+                  ? "bg-blue-50 text-blue-700 font-bold shadow-2xs"
                   : "text-slate-700 hover:bg-slate-100 font-medium"
               }`}
               title={item.label}
             >
               <div className="w-[50px] h-12 shrink-0 flex items-center justify-center">
                 <Icon
-                  className={`w-5 h-5 shrink-0 transition-colors ${isActive ? "text-indigo-600" : "text-slate-600"}`}
+                  className={`w-5 h-5 shrink-0 transition-colors ${isActive ? "text-blue-600" : "text-slate-600"}`}
                 />
               </div>
 
@@ -342,6 +342,8 @@ export default function ManagerSidebar({
             </button>
           );
         })}
+
+
       </nav>
 
       {/* Manager User Footer */}
@@ -354,7 +356,7 @@ export default function ManagerSidebar({
               title={currentUser.fullName}
             >
               <div className="w-[56px] shrink-0 flex items-center justify-center">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs shrink-0 tracking-wider transition-transform">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 group-hover:scale-105 flex items-center justify-center font-bold text-white text-xs shadow-xs shrink-0 tracking-wider transition-transform">
                   {getInitials(currentUser.fullName, currentUser.email)}
                 </div>
               </div>
@@ -364,9 +366,9 @@ export default function ManagerSidebar({
                   isCollapsed ? "max-w-0 opacity-0" : "opacity-100"
                 }`}
               >
-                <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5 group-hover:text-indigo-600 transition-colors">
+                <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
                   <span className="truncate">{currentUser.fullName}</span>
-                  <span className="text-[9px] px-1 py-0.2 rounded bg-indigo-100 text-indigo-800 font-extrabold uppercase shrink-0">
+                  <span className="text-[9px] px-1 py-0.2 rounded bg-blue-100 text-blue-800 font-extrabold uppercase shrink-0">
                     {managerRole}
                   </span>
                 </div>
@@ -393,7 +395,7 @@ export default function ManagerSidebar({
           <div className="px-1 py-1">
             <Link
               href="/login"
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
             >
               <LogIn className="w-4 h-4 shrink-0" />
               {!isCollapsed && <span>Đăng nhập Manager</span>}

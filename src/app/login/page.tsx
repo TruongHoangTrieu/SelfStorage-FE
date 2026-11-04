@@ -125,6 +125,10 @@ export default function LoginPage() {
 
       if (res?.user) {
         localStorage.setItem("user", JSON.stringify(res.user));
+        if (res?.accessToken) {
+          localStorage.setItem("token", res.accessToken);
+          localStorage.setItem("access_token", res.accessToken);
+        }
         window.dispatchEvent(new Event("storage"));
         window.dispatchEvent(new Event("auth-change"));
         toast.success(`Đăng nhập Google thành công! Chào mừng ${res.user.fullName || res.user.email}`);
@@ -154,12 +158,14 @@ export default function LoginPage() {
 
       if (isLogin) {
         let loggedInUser: any = null;
+        let loginToken: string | null = null;
         try {
           const res = await api.post("/auth/login", {
             email: formData.email.trim(),
             password: formData.password
           });
           loggedInUser = res?.user;
+          loginToken = res?.accessToken || res?.token || null;
         } catch (loginErr) {
           // Hỗ trợ đăng nhập cho 4 tài khoản khách hàng mẫu nhận kho hôm nay (13:00 - 14:30)
           const sampleCustomer = authenticateSampleCustomer(formData.email, formData.password);
@@ -174,6 +180,10 @@ export default function LoginPage() {
           localStorage.setItem("user", JSON.stringify(loggedInUser));
           if (loggedInUser.role === "STORAGE_CUSTOMER") {
             localStorage.setItem("customer_user", JSON.stringify(loggedInUser));
+          }
+          if (loginToken) {
+            localStorage.setItem("token", loginToken);
+            localStorage.setItem("access_token", loginToken);
           }
         }
 
@@ -197,6 +207,10 @@ export default function LoginPage() {
 
         if (regRes?.user) {
           localStorage.setItem("user", JSON.stringify(regRes.user));
+          if (regRes?.accessToken) {
+            localStorage.setItem("token", regRes.accessToken);
+            localStorage.setItem("access_token", regRes.accessToken);
+          }
           window.dispatchEvent(new Event("storage"));
           window.dispatchEvent(new Event("auth-change"));
           toast.success("Tạo tài khoản và đăng nhập thành công!");
