@@ -192,12 +192,12 @@ export default function SystemAdministratorPage() {
 
         if (!isAdmin) {
           if (role === "BUSINESS_OPERATIONS_MANAGER" || role === "OPS" || role.includes("OPERATIONS_MANAGER")) {
-            toast.info("Tài khoản Vận Hành Chuỗi (Role 4) - Đang chuyển sang Cổng Vận Hành Doanh Nghiệp...");
+            toast.info("Đang chuyển sang Cổng Vận Hành Doanh Nghiệp...");
             window.location.replace("/operations");
             return;
           }
           if (role === "FACILITY_MANAGER" || role === "MANAGER" || role.includes("MANAGER")) {
-            toast.info("Tài khoản Quản Lý Chi Nhánh (Role 3) - Đang chuyển sang Cổng Quản Lý Cơ Sở...");
+            toast.info("Đang chuyển sang Cổng Quản Lý Cơ Sở...");
             window.location.replace("/manager");
             return;
           }

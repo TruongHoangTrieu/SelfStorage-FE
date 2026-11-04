@@ -170,7 +170,7 @@ export default function BusinessOperationsPage() {
         }
 
         if (role === "FACILITY_MANAGER" && !role.includes("OPERATIONS") && !role.includes("ADMIN")) {
-          toast.info("Tài khoản Quản Lý Chi Nhánh (Role 3) - Cổng Vận Hành dành riêng cho Quản Lý Vận Hành Chuỗi (Role 4). Đã chuyển về Cổng Chi Nhánh.");
+          toast.info("Đang chuyển về Cổng Quản Lý Cơ Sở...");
           window.location.replace("/manager");
           return;
         }

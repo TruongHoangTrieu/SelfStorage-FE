@@ -349,26 +349,26 @@ export default function ManagerPortalPage() {
       return;
     }
 
-    // 2. Nếu là Quản trị hệ thống (Role 5) -> Tự động chuyển về Cổng Quản Trị Hệ Thống /admin
+    // 2. Nếu là Quản trị hệ thống -> Tự động chuyển về Cổng Quản Trị Hệ Thống /admin
     if (
       roleName === "SYSTEM_ADMINISTRATOR" ||
       roleName === "ADMIN" ||
       roleName.includes("ADMIN")
     ) {
-      toast.info("Tài khoản Quản Trị Hệ Thống (Role 5) - Chuyển sang Cổng Quản Trị Hệ Thống.");
+      toast.info("Đang chuyển sang Cổng Quản Trị Hệ Thống...");
       if (typeof window !== "undefined") {
         window.location.replace("/admin");
       }
       return;
     }
 
-    // 3. Nếu là Vận hành doanh nghiệp (Role 4) -> Tự động chuyển về Cổng Vận Hành Chuỗi /operations
+    // 3. Nếu là Vận hành doanh nghiệp -> Tự động chuyển về Cổng Vận Hành Chuỗi /operations
     if (
       roleName === "BUSINESS_OPERATIONS_MANAGER" ||
       roleName === "OPS" ||
       roleName.includes("OPERATIONS_MANAGER")
     ) {
-      toast.info("Tài khoản Quản Lý Vận Hành Doanh Nghiệp (Role 4) - Chuyển sang Cổng Vận Hành Chuỗi.");
+      toast.info("Đang chuyển sang Cổng Vận Hành Chuỗi...");
       if (typeof window !== "undefined") {
         window.location.replace("/operations");
       }
