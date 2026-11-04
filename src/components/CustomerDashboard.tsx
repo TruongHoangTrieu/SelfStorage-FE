@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
+import { clearClientAuth } from '@/lib/authUtils';
 import { 
   Box, 
   ShoppingCart, 
@@ -168,15 +169,9 @@ export default function CustomerDashboard() {
 
               <div className="mt-12 pt-6 border-t border-slate-100 px-2">
                 <button 
-                  onClick={async () => {
-                    try {
-                      await api.post('/auth/logout');
-                    } catch (e) {
-                      console.warn('Logout notice:', e);
-                    } finally {
-                      localStorage.removeItem('user');
-                      window.location.href = '/';
-                    }
+                  onClick={() => {
+                    clearClientAuth();
+                    window.location.href = '/';
                   }}
                   className="flex items-center text-slate-400 font-bold hover:text-red-500 transition-colors cursor-pointer"
                 >

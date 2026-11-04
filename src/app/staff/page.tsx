@@ -34,6 +34,7 @@ import {
   getSampleAvailableUnits,
 } from './mockTodayAppointments';
 import { handoversApi } from '../../lib/api/handovers';
+import { clearClientAuth } from '@/lib/authUtils';
 import { renewalsApi } from '@/lib/api/renewals';
 import { approvalRequestsService } from './services/approvalRequests';
 
@@ -881,21 +882,12 @@ export default function StaffPortalPage() {
   };
 
   // Logout handler: dọn dẹp sạch phiên làm việc và chuyển ngay sang trang đăng nhập
-  const handleLogout = async () => {
-    try {
-      await handoversApi.logout();
-    } catch (err) {
-      console.warn('Staff logout notice:', err);
-    } finally {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        sessionStorage.clear();
-      }
-      setCurrentUser(null);
-      toast.success('Đã đăng xuất tài khoản thành công');
-      if (typeof window !== 'undefined') {
-        window.location.replace('/login');
-      }
+  const handleLogout = () => {
+    clearClientAuth();
+    setCurrentUser(null);
+    toast.success('Đã đăng xuất tài khoản thành công');
+    if (typeof window !== 'undefined') {
+      window.location.replace('/login');
     }
   };
 

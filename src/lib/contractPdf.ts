@@ -236,7 +236,7 @@ export function downloadContractPdf(data: ContractPdfData): void {
             <div>
               <div class="info-row"><span class="info-label">Thời hạn thuê:</span> <strong>${data.startDate} đến ${data.endDate}</strong></div>
               <div class="info-row"><span class="info-label">Đơn giá thuê:</span> <strong style="color: #ea580c;">${rentDisplay}</strong></div>
-              <div class="info-row"><span class="info-label">Tiền cọc bảo đảm:</span> <strong>${depositDisplay}</strong></div>
+              <div class="info-row"><span class="info-label">Quyết toán tiền cọc:</span> <strong>Đã cấn trừ 100% vào tiền thuê</strong> (Dư nợ cọc: 0 đ)</div>
               <div class="info-row"><span class="info-label">Quyền truy cập:</span> Khóa thông minh Smart Lock 24/7</div>
             </div>
           </div>
@@ -246,7 +246,7 @@ export function downloadContractPdf(data: ContractPdfData): void {
         <p><strong>Điều 1. Mục đích sử dụng:</strong> Bên B chỉ sử dụng ngăn kho để lưu trữ đồ đạc cá nhân, hàng hóa thương mại hợp pháp. Nghiêm cấm tuyệt đối hàng cấm, chất gây cháy nổ, vũ khí, hóa chất độc hại, sinh vật sống, rác thải hoặc đồ vật vi phạm pháp luật.</p>
         <p><strong>Điều 2. Quản lý an ninh & khóa thông minh:</strong> Ngăn kho được bảo vệ bằng hệ thống khóa điện tử mã PIN độc quyền và kiểm soát cửa tự động 24/7. Bên B có trách nhiệm tự bảo mật mã khóa cá nhân.</p>
         <p><strong>Điều 3. Gia hạn hợp đồng:</strong> Trước ngày hết hạn hợp đồng ít nhất 03 ngày, Bên B có thể thực hiện gia hạn trực tuyến qua hệ thống hoặc đăng ký với Ban Quản Lý.</p>
-        <p><strong>Điều 4. Trả kho và hoàn tiền cọc:</strong> Khi kết thúc hợp đồng hoặc có nhu cầu trả kho, Bên B thực hiện quy trình trả kho trực tuyến, bàn giao mặt bằng kho sạch sẽ nguyên vẹn. Tiền cọc sẽ được hoàn trả đầy đủ vào tài khoản ngân hàng của Bên B trong vòng 24 - 48 giờ làm việc sau nghiệm thu.</p>
+        <p><strong>Điều 4. Trả kho trước hạn & Chính sách không hoàn tiền:</strong> Bên B có quyền làm thủ tục bàn giao trả kho trước hạn khi không còn nhu cầu sử dụng. Do toàn bộ tiền cọc ban đầu đã được cấn trừ trọn gói vào tiền thuê, Bên A không hoàn lại bất kỳ khoản tiền nào (bao gồm tiền thuê của các ngày/tháng còn lại chưa sử dụng). Bên B có trách nhiệm dọn sạch tài sản và bàn giao nguyên trạng thiết bị; trường hợp có hư hại tài sản hoặc phát sinh phí vệ sinh, Bên B có nghĩa vụ thanh toán chi phí bồi thường tại thời điểm bàn giao.</p>
 
         <div class="signature-section">
           <div>

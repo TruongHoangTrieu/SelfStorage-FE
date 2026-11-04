@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { clearClientAuth } from "@/lib/authUtils";
 import { facilitiesApi, FacilityItem } from "@/lib/api/facilities";
 import {
   operationsApi,
@@ -185,17 +186,10 @@ export default function BusinessOperationsPage() {
     return "OP";
   };
 
-  const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch (e) {
-      console.warn("Logout notice:", e);
-    } finally {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("user");
-        sessionStorage.clear();
-        window.location.replace("/login");
-      }
+  const handleLogout = () => {
+    clearClientAuth();
+    if (typeof window !== "undefined") {
+      window.location.replace("/login");
     }
   };
 
