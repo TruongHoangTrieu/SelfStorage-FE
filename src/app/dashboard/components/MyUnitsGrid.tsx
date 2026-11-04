@@ -18,6 +18,8 @@ import {
   CalendarCheck,
   Trash2,
   DoorClosed,
+  Search,
+  X,
 } from 'lucide-react';
 import { CustomerUnit, CustomerUser } from '../types';
 
@@ -52,6 +54,63 @@ export default function MyUnitsGrid({
   const togglePin = (unitId: string) => {
     setVisiblePins(prev => ({ ...prev, [unitId]: !prev[unitId] }));
   };
+
+  // Bộ lọc danh mục & tìm kiếm đơn đặt giữ chỗ
+  const [reservationTab, setReservationTab] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'ALL'>('ACTIVE');
+  const [reservationSearchQuery, setReservationSearchQuery] = useState('');
+
+  const resCounts = React.useMemo(() => {
+    const counts = {
+      ACTIVE: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+      ALL: (reservations || []).length,
+    };
+    (reservations || []).forEach((r: any) => {
+      if (r.status === 'COMPLETED') {
+        counts.COMPLETED++;
+      } else if (r.status === 'CANCELLED' || r.status === 'EXPIRED') {
+        counts.CANCELLED++;
+      } else {
+        counts.ACTIVE++;
+      }
+    });
+    return counts;
+  }, [reservations]);
+
+  const filteredReservations = React.useMemo(() => {
+    let list = reservations || [];
+
+    if (reservationTab === 'ACTIVE') {
+      list = list.filter((r: any) => r.status !== 'COMPLETED' && r.status !== 'CANCELLED' && r.status !== 'EXPIRED');
+    } else if (reservationTab === 'COMPLETED') {
+      list = list.filter((r: any) => r.status === 'COMPLETED');
+    } else if (reservationTab === 'CANCELLED') {
+      list = list.filter((r: any) => r.status === 'CANCELLED' || r.status === 'EXPIRED');
+    }
+
+    const query = reservationSearchQuery.trim().toLowerCase();
+    if (query) {
+      list = list.filter((r: any) => {
+        const code = (r.reservationCode || String(r.id)).toLowerCase();
+        const facilityName = (r.facility?.name || '').toLowerCase();
+        const facilityAddress = (r.facility?.address || '').toLowerCase();
+        const item = r.items?.[0];
+        const unitName = (item?.unitType?.name || '').toLowerCase();
+        const unitNumber = (item?.unit?.unitNumber || '').toLowerCase();
+
+        return (
+          code.includes(query) ||
+          facilityName.includes(query) ||
+          facilityAddress.includes(query) ||
+          unitName.includes(query) ||
+          unitNumber.includes(query)
+        );
+      });
+    }
+
+    return list;
+  }, [reservations, reservationTab, reservationSearchQuery]);
 
   const pendingReservations = (reservations || []).filter(
     (r: any) => r.status !== 'COMPLETED' && r.status !== 'CANCELLED' && r.status !== 'EXPIRED'
@@ -108,11 +167,11 @@ export default function MyUnitsGrid({
             title="Xem danh sách Đơn đặt giữ chỗ"
           >
             <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">
-              {pendingReservations.length}
+              {resCounts.ACTIVE}
             </div>
             <div>
               <div className="text-xs text-slate-400 font-medium">Đơn đặt giữ chỗ</div>
-              <div className="text-sm font-bold text-indigo-600">{pendingReservations.length} đơn</div>
+              <div className="text-sm font-bold text-indigo-600">{resCounts.ACTIVE} đơn</div>
             </div>
           </div>
 
@@ -169,14 +228,14 @@ export default function MyUnitsGrid({
             className={`px-2 py-0.5 rounded-full text-xs font-black ${
               activeSubTab === 'reservations'
                 ? 'bg-indigo-100 text-indigo-700'
-                : pendingReservations.length > 0
+                : resCounts.ACTIVE > 0
                 ? 'bg-indigo-100 text-indigo-700'
                 : 'bg-slate-200 text-slate-600'
             }`}
           >
-            {pendingReservations.length}
+            {resCounts.ACTIVE}
           </span>
-          {pendingReservations.length > 0 && (
+          {resCounts.ACTIVE > 0 && (
             <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
           )}
         </button>
@@ -451,10 +510,10 @@ export default function MyUnitsGrid({
             <div>
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <CalendarCheck className="w-5 h-5 text-indigo-600" />
-                Đơn Đặt Giữ Chỗ Chờ Nhận Kho ({pendingReservations.length})
+                Đơn Đặt Giữ Chỗ Của Bạn ({filteredReservations.length})
               </h2>
               <p className="text-xs text-slate-500">
-                Các đơn đã đặt cọc thành công. Vui lòng đến đúng lịch hẹn để nhân viên cơ sở làm thủ tục bàn giao và kích hoạt Smart Lock
+                Quản lý các phòng kho đã giữ chỗ và trạng thái bàn giao.
               </p>
             </div>
 
@@ -467,37 +526,132 @@ export default function MyUnitsGrid({
             </Link>
           </div>
 
+          {/* Search bar & Filter Tabs */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={reservationSearchQuery}
+                onChange={(e) => setReservationSearchQuery(e.target.value)}
+                placeholder="Tìm theo mã đơn, ô kho, cơ sở..."
+                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 placeholder:text-slate-400"
+              />
+              {reservationSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setReservationSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-          {pendingReservations.length === 0 ? (
+            {/* Filter Tabs Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+              {[
+                { key: 'ACTIVE', label: 'Chờ nhận kho', count: resCounts.ACTIVE },
+                { key: 'COMPLETED', label: 'Đã nhận kho', count: resCounts.COMPLETED },
+                { key: 'CANCELLED', label: 'Đã hủy / Quá hạn', count: resCounts.CANCELLED },
+                { key: 'ALL', label: 'Tất cả', count: resCounts.ALL },
+              ].map((tab) => {
+                const isActive = reservationTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setReservationTab(tab.key as any)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer shrink-0 ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/30'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                        isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {filteredReservations.length === 0 ? (
             <div className="bg-white rounded-3xl border border-slate-200/90 p-10 sm:p-12 text-center max-w-xl mx-auto space-y-4 shadow-2xs">
               <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
                 <CalendarCheck className="w-8 h-8" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Không có đơn đặt giữ chỗ nào đang chờ</h3>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {reservationSearchQuery.trim() ? 'Không tìm thấy kết quả' : 'Không có đơn đặt giữ chỗ nào'}
+                </h3>
                 <p className="text-slate-500 text-xs sm:text-sm mt-1.5 max-w-md mx-auto leading-relaxed">
-                  Bạn hiện không có đơn giữ chỗ nào đang chờ làm thủ tục nhận kho. Bạn có thể tìm kiếm và đặt thêm kho lưu trữ mới bất cứ lúc nào.
+                  {reservationSearchQuery.trim()
+                    ? `Không có đơn nào khớp với từ khóa "${reservationSearchQuery.trim()}".`
+                    : reservationTab === 'ACTIVE'
+                    ? 'Bạn hiện không có đơn giữ chỗ nào đang chờ làm thủ tục nhận kho.'
+                    : 'Không tìm thấy đơn nào trong danh mục đã chọn.'}
                 </p>
               </div>
               <div className="pt-2">
-                <Link
-                  href="/locations"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition cursor-pointer"
-                >
-                  <span>Tìm &amp; Đặt Thuê Ngăn Kho Mới</span>
-                  <ChevronRight className="w-4 h-4" />
-                </Link>
+                {reservationSearchQuery.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => setReservationSearchQuery('')}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 shadow-xs transition cursor-pointer"
+                  >
+                    <span>Xóa từ khóa tìm kiếm</span>
+                  </button>
+                ) : (
+                  <Link
+                    href="/locations"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition cursor-pointer"
+                  >
+                    <span>Tìm &amp; Đặt Thuê Ngăn Kho Mới</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                )}
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {pendingReservations.map((res: any) => {
+              {filteredReservations.map((res: any) => {
                 const firstItem = res.items?.[0] || {};
                 const unitType = firstItem.unitType || {};
                 const unit = firstItem.unit || {};
                 const depositVal = firstItem.depositAmount ? Number(firstItem.depositAmount) : 0;
                 const monthlyPrice = firstItem.price ? Number(firstItem.price) : 0;
-                const isConfirmed = res.status === 'CONFIRMED' || res.status === 'ARRIVED';
+
+                let statusLabel = 'Chờ Thanh Toán';
+                let statusBg = 'bg-amber-50 text-amber-700 border-amber-200';
+                let dotColor = 'bg-amber-500';
+
+                if (res.status === 'CONFIRMED' || res.status === 'ARRIVED') {
+                  statusLabel = 'Đã Thanh Toán Cọc 100%';
+                  statusBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                  dotColor = 'bg-emerald-500';
+                } else if (res.status === 'COMPLETED') {
+                  statusLabel = 'Đã Nhận Kho';
+                  statusBg = 'bg-blue-50 text-blue-700 border-blue-200';
+                  dotColor = 'bg-blue-500';
+                } else if (res.status === 'CANCELLED') {
+                  statusLabel = 'Đã Hủy';
+                  statusBg = 'bg-rose-50 text-rose-700 border-rose-200';
+                  dotColor = 'bg-rose-500';
+                } else if (res.status === 'EXPIRED') {
+                  statusLabel = 'Quá Hạn';
+                  statusBg = 'bg-slate-100 text-slate-600 border-slate-200';
+                  dotColor = 'bg-slate-400';
+                }
+
+                const canCancel = res.status !== 'COMPLETED' && res.status !== 'CANCELLED' && res.status !== 'EXPIRED';
 
                 return (
                   <div
@@ -510,17 +664,13 @@ export default function MyUnitsGrid({
                         <div>
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <span className="font-black text-indigo-600 text-sm tracking-tight">
-                              {res.reservationCode}
+                              {res.reservationCode || '#' + String(res.id).slice(-8).toUpperCase()}
                             </span>
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                                isConfirmed
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
-                              }`}
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${statusBg}`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full ${isConfirmed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                              {isConfirmed ? 'Đã Thanh Toán Cọc 100%' : 'Chờ Thanh Toán'}
+                              <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                              {statusLabel}
                             </span>
                           </div>
                           <h3 className="font-extrabold text-slate-900 text-lg">
@@ -528,7 +678,7 @@ export default function MyUnitsGrid({
                           </h3>
                         </div>
 
-                        {onCancelReservation && (
+                        {canCancel && onCancelReservation && (
                           <button
                             type="button"
                             onClick={() => onCancelReservation(res.id)}

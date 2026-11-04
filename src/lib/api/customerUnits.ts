@@ -419,7 +419,7 @@ export const customerUnitsApi = {
    */
   async fetchMyReservations(): Promise<any[]> {
     try {
-      const res = await api.get('/reservations?limit=20');
+      const res = await api.get('/reservations?limit=50');
       const list = Array.isArray(res) ? res : (res?.data || []);
       return list;
     } catch (e) {
