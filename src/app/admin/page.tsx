@@ -132,22 +132,42 @@ export default function SystemAdministratorPage() {
   const [isAssignFacilityModalOpen, setIsAssignFacilityModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
-  // Create User Form
+  // Create User Form (Onboarding)
+  const [createAccountScope, setCreateAccountScope] = useState<"INTERNAL" | "CUSTOMER">("INTERNAL");
   const [formFullName, setFormFullName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formPassword, setFormPassword] = useState("Storage@2026");
   const [formRole, setFormRole] = useState("FACILITY_STAFF");
   const [formFacilityId, setFormFacilityId] = useState("");
+  const [formCreateReason, setFormCreateReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    fullName: string;
+    email: string;
+    password: string;
+    roleTitle: string;
+    scopeLabel: string;
+  } | null>(null);
 
-  // Change Role Form
+  // Change Role Form (Role Transition)
   const [newRoleName, setNewRoleName] = useState("");
   const [roleChangeFacilityId, setRoleChangeFacilityId] = useState("");
+  const [roleChangeReason, setRoleChangeReason] = useState("");
+  const [isRoleSubmitting, setIsRoleSubmitting] = useState(false);
 
   // Assign Facility Form
   const [targetFacilityId, setTargetFacilityId] = useState("");
   const [roleInFacility, setRoleInFacility] = useState("STAFF");
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    let randomPart = "";
+    for (let i = 0; i < 6; i++) {
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormPassword(`SS@${randomPart}`);
+  };
 
   // Load User from LocalStorage
   useEffect(() => {
@@ -289,6 +309,29 @@ export default function SystemAdministratorPage() {
     });
   }, [auditLogs, auditSearch, auditActionFilter]);
 
+  // Kiểm tra cơ sở đang chọn khi tạo tài khoản đã có Quản lý (FACILITY_MANAGER) hay chưa
+  const existingManagerAtCreateFacility = useMemo(() => {
+    if (formRole !== "FACILITY_MANAGER" || !formFacilityId) return null;
+    return users.find(
+      (u) =>
+        u.status === "ACTIVE" &&
+        u.role === "FACILITY_MANAGER" &&
+        String(u.facilityId || u.assignedFacility?.id || "") === String(formFacilityId)
+    );
+  }, [users, formRole, formFacilityId]);
+
+  // Kiểm tra cơ sở đang chọn khi đổi vai trò sang Quản lý đã có Quản lý khác hay chưa
+  const existingManagerAtRoleChangeFacility = useMemo(() => {
+    if (newRoleName !== "FACILITY_MANAGER" || !roleChangeFacilityId || !selectedUser) return null;
+    return users.find(
+      (u) =>
+        u.id !== selectedUser.id &&
+        u.status === "ACTIVE" &&
+        u.role === "FACILITY_MANAGER" &&
+        String(u.facilityId || u.assignedFacility?.id || "") === String(roleChangeFacilityId)
+    );
+  }, [users, newRoleName, roleChangeFacilityId, selectedUser]);
+
   // Handle Create User
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,29 +340,53 @@ export default function SystemAdministratorPage() {
       return;
     }
 
+    const isFacilityScoped = formRole === "FACILITY_STAFF" || formRole === "FACILITY_MANAGER";
+
     // Ràng buộc bắt buộc gán cơ sở đối với Staff và Facility Manager
-    if ((formRole === "FACILITY_STAFF" || formRole === "FACILITY_MANAGER") && !formFacilityId) {
+    if (isFacilityScoped && !formFacilityId) {
       toast.error("Vai trò Nhân viên (Staff) và Quản lý (Facility Manager) bắt buộc phải gán cơ sở trực thuộc!");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const finalPassword = formPassword.trim() || "Storage@2026";
+      const targetFacilityObj = isFacilityScoped
+        ? facilities.find((f) => String(f.id) === String(formFacilityId))
+        : null;
+      const roleObj = SYSTEM_ROLES.find((r) => r.name === formRole);
+
       await usersApi.createUser({
         fullName: formFullName.trim(),
         email: formEmail.trim().toLowerCase(),
         phone: formPhone.trim() || undefined,
-        password: formPassword || "Storage@2026",
+        password: finalPassword,
         roleName: formRole,
-        facilityId: formFacilityId || undefined,
+        facilityId: isFacilityScoped ? formFacilityId : undefined,
+        reason: formCreateReason.trim() || undefined,
       });
-      toast.success(`Đã tạo tài khoản ${formFullName} thành công!`);
-      setIsCreateUserModalOpen(false);
+
+      toast.success(`Đã tạo tài khoản ${formFullName.trim()} và cấp quyền thành công!`);
+
+      // Hiển thị thẻ bàn giao thông tin đăng nhập (Copy Credentials Card)
+      setCreatedCredentials({
+        fullName: formFullName.trim(),
+        email: formEmail.trim().toLowerCase(),
+        password: finalPassword,
+        roleTitle: roleObj ? `${roleObj.titleVi} (${roleObj.title})` : formRole,
+        scopeLabel: isFacilityScoped
+          ? targetFacilityObj
+            ? `${targetFacilityObj.name} (${targetFacilityObj.code})`
+            : "Chi nhánh được gán"
+          : formRole === "STORAGE_CUSTOMER"
+            ? "Cổng Khách Hàng (Customer Portal)"
+            : "Toàn Hệ Thống (Global Scope - Mọi chi nhánh)",
+      });
+
       setFormFullName("");
       setFormEmail("");
       setFormPhone("");
-      setFormFacilityId("");
-      setFormPassword("Storage@2026");
+      setFormCreateReason("");
       await loadData();
     } catch (err: any) {
       toast.error(err?.message || "Lỗi tạo tài khoản");
@@ -330,6 +397,10 @@ export default function SystemAdministratorPage() {
 
   // Handle Toggle User Status (Lock/Unlock)
   const handleToggleStatus = async (user: UserItem) => {
+    if (currentUser && String(currentUser.id) === String(user.id)) {
+      toast.error("Bạn không thể tự khóa tài khoản Quản trị viên đang đăng nhập của chính mình!");
+      return;
+    }
     const nextStatus = user.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
     const actionLabel = nextStatus === "ACTIVE" ? "Mở khóa tài khoản" : "Khóa tài khoản";
     if (
@@ -363,37 +434,37 @@ export default function SystemAdministratorPage() {
   const handleSubmitRoleChange = async () => {
     if (!selectedUser || !newRoleName) return;
 
+    if (currentUser && String(currentUser.id) === String(selectedUser.id) && newRoleName !== "SYSTEM_ADMINISTRATOR") {
+      toast.error("Không thể tự hạ quyền tài khoản Quản trị viên đang đăng nhập!");
+      return;
+    }
+
+    const isFacilityScoped =
+      newRoleName === "FACILITY_STAFF" || newRoleName === "FACILITY_MANAGER";
+
     // Ràng buộc bắt buộc gán cơ sở khi đổi sang Staff hoặc Facility Manager
-    if (
-      (newRoleName === "FACILITY_STAFF" || newRoleName === "FACILITY_MANAGER") &&
-      !roleChangeFacilityId
-    ) {
+    if (isFacilityScoped && !roleChangeFacilityId) {
       toast.error(
         "Vai trò Nhân viên (Staff) và Quản lý (Facility Manager) bắt buộc phải chọn cơ sở trực thuộc!"
       );
       return;
     }
 
+    setIsRoleSubmitting(true);
     try {
-      await usersApi.updateUserRole(selectedUser.id, newRoleName);
+      await usersApi.updateUserRole(selectedUser.id, newRoleName, {
+        facilityId: isFacilityScoped ? roleChangeFacilityId : undefined,
+        reason: roleChangeReason.trim() || undefined,
+      });
 
-      // Nếu là Staff hoặc Manager, tự động gán luôn cơ sở đã chọn
-      if (
-        (newRoleName === "FACILITY_STAFF" || newRoleName === "FACILITY_MANAGER") &&
-        roleChangeFacilityId
-      ) {
-        await usersApi.assignFacility(
-          selectedUser.id,
-          roleChangeFacilityId,
-          newRoleName === "FACILITY_MANAGER" ? "MANAGER" : "STAFF"
-        );
-      }
-
-      toast.success(`Đã cập nhật vai trò mới cho ${selectedUser.fullName} thành công!`);
+      toast.success(`Đã chuyển đổi vai trò nghiệp vụ cho ${selectedUser.fullName} thành công!`);
       setIsChangeRoleModalOpen(false);
+      setRoleChangeReason("");
       await loadData();
     } catch (err: any) {
       toast.error(err?.message || "Không thể thay đổi vai trò");
+    } finally {
+      setIsRoleSubmitting(false);
     }
   };
 
@@ -785,11 +856,18 @@ export default function SystemAdministratorPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={() => setIsCreateUserModalOpen(true)}
+                    onClick={() => {
+                      setCreatedCredentials(null);
+                      setCreateAccountScope("INTERNAL");
+                      setFormRole("FACILITY_STAFF");
+                      setFormFacilityId(facilities[0]?.id ? String(facilities[0].id) : "");
+                      setFormCreateReason("");
+                      setIsCreateUserModalOpen(true);
+                    }}
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-95 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Tạo Tài Khoản Mới</span>
+                    <span>Tạo Tài Khoản &amp; Cấp Quyền</span>
                   </button>
                 </div>
               )}
@@ -860,8 +938,8 @@ export default function SystemAdministratorPage() {
                       <thead className="bg-slate-50/80 text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100">
                         <tr>
                           <th className="px-5 py-3.5">Người Dùng</th>
-                          <th className="px-5 py-3.5">Vai Trò Hệ Thống (Role)</th>
-                          <th className="px-5 py-3.5">Cơ Sở Được Gán</th>
+                          <th className="px-5 py-3.5">Vai Trò Nghiệp Vụ (Role)</th>
+                          <th className="px-5 py-3.5">Phạm Vi Quyền Hạn (Data Scope)</th>
                           <th className="px-5 py-3.5">Đăng Nhập Gần Nhất</th>
                           <th className="px-5 py-3.5 text-center">Trạng Thái</th>
                           <th className="px-5 py-3.5 text-right min-w-[260px]">Thao Tác Quản Trị</th>
@@ -881,6 +959,10 @@ export default function SystemAdministratorPage() {
                             const roleObj = SYSTEM_ROLES.find(
                               (r) => r.name === u.role || (u.role && u.role.includes(r.name.replace("FACILITY_", "")))
                             ) || SYSTEM_ROLES[0];
+                            const isSelf = Boolean(currentUser && String(currentUser.id) === String(u.id));
+                            const isFacilityRole = u.role === "FACILITY_STAFF" || u.role === "FACILITY_MANAGER";
+                            const isGlobalRole =
+                              u.role === "BUSINESS_OPERATIONS_MANAGER" || u.role === "SYSTEM_ADMINISTRATOR";
 
                             return (
                               <tr
@@ -895,7 +977,14 @@ export default function SystemAdministratorPage() {
                                       {u.fullName?.charAt(0) || "U"}
                                     </div>
                                     <div>
-                                      <p className="font-black text-slate-900 leading-tight">{u.fullName}</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <p className="font-black text-slate-900 leading-tight">{u.fullName}</p>
+                                        {isSelf && (
+                                          <span className="px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[9px] font-black uppercase">
+                                            Bạn
+                                          </span>
+                                        )}
+                                      </div>
                                       <p className="text-slate-400 text-[11px] font-mono">{u.email}</p>
                                       {u.phone && <p className="text-slate-400 text-[10px]">{u.phone}</p>}
                                     </div>
@@ -911,14 +1000,26 @@ export default function SystemAdministratorPage() {
                                 </td>
 
                                 <td className="px-5 py-3.5 font-medium text-slate-600">
-                                  {u.assignedFacility ? (
-                                    <span className="inline-flex items-center gap-1.5 text-slate-800 font-bold bg-slate-100/70 px-2.5 py-1 rounded-lg">
-                                      <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                      <span className="truncate max-w-[200px]">{u.assignedFacility.name}</span>
+                                  {isGlobalRole ? (
+                                    <span className="inline-flex items-center gap-1.5 text-purple-800 font-bold bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg text-[11px]">
+                                      <ShieldCheck className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                      <span>Toàn Hệ Thống (Global Scope)</span>
                                     </span>
+                                  ) : isFacilityRole ? (
+                                    u.assignedFacility ? (
+                                      <span className="inline-flex items-center gap-1.5 text-slate-800 font-bold bg-slate-100/80 border border-slate-200 px-2.5 py-1 rounded-lg">
+                                        <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                        <span className="truncate max-w-[200px]">{u.assignedFacility.name}</span>
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg text-[11px]">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                        <span>Chưa gán cơ sở</span>
+                                      </span>
+                                    )
                                   ) : (
-                                    <span className="text-slate-400 italic text-[11px]">
-                                      Toàn quyền hệ thống / Chưa gán
+                                    <span className="text-slate-400 text-[11px] font-medium">
+                                      Cổng Khách Hàng (Customer Portal)
                                     </span>
                                   )}
                                 </td>
@@ -949,47 +1050,67 @@ export default function SystemAdministratorPage() {
                                   <div className="inline-flex items-center gap-2 whitespace-nowrap">
                                     <button
                                       type="button"
+                                      disabled={isSelf}
                                       onClick={() => {
+                                        if (isSelf) return;
                                         setSelectedUser(u);
-                                        setNewRoleName(u.role || "STORAGE_CUSTOMER");
+                                        setNewRoleName(u.role || "FACILITY_STAFF");
                                         setRoleChangeFacilityId(
                                           u.facilityId || (facilities[0]?.id ? String(facilities[0].id) : "")
                                         );
+                                        setRoleChangeReason("");
                                         setIsChangeRoleModalOpen(true);
                                       }}
-                                      className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                                      title={
+                                        isSelf
+                                          ? "Không thể tự thay đổi vai trò của chính tài khoản Admin đang đăng nhập"
+                                          : "Chuyển đổi vai trò nghiệp vụ & phạm vi quyền hạn"
+                                      }
+                                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 shadow-2xs ${
+                                        isSelf
+                                          ? "bg-slate-100 text-slate-400 cursor-not-allowed opacity-60"
+                                          : "bg-blue-50 hover:bg-blue-100 text-blue-700 cursor-pointer active:scale-95"
+                                      }`}
                                     >
                                       <Key className="w-3.5 h-3.5" />
                                       <span>Đổi Vai Trò</span>
                                     </button>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedUser(u);
-                                        setTargetFacilityId(
-                                          u.facilityId || (facilities[0]?.id ? String(facilities[0].id) : "")
-                                        );
-                                        setIsAssignFacilityModalOpen(true);
-                                      }}
-                                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
-                                    >
-                                      <Building2 className="w-3.5 h-3.5" />
-                                      <span>Gán Cơ Sở</span>
-                                    </button>
+                                    {isFacilityRole && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedUser(u);
+                                          setTargetFacilityId(
+                                            u.facilityId || (facilities[0]?.id ? String(facilities[0].id) : "")
+                                          );
+                                          setRoleInFacility(u.role === "FACILITY_MANAGER" ? "MANAGER" : "STAFF");
+                                          setIsAssignFacilityModalOpen(true);
+                                        }}
+                                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition whitespace-nowrap inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                                      >
+                                        <Building2 className="w-3.5 h-3.5" />
+                                        <span>Đổi Cơ Sở</span>
+                                      </button>
+                                    )}
 
                                     <button
                                       type="button"
+                                      disabled={isSelf}
                                       onClick={() => handleToggleStatus(u)}
-                                      className={`p-2 rounded-xl transition cursor-pointer active:scale-95 ${
-                                        u.status === "ACTIVE"
-                                          ? "text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100"
-                                          : "text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-100"
+                                      className={`p-2 rounded-xl transition ${
+                                        isSelf
+                                          ? "text-slate-300 cursor-not-allowed opacity-50"
+                                          : u.status === "ACTIVE"
+                                            ? "text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 cursor-pointer active:scale-95"
+                                            : "text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 cursor-pointer active:scale-95"
                                       }`}
                                       title={
-                                        u.status === "ACTIVE"
-                                          ? "Khóa tài khoản: Thu hồi phiên đăng nhập ngay lập tức"
-                                          : "Mở khóa tài khoản: Khôi phục quyền truy cập"
+                                        isSelf
+                                          ? "Không thể tự khóa tài khoản của chính mình"
+                                          : u.status === "ACTIVE"
+                                            ? "Khóa tài khoản: Thu hồi phiên đăng nhập ngay lập tức"
+                                            : "Mở khóa tài khoản: Khôi phục quyền truy cập"
                                       }
                                     >
                                       {u.status === "ACTIVE" ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
@@ -1275,7 +1396,8 @@ export default function SystemAdministratorPage() {
                       className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none"
                     >
                       <option value="ALL">Mọi loại hành động ({auditLogs.length})</option>
-                      <option value="UPDATE_ROLE">UPDATE_ROLE (Đổi vai trò)</option>
+                      <option value="CREATE_USER">CREATE_USER (Tạo tài khoản &amp; cấp quyền)</option>
+                      <option value="UPDATE_ROLE">UPDATE_ROLE (Chuyển đổi vai trò)</option>
                       <option value="ASSIGN_FACILITY">ASSIGN_FACILITY (Gán cơ sở)</option>
                       <option value="UPDATE_STATUS">UPDATE_STATUS (Khóa/Mở tài khoản)</option>
                       <option value="REVOKE_FACILITY">REVOKE_FACILITY (Thu hồi cơ sở)</option>
@@ -1353,134 +1475,338 @@ export default function SystemAdministratorPage() {
         </div>
       </div>
 
-      {/* MODAL: TẠO TÀI KHOẢN MỚI */}
+      {/* MODAL: TẠO TÀI KHOẢN NỘI BỘ & CẤP QUYỀN BAN ĐẦU (ONBOARDING) */}
       {isCreateUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4 animate-in fade-in zoom-in-95 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-black text-slate-900">Tạo Tài Khoản Người Dùng Mới</h3>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  {createdCredentials ? "Bàn Giao Thông Tin Đăng Nhập" : "Khởi Tạo Tài Khoản & Cấp Quyền Ban Đầu"}
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {createdCredentials
+                    ? "Tài khoản đã được kích hoạt và phân quyền thành công trên hệ thống."
+                    : "Thiết lập danh tính IAM, vai trò nghiệp vụ và phạm vi dữ liệu ngay khi tạo."}
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={() => setIsCreateUserModalOpen(false)}
+                onClick={() => {
+                  setIsCreateUserModalOpen(false);
+                  setCreatedCredentials(null);
+                }}
                 className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Họ Và Tên (*)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="VD: Nguyễn Văn A"
-                  value={formFullName}
-                  onChange={(e) => setFormFullName(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
-                />
-              </div>
+            {createdCredentials ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-800 font-black text-xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Đã cấp phát tài khoản và ghi nhận vào Nhật ký Kiểm toán (Audit Log)</span>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Địa Chỉ Email (*)</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="name@selfstorage.vn"
-                  value={formEmail}
-                  onChange={(e) => setFormEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
-                />
-              </div>
+                  <div className="bg-white rounded-xl p-3.5 border border-emerald-100 space-y-2 text-xs font-mono">
+                    <div className="flex justify-between gap-2">
+                      <span className="text-slate-400 font-sans">Họ và tên:</span>
+                      <span className="font-bold text-slate-900 font-sans">{createdCredentials.fullName}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-slate-400 font-sans">Tài khoản (Email):</span>
+                      <span className="font-bold text-blue-700">{createdCredentials.email}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-slate-400 font-sans">Mật khẩu khởi tạo:</span>
+                      <span className="font-extrabold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">{createdCredentials.password}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-slate-400 font-sans">Vai trò IAM:</span>
+                      <span className="font-bold text-slate-800 font-sans">{createdCredentials.roleTitle}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-slate-400 font-sans">Phạm vi quyền hạn:</span>
+                      <span className="font-bold text-emerald-700 font-sans">{createdCredentials.scopeLabel}</span>
+                    </div>
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text =
+                        `[THÔNG TIN TÀI KHOẢN SELF STORAGE]\n` +
+                        `- Họ tên: ${createdCredentials.fullName}\n` +
+                        `- Email đăng nhập: ${createdCredentials.email}\n` +
+                        `- Mật khẩu khởi tạo: ${createdCredentials.password}\n` +
+                        `- Vai trò nghiệp vụ: ${createdCredentials.roleTitle}\n` +
+                        `- Phạm vi dữ liệu: ${createdCredentials.scopeLabel}\n` +
+                        `* Vui lòng đăng nhập và đổi mật khẩu trong phần Thông tin cá nhân.`;
+                      navigator.clipboard.writeText(text);
+                      toast.success("Đã sao chép thông tin bàn giao tài khoản vào Clipboard!");
+                    }}
+                    className="px-4 py-2.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Sao Chép Thông Tin Đăng Nhập</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreatedCredentials(null);
+                        generateRandomPassword();
+                      }}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 cursor-pointer"
+                    >
+                      + Tạo thêm tài khoản khác
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreateUserModalOpen(false);
+                        setCreatedCredentials(null);
+                      }}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleCreateUser} className="space-y-4">
+                {/* Phân tách Nhóm Tài Khoản Nội Bộ (IAM) vs Khách Hàng */}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateAccountScope("INTERNAL");
+                      if (formRole === "STORAGE_CUSTOMER") {
+                        setFormRole("FACILITY_STAFF");
+                      }
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                      createAccountScope === "INTERNAL"
+                        ? "bg-white text-blue-700 shadow-xs"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Nhân Sự Nội Bộ (Internal IAM)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateAccountScope("CUSTOMER");
+                      setFormRole("STORAGE_CUSTOMER");
+                      setFormFacilityId("");
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                      createAccountScope === "CUSTOMER"
+                        ? "bg-white text-slate-900 shadow-xs"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Tài Khoản Khách Thuê Kho</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Họ Và Tên (*)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="VD: Nguyễn Văn A"
+                      value={formFullName}
+                      onChange={(e) => setFormFullName(e.target.value)}
+                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Địa Chỉ Email Đăng Nhập (*)</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="staff.q1@selfstorage.vn"
+                      value={formEmail}
+                      onChange={(e) => setFormEmail(e.target.value)}
+                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Số Điện Thoại Liên Hệ</label>
+                    <input
+                      type="tel"
+                      placeholder="0901234567"
+                      value={formPhone}
+                      onChange={(e) => setFormPhone(e.target.value)}
+                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700">Mật Khẩu Khởi Tạo (*)</label>
+                      <button
+                        type="button"
+                        onClick={generateRandomPassword}
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>Tạo ngẫu nhiên</span>
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={formPassword}
+                      onChange={(e) => setFormPassword(e.target.value)}
+                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Cấp quyền Vai trò ban đầu */}
+                {createAccountScope === "INTERNAL" ? (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Cấp Quyền Vai Trò Nghiệp Vụ Ban Đầu (*)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {SYSTEM_ROLES.filter((r) => r.name !== "STORAGE_CUSTOMER").map((r) => (
+                        <button
+                          key={r.name}
+                          type="button"
+                          onClick={() => setFormRole(r.name)}
+                          className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-start justify-between gap-2 ${
+                            formRole === r.name
+                              ? "border-blue-600 bg-blue-50/80 text-blue-950 shadow-2xs"
+                              : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                          }`}
+                        >
+                          <div>
+                            <p className="text-xs font-black leading-tight">{r.titleVi}</p>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{r.title}</p>
+                          </div>
+                          {formRole === r.name && <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                    <span className="font-bold text-slate-800">Vai trò mặc định:</span> Khách Hàng Thuê Kho (Storage Customer) — Dùng để đặt thuê kho, ký hợp đồng điện tử và mở khóa Smart Key.
+                  </div>
+                )}
+
+                {/* Tự động ánh xạ Phạm vi dữ liệu (Data Scope) theo Vai trò */}
+                {(formRole === "FACILITY_STAFF" || formRole === "FACILITY_MANAGER") && (
+                  <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        Phạm Vi Quyền Hạn: Gán Chi Nhánh Kho Trực Thuộc (* Bắt buộc)
+                      </span>
+                    </label>
+                    <select
+                      value={formFacilityId}
+                      onChange={(e) => setFormFacilityId(e.target.value)}
+                      required
+                      className="w-full px-3.5 py-2 border border-amber-300 bg-white rounded-xl text-xs font-bold text-slate-800 outline-none"
+                    >
+                      <option value="">-- Chọn Cơ Sở Kho Trực Thuộc --</option>
+                      {facilities.map((f) => (
+                        <option key={f.id} value={String(f.id)}>
+                          {f.name} ({f.code})
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Cảnh báo nếu chi nhánh đã có Quản lý khác */}
+                    {existingManagerAtCreateFacility && (
+                      <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-black">Lưu ý bàn giao Quản lý chi nhánh:</span> Cơ sở này hiện đang do{" "}
+                          <span className="font-extrabold underline">{existingManagerAtCreateFacility.fullName}</span> (
+                          {existingManagerAtCreateFacility.email}) quản lý. Khi xác nhận tạo mới, quyền quản lý tại chi nhánh này sẽ tự động chuyển giao sang nhân sự mới.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(formRole === "BUSINESS_OPERATIONS_MANAGER" || formRole === "SYSTEM_ADMINISTRATOR") && (
+                  <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-2xl flex items-start gap-2.5 text-xs text-purple-900">
+                    <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-black">Phạm Vi Quyền Hạn: Toàn Hệ Thống (Global Scope)</p>
+                      <p className="text-[11px] text-purple-700 mt-0.5">
+                        Vai trò này có quyền giám sát và điều hành xuyên suốt tất cả các chi nhánh kho trên hệ thống (không bị giới hạn vào một cơ sở đơn lẻ).
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ghi chú bổ nhiệm / Lý do khởi tạo (Lưu vào Audit Log) */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Số Điện Thoại</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Ghi Chú Bổ Nhiệm / Lý Do Cấp Quyền (Lưu vào Nhật ký Kiểm toán)
+                  </label>
                   <input
-                    type="tel"
-                    placeholder="0901234567"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
+                    type="text"
+                    placeholder="VD: Tuyển mới nhân viên vận hành ca sáng Quận 1 / Bổ nhiệm quản lý mới..."
+                    value={formCreateReason}
+                    onChange={(e) => setFormCreateReason(e.target.value)}
                     className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Mật Khẩu Ban Đầu</label>
-                  <input
-                    type="text"
-                    value={formPassword}
-                    onChange={(e) => setFormPassword(e.target.value)}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Vai Trò Hệ Thống (*)</label>
-                <select
-                  value={formRole}
-                  onChange={(e) => setFormRole(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-slate-50 outline-none"
-                >
-                  <option value="STORAGE_CUSTOMER">1. Storage Customer (Khách hàng)</option>
-                  <option value="FACILITY_STAFF">2. Facility Staff (Nhân viên cơ sở)</option>
-                  <option value="FACILITY_MANAGER">3. Facility Manager (Quản lý chi nhánh)</option>
-                  <option value="BUSINESS_OPERATIONS_MANAGER">4. Business Operations Manager (Vận hành chuỗi)</option>
-                  <option value="SYSTEM_ADMINISTRATOR">5. System Administrator (Quản trị viên)</option>
-                </select>
-              </div>
-
-              {(formRole === "FACILITY_STAFF" || formRole === "FACILITY_MANAGER") && (
-                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5">
-                  <label className="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Gán Cơ Sở Trực Thuộc (* Bắt buộc với Staff &amp; Manager)</span>
-                  </label>
-                  <select
-                    value={formFacilityId}
-                    onChange={(e) => setFormFacilityId(e.target.value)}
-                    required
-                    className="w-full px-3.5 py-2 border border-amber-300 bg-white rounded-xl text-xs font-bold text-slate-800 outline-none"
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateUserModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                   >
-                    <option value="">-- Chọn Cơ Sở Kho Trực Thuộc --</option>
-                    {facilities.map((f) => (
-                      <option key={f.id} value={String(f.id)}>
-                        {f.name} ({f.code})
-                      </option>
-                    ))}
-                  </select>
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {isSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    <span>Khởi Tạo &amp; Cấp Quyền</span>
+                  </button>
                 </div>
-              )}
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateUserModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  {isSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                  <span>Tạo Tài Khoản</span>
-                </button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         </div>
       )}
 
-      {/* MODAL: THAY ĐỔI VAI TRÒ */}
+      {/* MODAL: QUẢN LÝ CHUYỂN ĐỔI VAI TRÒ NGHIỆP VỤ (ROLE TRANSITION) */}
       {isChangeRoleModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-black text-slate-900">Thay Đổi Vai Trò IAM</h3>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Chuyển Đổi Vai Trò Nghiệp Vụ (Role Transition)</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Tự động đồng bộ phạm vi chi nhánh, thu hồi quyền cũ và ghi vết kiểm toán IAM.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsChangeRoleModalOpen(false)}
@@ -1490,42 +1816,95 @@ export default function SystemAdministratorPage() {
               </button>
             </div>
 
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
-              <p className="font-black text-slate-800">{selectedUser.fullName}</p>
-              <p className="text-slate-400 font-mono">{selectedUser.email}</p>
-            </div>
-
-            <div className="space-y-3">
-              <label className="block text-xs font-bold text-slate-700">Chọn Vai Trò Mới:</label>
-              <div className="space-y-2">
-                {SYSTEM_ROLES.map((r) => (
-                  <button
-                    key={r.name}
-                    type="button"
-                    onClick={() => setNewRoleName(r.name)}
-                    className={`w-full p-3 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
-                      newRoleName === r.name
-                        ? "border-blue-500 bg-blue-50 text-blue-900 font-black shadow-xs"
-                        : "border-slate-200 hover:bg-slate-50 text-slate-700"
-                    }`}
-                  >
+            {/* Thông tin nhân sự & So sánh Vai trò Hiện tại -> Mới */}
+            {(() => {
+              const currentRoleObj =
+                SYSTEM_ROLES.find((r) => r.name === selectedUser.role) || SYSTEM_ROLES[0];
+              const targetRoleObj =
+                SYSTEM_ROLES.find((r) => r.name === newRoleName) || currentRoleObj;
+              return (
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-black">{r.title}</p>
-                      <p className="text-[10px] text-slate-400">{r.titleVi}</p>
+                      <p className="font-black text-slate-900">{selectedUser.fullName}</p>
+                      <p className="text-slate-400 font-mono text-[11px]">{selectedUser.email}</p>
                     </div>
-                    {newRoleName === r.name && <Check className="w-4 h-4 text-blue-600" />}
-                  </button>
-                ))}
+                    {selectedUser.assignedFacility && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-700">
+                        <Building2 className="w-3 h-3 text-blue-600" />
+                        <span>{selectedUser.assignedFacility.name}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/70 flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Vai trò hiện tại</span>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${currentRoleObj.color}`}>
+                        {currentRoleObj.titleVi}
+                      </span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                    <div className="flex-1 text-right">
+                      <span className="block text-[10px] font-bold text-blue-600 uppercase mb-0.5">Vai trò chuyển tới</span>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${targetRoleObj.color}`}>
+                        {targetRoleObj.titleVi}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">Chọn Vai Trò Nghiệp Vụ Mới:</label>
+              <div className="space-y-1.5">
+                {SYSTEM_ROLES.map((r) => {
+                  // Nếu là nhân sự nội bộ đang hoạt động, hạn chế chuyển nhầm về Khách hàng trừ khi thật sự cần
+                  const isDemotingInternalToCustomer =
+                    selectedUser.role !== "STORAGE_CUSTOMER" && r.name === "STORAGE_CUSTOMER";
+
+                  return (
+                    <button
+                      key={r.name}
+                      type="button"
+                      onClick={() => setNewRoleName(r.name)}
+                      className={`w-full p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
+                        newRoleName === r.name
+                          ? "border-blue-600 bg-blue-50/90 text-blue-950 font-black shadow-2xs"
+                          : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-black">{r.titleVi}</p>
+                          <span className="text-[10px] font-mono text-slate-400">({r.title})</span>
+                          {selectedUser.role === r.name && (
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                              Hiện tại
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          {isDemotingInternalToCustomer
+                            ? "Thu hồi toàn bộ quyền nội bộ và đưa về tài khoản khách hàng thông thường"
+                            : r.scope}
+                        </p>
+                      </div>
+                      {newRoleName === r.name && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* BẮT BUỘC CHỌN CƠ SỞ NẾU LÀ STAFF HOẶC FACILITY MANAGER */}
+            {/* KỊCH BẢN 1: CHUYỂN SANG STAFF HOẶC FACILITY MANAGER (Bắt buộc chọn chi nhánh) */}
             {(newRoleName === "FACILITY_STAFF" || newRoleName === "FACILITY_MANAGER") && (
               <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
                 <label className="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>
-                    Gán Cơ Sở Trực Thuộc (* Bắt buộc với {newRoleName === "FACILITY_MANAGER" ? "Quản Lý" : "Nhân Viên"}):
+                    Chi Nhánh Công Tác Áp Dụng Cho Vai Trò {newRoleName === "FACILITY_MANAGER" ? "Quản Lý" : "Nhân Viên"} (*):
                   </span>
                 </label>
                 <select
@@ -1540,11 +1919,71 @@ export default function SystemAdministratorPage() {
                     </option>
                   ))}
                 </select>
+
+                {/* Cảnh báo nếu nâng lên Quản lý tại cơ sở đã có Quản lý khác */}
+                {existingManagerAtRoleChangeFacility && (
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-black">Cảnh báo thay thế Quản lý chi nhánh:</span> Cơ sở này hiện đang do{" "}
+                      <span className="font-extrabold underline">{existingManagerAtRoleChangeFacility.fullName}</span> phụ trách. Nếu tiếp tục, hệ thống sẽ tự động đóng nhiệm kỳ quản lý cũ tại cơ sở này để bàn giao cho{" "}
+                      <span className="font-bold">{selectedUser.fullName}</span>.
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-[11px] text-amber-800">
-                  Vai trò này bắt buộc phải gắn với một chi nhánh cụ thể để phân quyền dữ liệu.
+                  Hệ thống sẽ tự động cập nhật bảng phân công cơ sở (<code className="font-mono">StaffFacilityAssignment</code>) sang vị trí{" "}
+                  <strong>{newRoleName === "FACILITY_MANAGER" ? "MANAGER" : "STAFF"}</strong>.
                 </p>
               </div>
             )}
+
+            {/* KỊCH BẢN 2: NÂNG LÊN VAI TRÒ TOÀN HỆ THỐNG (Tự động giải phóng cơ sở đơn lẻ cũ) */}
+            {(newRoleName === "BUSINESS_OPERATIONS_MANAGER" || newRoleName === "SYSTEM_ADMINISTRATOR") && (
+              <div className="p-3.5 bg-purple-50/70 border border-purple-200 rounded-2xl flex items-start gap-2.5 text-xs text-purple-900">
+                <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-black">Đồng Bộ Phạm Vi: Nâng Lên Toàn Hệ Thống (Global Scope)</p>
+                  <p className="text-[11px] text-purple-700 mt-0.5">
+                    {selectedUser.assignedFacility
+                      ? `Hệ thống sẽ tự động đóng phân công cục bộ tại "${selectedUser.assignedFacility.name}" và mở quyền quản lý xuyên chuỗi cho tài khoản này.`
+                      : "Tài khoản sẽ có quyền truy cập và điều hành dữ liệu trên toàn bộ các cơ sở kho."}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* LÝ DO THAY ĐỔI VAI TRÒ (AUDIT TRAIL REASON) */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Lý Do Quyết Định Thay Đổi Vai Trò (Ghi vào Audit Log):
+              </label>
+              <input
+                type="text"
+                placeholder="Nhập lý do bổ nhiệm / luân chuyển / hạ quyền..."
+                value={roleChangeReason}
+                onChange={(e) => setRoleChangeReason(e.target.value)}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
+              />
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {[
+                  "Thăng chức lên Quản lý chi nhánh",
+                  "Luân chuyển công tác định kỳ",
+                  "Bổ nhiệm Vận hành chuỗi",
+                  "Điều chỉnh phân quyền nội bộ",
+                ].map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setRoleChangeReason(tag)}
+                    className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-[10px] font-bold text-slate-600 transition cursor-pointer"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
               <button
@@ -1556,11 +1995,12 @@ export default function SystemAdministratorPage() {
               </button>
               <button
                 type="button"
+                disabled={isRoleSubmitting}
                 onClick={handleSubmitRoleChange}
-                className="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
               >
-                <Check className="w-3.5 h-3.5" />
-                <span>Cập Nhật Vai Trò</span>
+                {isRoleSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                <span>Xác Nhận Chuyển Vai Trò</span>
               </button>
             </div>
           </div>

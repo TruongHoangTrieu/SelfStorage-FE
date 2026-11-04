@@ -31,11 +31,16 @@ import {
   Boxes,
   Layers,
   FileSpreadsheet,
+  Users,
+  Key,
+  AlertTriangle,
+  UserX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { clearClientAuth } from "@/lib/authUtils";
 import { facilitiesApi, FacilityItem } from "@/lib/api/facilities";
+import { usersApi, UserItem } from "@/lib/api/users";
 import {
   operationsApi,
   PolicyItem,
@@ -45,7 +50,14 @@ import MultiBranchRevenueAnalytics from "../admin/components/MultiBranchRevenueA
 import FacilityLayoutView from "../staff/components/FacilityLayoutView";
 import UnitTypesPricingManager from "../staff/components/UnitTypesPricingManager";
 
-type OpsTab = "facilities" | "storage_units" | "policies" | "pricing_fees" | "performance" | "reports";
+type OpsTab =
+  | "facilities"
+  | "branch_personnel"
+  | "storage_units"
+  | "policies"
+  | "pricing_fees"
+  | "performance"
+  | "reports";
 
 export default function BusinessOperationsPage() {
   const [activeTab, setActiveTab] = useState<OpsTab>("facilities");
@@ -115,6 +127,20 @@ export default function BusinessOperationsPage() {
   const [reportStatusFilter, setReportStatusFilter] = useState("ALL");
   const [reportSearch, setReportSearch] = useState("");
 
+  // Branch Personnel Management State (Scoped to FACILITY_STAFF & FACILITY_MANAGER only)
+  const [allUsers, setAllUsers] = useState<UserItem[]>([]);
+  const [personnelSearch, setPersonnelSearch] = useState("");
+  const [personnelRoleFilter, setPersonnelRoleFilter] = useState("ALL");
+  const [personnelFacilityFilter, setPersonnelFacilityFilter] = useState("ALL");
+  const [selectedStaff, setSelectedStaff] = useState<UserItem | null>(null);
+  const [isOpsRoleModalOpen, setIsOpsRoleModalOpen] = useState(false);
+  const [opsTargetRole, setOpsTargetRole] = useState<"FACILITY_STAFF" | "FACILITY_MANAGER">("FACILITY_MANAGER");
+  const [opsTargetFacilityId, setOpsTargetFacilityId] = useState("");
+  const [opsRoleReason, setOpsRoleReason] = useState("");
+  const [isOpsSubmitting, setIsOpsSubmitting] = useState(false);
+  const [isOpsTransferModalOpen, setIsOpsTransferModalOpen] = useState(false);
+  const [opsTransferFacilityId, setOpsTransferFacilityId] = useState("");
+
   // Load User from LocalStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -156,15 +182,19 @@ export default function BusinessOperationsPage() {
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [facRes, polRes, feeRes, contRes] = await Promise.allSettled([
+      const [facRes, polRes, feeRes, contRes, usersRes] = await Promise.allSettled([
         facilitiesApi.getFacilities(),
         operationsApi.getPolicies(),
         operationsApi.getFeeTypes(),
         operationsApi.getReportContracts(),
+        usersApi.getUsers(),
       ]);
 
       if (facRes.status === "fulfilled" && facRes.value) {
         setFacilities(Array.isArray(facRes.value) ? facRes.value : (facRes.value as any)?.data || []);
+      }
+      if (usersRes.status === "fulfilled" && usersRes.value) {
+        setAllUsers(Array.isArray(usersRes.value) ? usersRes.value : []);
       }
       if (polRes.status === "fulfilled" && polRes.value) {
         setPolicies(polRes.value);
@@ -476,9 +506,108 @@ export default function BusinessOperationsPage() {
     toast.success("Đã xuất tệp CSV báo cáo toàn hệ thống thành công!");
   };
 
+  // Chỉ lấy nhân sự thuộc khối vận hành chi nhánh (FACILITY_STAFF & FACILITY_MANAGER)
+  const branchPersonnel = useMemo(() => {
+    return allUsers.filter(
+      (u) => u.role === "FACILITY_STAFF" || u.role === "FACILITY_MANAGER"
+    );
+  }, [allUsers]);
+
+  const filteredBranchPersonnel = useMemo(() => {
+    return branchPersonnel.filter((u) => {
+      const s = personnelSearch.toLowerCase().trim();
+      const matchSearch =
+        !s ||
+        u.fullName?.toLowerCase().includes(s) ||
+        u.email?.toLowerCase().includes(s) ||
+        u.phone?.toLowerCase().includes(s);
+
+      const matchRole =
+        personnelRoleFilter === "ALL" || u.role === personnelRoleFilter;
+
+      const userFacId = String(u.facilityId || u.assignedFacility?.id || "");
+      const matchFac =
+        personnelFacilityFilter === "ALL" || userFacId === personnelFacilityFilter;
+
+      return matchSearch && matchRole && matchFac;
+    });
+  }, [branchPersonnel, personnelSearch, personnelRoleFilter, personnelFacilityFilter]);
+
+  const existingManagerAtOpsTargetFacility = useMemo(() => {
+    if (opsTargetRole !== "FACILITY_MANAGER" || !opsTargetFacilityId || !selectedStaff) return null;
+    return branchPersonnel.find(
+      (u) =>
+        u.id !== selectedStaff.id &&
+        u.status === "ACTIVE" &&
+        u.role === "FACILITY_MANAGER" &&
+        String(u.facilityId || u.assignedFacility?.id || "") === String(opsTargetFacilityId)
+    );
+  }, [branchPersonnel, opsTargetRole, opsTargetFacilityId, selectedStaff]);
+
+  const existingManagerAtOpsTransferFacility = useMemo(() => {
+    if (!selectedStaff || selectedStaff.role !== "FACILITY_MANAGER" || !opsTransferFacilityId) return null;
+    return branchPersonnel.find(
+      (u) =>
+        u.id !== selectedStaff.id &&
+        u.status === "ACTIVE" &&
+        u.role === "FACILITY_MANAGER" &&
+        String(u.facilityId || u.assignedFacility?.id || "") === String(opsTransferFacilityId)
+    );
+  }, [branchPersonnel, selectedStaff, opsTransferFacilityId]);
+
+  // Chuyển đổi vai trò nội bộ giữa FACILITY_STAFF <-> FACILITY_MANAGER (Không tạo tài khoản mới)
+  const handleOpsRoleTransition = async () => {
+    if (!selectedStaff || !opsTargetRole) return;
+    if (!opsTargetFacilityId) {
+      toast.error("Vui lòng chọn cơ sở kho trực thuộc!");
+      return;
+    }
+
+    setIsOpsSubmitting(true);
+    try {
+      await usersApi.updateUserRole(selectedStaff.id, opsTargetRole, {
+        facilityId: opsTargetFacilityId,
+        reason: opsRoleReason.trim() || "Điều phối chức vụ bởi Quản lý vận hành chuỗi",
+      });
+      toast.success(`Đã cập nhật chức vụ mới cho ${selectedStaff.fullName} thành công!`);
+      setIsOpsRoleModalOpen(false);
+      setOpsRoleReason("");
+      await loadInitialData();
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể thay đổi chức vụ nhân sự");
+    } finally {
+      setIsOpsSubmitting(false);
+    }
+  };
+
+  // Luân chuyển cơ sở công tác cho nhân sự chi nhánh
+  const handleOpsFacilityTransfer = async () => {
+    if (!selectedStaff || !opsTransferFacilityId) {
+      toast.error("Vui lòng chọn cơ sở kho tiếp nhận!");
+      return;
+    }
+
+    setIsOpsSubmitting(true);
+    try {
+      await usersApi.assignFacility(
+        selectedStaff.id,
+        opsTransferFacilityId,
+        selectedStaff.role === "FACILITY_MANAGER" ? "MANAGER" : "STAFF"
+      );
+      toast.success(`Đã luân chuyển cơ sở công tác cho ${selectedStaff.fullName} thành công!`);
+      setIsOpsTransferModalOpen(false);
+      await loadInitialData();
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể luân chuyển cơ sở");
+    } finally {
+      setIsOpsSubmitting(false);
+    }
+  };
+
   // Navigation Items for Sidebar
   const navSection1 = [
     { id: "facilities" as OpsTab, label: "Danh sách cơ sở kho", icon: Building2, badge: facilities.length },
+    { id: "branch_personnel" as OpsTab, label: "Nhân sự & Điều phối chi nhánh", icon: Users, badge: branchPersonnel.length },
     { id: "storage_units" as OpsTab, label: "Quản lý kho & Sơ đồ", icon: Boxes },
     { id: "policies" as OpsTab, label: "Chính sách cho thuê", icon: Settings },
     { id: "pricing_fees" as OpsTab, label: "Biểu phí & Khung giá", icon: DollarSign },
@@ -494,6 +623,11 @@ export default function BusinessOperationsPage() {
       title: "Quản Lý Danh Sách Tất Cả Cơ Sở Kho Toàn Chuỗi",
       subtitle: "Theo dõi trạng thái, địa chỉ, tổng tầng và thông tin liên hệ của toàn bộ cơ sở trong hệ thống.",
       icon: Building2,
+    },
+    branch_personnel: {
+      title: "Quản Lý Nhân Sự & Điều Phối Chi Nhánh Toàn Chuỗi",
+      subtitle: "Luân chuyển cơ sở công tác và bổ nhiệm/điều chỉnh chức vụ giữa Nhân viên vận hành (Facility Staff) ↔ Quản lý chi nhánh (Facility Manager).",
+      icon: Users,
     },
     storage_units: {
       title: "Quản Lý Kho, Ô Kho & Bảng Giá Thuê - Tiền Cọc",
@@ -1454,9 +1588,436 @@ export default function BusinessOperationsPage() {
                 </div>
               </div>
             )}
+
+            {/* TAB: NHÂN SỰ & ĐIỀU PHỐI CHI NHÁNH (KHÔNG TẠO TÀI KHOẢN MỚI - CHỈ ĐIỀU PHỐI STAFF <-> MANAGER) */}
+            {activeTab === "branch_personnel" && (
+              <div className="space-y-5">                
+                {/* KPI Thống kê nhanh nhân sự chi nhánh */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Tổng Nhân Sự Chi Nhánh</p>
+                      <p className="text-2xl font-black text-slate-900 mt-1">{branchPersonnel.length}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <Users className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Quản Lý Chi Nhánh (Manager)</p>
+                      <p className="text-2xl font-black text-indigo-700 mt-1">
+                        {branchPersonnel.filter((u) => u.role === "FACILITY_MANAGER").length}
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                      <Key className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Nhân Viên Tại Chỗ (Staff)</p>
+                      <p className="text-2xl font-black text-emerald-700 mt-1">
+                        {branchPersonnel.filter((u) => u.role === "FACILITY_STAFF").length}
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bộ lọc tìm kiếm nhân sự chi nhánh */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row gap-3 items-center justify-between">
+                  <div className="relative w-full md:w-96">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Tìm nhân sự theo họ tên, email, số điện thoại..."
+                      value={personnelSearch}
+                      onChange={(e) => setPersonnelSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-blue-500 transition"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <select
+                      value={personnelRoleFilter}
+                      onChange={(e) => setPersonnelRoleFilter(e.target.value)}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none"
+                    >
+                      <option value="ALL">Tất cả chức vụ ({branchPersonnel.length})</option>
+                      <option value="FACILITY_MANAGER">Quản Lý Chi Nhánh (Facility Manager)</option>
+                      <option value="FACILITY_STAFF">Nhân Viên Cơ Sở (Facility Staff)</option>
+                    </select>
+
+                    <select
+                      value={personnelFacilityFilter}
+                      onChange={(e) => setPersonnelFacilityFilter(e.target.value)}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none"
+                    >
+                      <option value="ALL">Tất cả cơ sở kho</option>
+                      {facilities.map((f) => (
+                        <option key={f.id} value={String(f.id)}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Bảng danh sách nhân sự chi nhánh */}
+                <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-slate-50/80 text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100">
+                        <tr>
+                          <th className="px-5 py-3.5">Nhân Sự Chi Nhánh</th>
+                          <th className="px-5 py-3.5">Chức Vụ Nghiệp Vụ</th>
+                          <th className="px-5 py-3.5">Cơ Sở Kho Đang Phụ Trách</th>
+                          <th className="px-5 py-3.5 text-center">Trạng Thái</th>
+                          <th className="px-5 py-3.5 text-right">Điều Phối &amp; Bổ Nhiệm</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {filteredBranchPersonnel.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="text-center py-12 text-slate-400">
+                              <UserX className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                              <p className="font-bold">Không tìm thấy nhân sự chi nhánh nào phù hợp!</p>
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredBranchPersonnel.map((u) => {
+                            const isManager = u.role === "FACILITY_MANAGER";
+                            return (
+                              <tr
+                                key={u.id}
+                                className={`hover:bg-slate-50/80 transition-colors border-l-4 ${
+                                  isManager ? "border-l-indigo-500" : "border-l-blue-500"
+                                }`}
+                              >
+                                <td className="px-5 py-3.5">
+                                  <div className="flex items-center gap-3">
+                                    <div
+                                      className={`w-9 h-9 rounded-full text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs ${
+                                        isManager ? "bg-indigo-600" : "bg-blue-600"
+                                      }`}
+                                    >
+                                      {u.fullName?.charAt(0) || "S"}
+                                    </div>
+                                    <div>
+                                      <p className="font-black text-slate-900 leading-tight">{u.fullName}</p>
+                                      <p className="text-slate-400 text-[11px] font-mono">{u.email}</p>
+                                      {u.phone && <p className="text-slate-400 text-[10px]">{u.phone}</p>}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td className="px-5 py-3.5">
+                                  <span
+                                    className={`inline-block px-3 py-1 rounded-full text-[11px] font-extrabold border whitespace-nowrap ${
+                                      isManager
+                                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                        : "bg-blue-50 text-blue-700 border-blue-200"
+                                    }`}
+                                  >
+                                    {isManager ? "Quản Lý Chi Nhánh (Facility Manager)" : "Nhân Viên Cơ Sở (Facility Staff)"}
+                                  </span>
+                                </td>
+
+                                <td className="px-5 py-3.5">
+                                  {u.assignedFacility ? (
+                                    <span className="inline-flex items-center gap-1.5 text-slate-800 font-bold bg-slate-100/80 border border-slate-200 px-2.5 py-1 rounded-lg">
+                                      <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                      <span>{u.assignedFacility.name}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg text-[11px]">
+                                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                      <span>Chưa phân công cơ sở</span>
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td className="px-5 py-3.5 text-center">
+                                  <span
+                                    className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${
+                                      u.status === "ACTIVE"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : "bg-rose-50 text-rose-700 border-rose-200"
+                                    }`}
+                                  >
+                                    {u.status === "ACTIVE" ? "Hoạt Động" : "Tạm Khóa"}
+                                  </span>
+                                </td>
+
+                                <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                                  <div className="inline-flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedStaff(u);
+                                        setOpsTargetRole(
+                                          u.role === "FACILITY_MANAGER" ? "FACILITY_STAFF" : "FACILITY_MANAGER"
+                                        );
+                                        setOpsTargetFacilityId(
+                                          u.facilityId || (facilities[0]?.id ? String(facilities[0].id) : "")
+                                        );
+                                        setOpsRoleReason("");
+                                        setIsOpsRoleModalOpen(true);
+                                      }}
+                                      className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                                    >
+                                      <Key className="w-3.5 h-3.5" />
+                                      <span>{isManager ? "Điều Chỉnh Chức Vụ" : "Bổ Nhiệm / Đổi Role"}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedStaff(u);
+                                        setOpsTransferFacilityId(
+                                          u.facilityId || (facilities[0]?.id ? String(facilities[0].id) : "")
+                                        );
+                                        setIsOpsTransferModalOpen(true);
+                                      }}
+                                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                                    >
+                                      <Building2 className="w-3.5 h-3.5" />
+                                      <span>Luân Chuyển Kho</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>
+
+      {/* MODAL (OPERATIONS): BỔ NHIỆM / CHUYỂN ĐỔI CHỨC VỤ STAFF <-> MANAGER */}
+      {isOpsRoleModalOpen && selectedStaff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Điều Chỉnh Chức Vụ Nhân Sự Chi Nhánh
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Phân quyền trong phạm vi Vận hành chuỗi: Nhân viên cơ sở ↔ Quản lý chi nhánh.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpsRoleModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-black text-slate-900">{selectedStaff.fullName}</p>
+                  <p className="text-slate-400 font-mono text-[11px]">{selectedStaff.email}</p>
+                </div>
+                {selectedStaff.assignedFacility && (
+                  <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-bold text-slate-700 text-[11px]">
+                    {selectedStaff.assignedFacility.name}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">Chọn Chức Vụ Áp Dụng:</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {[
+                  {
+                    role: "FACILITY_STAFF" as const,
+                    titleVi: "Nhân Viên Cơ Sở",
+                    sub: "Facility Staff — Vận hành kho tại chỗ",
+                  },
+                  {
+                    role: "FACILITY_MANAGER" as const,
+                    titleVi: "Quản Lý Chi Nhánh",
+                    sub: "Facility Manager — Phụ trách chi nhánh",
+                  },
+                ].map((item) => (
+                  <button
+                    key={item.role}
+                    type="button"
+                    onClick={() => setOpsTargetRole(item.role)}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex items-start justify-between ${
+                      opsTargetRole === item.role
+                        ? "border-blue-600 bg-blue-50/90 text-blue-950 shadow-2xs"
+                        : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    <div>
+                      <p className="text-xs font-black">{item.titleVi}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{item.sub}</p>
+                    </div>
+                    {opsTargetRole === item.role && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
+              <label className="block text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Chi Nhánh Kho Áp Dụng (*):</span>
+              </label>
+              <select
+                value={opsTargetFacilityId}
+                onChange={(e) => setOpsTargetFacilityId(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-bold text-slate-800 outline-none"
+              >
+                <option value="">-- Chọn cơ sở kho trực thuộc --</option>
+                {facilities.map((f) => (
+                  <option key={f.id} value={String(f.id)}>
+                    {f.name} ({f.code})
+                  </option>
+                ))}
+              </select>
+
+              {existingManagerAtOpsTargetFacility && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-black">Lưu ý bàn giao Quản lý chi nhánh:</span> Cơ sở này hiện đang do{" "}
+                    <span className="font-extrabold underline">{existingManagerAtOpsTargetFacility.fullName}</span> quản lý. Khi xác nhận bổ nhiệm, hệ thống sẽ tự động kết thúc nhiệm kỳ quản lý cũ tại cơ sở này để bàn giao cho{" "}
+                    <span className="font-bold">{selectedStaff.fullName}</span>.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Lý Do Bổ Nhiệm / Điều Chuyển (Ghi vào Audit Log):
+              </label>
+              <input
+                type="text"
+                placeholder="VD: Bổ nhiệm Quản lý chi nhánh mới / Điều phối lại nhân sự..."
+                value={opsRoleReason}
+                onChange={(e) => setOpsRoleReason(e.target.value)}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsOpsRoleModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isOpsSubmitting}
+                onClick={handleOpsRoleTransition}
+                className="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                {isOpsSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                <span>Xác Nhận Thay Đổi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL (OPERATIONS): LUÂN CHUYỂN CHI NHÁNH KHO */}
+      {isOpsTransferModalOpen && selectedStaff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Luân Chuyển Cơ Sở Công Tác</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Điều động nhân sự sang chi nhánh kho khác trong chuỗi.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpsTransferModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+              <p className="font-black text-slate-900">{selectedStaff.fullName}</p>
+              <p className="text-slate-400 font-mono">{selectedStaff.email}</p>
+              <p className="text-[11px] text-blue-700 font-bold mt-1">
+                Chức vụ giữ nguyên:{" "}
+                {selectedStaff.role === "FACILITY_MANAGER" ? "Quản Lý Chi Nhánh" : "Nhân Viên Cơ Sở"}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">Chọn Cơ Sở Kho Tiếp Nhận (*):</label>
+              <select
+                value={opsTransferFacilityId}
+                onChange={(e) => setOpsTransferFacilityId(e.target.value)}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-slate-50 outline-none"
+              >
+                <option value="">-- Chọn Cơ Sở Kho --</option>
+                {facilities.map((f) => (
+                  <option key={f.id} value={String(f.id)}>
+                    {f.name} ({f.code})
+                  </option>
+                ))}
+              </select>
+
+              {existingManagerAtOpsTransferFacility && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    Cơ sở này đang có Quản lý{" "}
+                    <span className="font-bold underline">{existingManagerAtOpsTransferFacility.fullName}</span>. Khi điều chuyển Quản lý mới tới, quyền quản lý tại chi nhánh này sẽ được bàn giao sang{" "}
+                    <span className="font-bold">{selectedStaff.fullName}</span>.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsOpsTransferModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isOpsSubmitting}
+                onClick={handleOpsFacilityTransfer}
+                className="px-5 py-2 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+              >
+                {isOpsSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                <span>Xác Nhận Luân Chuyển</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: THÊM / SỬA CƠ SỞ KHO */}
       {isAddFacilityModalOpen && (
