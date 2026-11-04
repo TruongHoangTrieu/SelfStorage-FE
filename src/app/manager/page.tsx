@@ -340,30 +340,65 @@ export default function ManagerPortalPage() {
     const roleName = (stored.role || "").toUpperCase();
 
     // 1. Nếu là Khách hàng -> Chuyển về Dashboard
-    if (roleName === "STORAGE_CUSTOMER") {
-      toast.error("Tài khoản Khách hàng không có quyền truy cập Cổng Quản Lý.");
+    if (roleName === "STORAGE_CUSTOMER" || roleName === "CUSTOMER") {
+      toast.error("Tài khoản Khách hàng không có quyền truy cập Cổng Quản Lý Cơ Sở.");
       if (typeof window !== "undefined") {
         window.location.replace("/dashboard");
       }
       return;
     }
 
-    // 2. Nếu là Nhân viên thuần (không phải Manager hay Admin) -> Chuyển về Cổng Nhân Viên /staff
-    const isManagerOrAdmin =
-      roleName === "FACILITY_MANAGER" ||
-      roleName === "BUSINESS_OPERATIONS_MANAGER" ||
-      roleName === "MANAGER" ||
+    // 2. Nếu là Quản trị hệ thống (Role 5) -> Tự động chuyển về Cổng Quản Trị Hệ Thống /admin
+    if (
       roleName === "SYSTEM_ADMINISTRATOR" ||
       roleName === "ADMIN" ||
-      roleName.includes("MANAGER") ||
-      roleName.includes("ADMIN");
+      roleName.includes("ADMIN")
+    ) {
+      toast.info("Tài khoản Quản Trị Hệ Thống (Role 5) - Chuyển sang Cổng Quản Trị Hệ Thống.");
+      if (typeof window !== "undefined") {
+        window.location.replace("/admin");
+      }
+      return;
+    }
 
-    if (!isManagerOrAdmin) {
+    // 3. Nếu là Vận hành doanh nghiệp (Role 4) -> Tự động chuyển về Cổng Vận Hành Chuỗi /operations
+    if (
+      roleName === "BUSINESS_OPERATIONS_MANAGER" ||
+      roleName === "OPS" ||
+      roleName.includes("OPERATIONS_MANAGER")
+    ) {
+      toast.info("Tài khoản Quản Lý Vận Hành Doanh Nghiệp (Role 4) - Chuyển sang Cổng Vận Hành Chuỗi.");
+      if (typeof window !== "undefined") {
+        window.location.replace("/operations");
+      }
+      return;
+    }
+
+    // 4. Nếu là Nhân viên cơ sở (Role 2) -> Chuyển về Cổng Nhân Viên /staff
+    if (
+      roleName === "FACILITY_STAFF" ||
+      roleName === "STAFF" ||
+      roleName.includes("STAFF")
+    ) {
       toast.warning(
-        "Tài khoản Nhân viên không có quyền truy cập Cổng Quản Lý. Đã chuyển về Cổng Nhân Viên.",
+        "Tài khoản Nhân viên không có quyền truy cập Cổng Quản Lý Cơ Sở. Đã chuyển về Cổng Nhân Viên.",
       );
       if (typeof window !== "undefined") {
         window.location.replace("/staff");
+      }
+      return;
+    }
+
+    // 5. Nếu không phải Quản lý cơ sở (Role 3) -> Chuyển về Dashboard
+    const isFacilityManager =
+      roleName === "FACILITY_MANAGER" ||
+      roleName === "MANAGER" ||
+      roleName.includes("MANAGER");
+
+    if (!isFacilityManager) {
+      toast.error("Bạn không có quyền truy cập Cổng Quản Lý Cơ Sở.");
+      if (typeof window !== "undefined") {
+        window.location.replace("/dashboard");
       }
       return;
     }
@@ -778,6 +813,25 @@ export default function ManagerPortalPage() {
             <span>/</span>
             <span className="text-blue-900 font-bold">{currentTabLabel}</span>
           </div>
+        </div>
+
+        {/* Cross-Role Quick Switcher */}
+        <div className="hidden xl:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs font-semibold">
+          <span className="px-2.5 py-1 rounded-lg bg-white text-indigo-700 shadow-2xs font-bold">
+            Role 3: Quản Lý Cơ Sở
+          </span>
+          <Link
+            href="/operations"
+            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-amber-700 hover:bg-white transition"
+          >
+            Role 4: Vận Hành Chuỗi
+          </Link>
+          <Link
+            href="/admin"
+            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-white transition"
+          >
+            Role 5: Quản Trị Hệ Thống
+          </Link>
         </div>
 
         {/* Right: Actions, Facility Badge & Manager Profile */}

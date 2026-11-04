@@ -41,47 +41,71 @@ export default function LoginPage() {
   });
 
   const getTargetRoute = (userObj: any) => {
-    const redirectParam =
-      typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("redirect")
-        : null;
-
-    if (redirectParam) {
-      return redirectParam;
-    }
-
     const role = (
       typeof userObj?.role === "string"
         ? userObj.role
         : userObj?.role?.name ?? ""
     ).toUpperCase();
 
-    // Admin Roles
+    const redirectParam =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("redirect")
+        : null;
+
+    // 1. System Administrator (Role 5)
     if (role === "ADMIN" || role === "SYSTEM_ADMINISTRATOR" || role.includes("ADMIN")) {
+      if (redirectParam && redirectParam.startsWith("/admin")) {
+        return redirectParam;
+      }
       return "/admin";
     }
 
-    // Manager Roles
+    // 2. Business Operations Manager (Role 4)
+    if (
+      role === "BUSINESS_OPERATIONS_MANAGER" ||
+      role === "OPS" ||
+      role.includes("OPERATIONS_MANAGER")
+    ) {
+      if (redirectParam && redirectParam.startsWith("/operations")) {
+        return redirectParam;
+      }
+      return "/operations";
+    }
+
+    // 3. Facility Manager (Role 3)
     if (
       role === "FACILITY_MANAGER" ||
-      role === "BUSINESS_OPERATIONS_MANAGER" ||
       role === "MANAGER" ||
       role.includes("MANAGER")
     ) {
+      if (redirectParam && redirectParam.startsWith("/manager")) {
+        return redirectParam;
+      }
       return "/manager";
     }
 
-    // Staff Roles
+    // 4. Staff Roles (Role 2)
     if (
       role === "STAFF" ||
       role === "FACILITY_STAFF" ||
       role === "OPERATIONS_STAFF" ||
       role.includes("STAFF")
     ) {
+      if (redirectParam && redirectParam.startsWith("/staff")) {
+        return redirectParam;
+      }
       return "/staff";
     }
 
-    // Customer Role
+    // 5. Customer Role (Role 1)
+    if (
+      redirectParam &&
+      !["/admin", "/manager", "/operations", "/staff"].some((p) =>
+        redirectParam.startsWith(p)
+      )
+    ) {
+      return redirectParam;
+    }
     return "/dashboard";
   };
 

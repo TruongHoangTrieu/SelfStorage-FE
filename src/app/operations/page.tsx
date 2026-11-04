@@ -114,12 +114,53 @@ export default function BusinessOperationsPage() {
   const [reportStatusFilter, setReportStatusFilter] = useState("ALL");
   const [reportSearch, setReportSearch] = useState("");
 
-  // Load User from LocalStorage
+  // Load User from LocalStorage & Strict Role Guard for Role 4
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem("user");
-        if (raw) setCurrentUser(JSON.parse(raw));
+        if (!raw) {
+          window.location.replace("/login?redirect=/operations");
+          return;
+        }
+        const user = JSON.parse(raw);
+        setCurrentUser(user);
+
+        const role = (
+          typeof user?.role === "string" ? user.role : user?.role?.name || ""
+        ).toUpperCase();
+
+        if (role === "STORAGE_CUSTOMER" || role === "CUSTOMER") {
+          toast.error("Tài khoản Khách hàng không có quyền truy cập Cổng Vận Hành Doanh Nghiệp.");
+          window.location.replace("/dashboard");
+          return;
+        }
+
+        if (role === "FACILITY_STAFF" || (role.includes("STAFF") && !role.includes("MANAGER"))) {
+          toast.warning("Tài khoản Nhân viên không có quyền truy cập Cổng Vận Hành. Đã chuyển về Cổng Nhân Viên.");
+          window.location.replace("/staff");
+          return;
+        }
+
+        if (role === "FACILITY_MANAGER" && !role.includes("OPERATIONS") && !role.includes("ADMIN")) {
+          toast.info("Tài khoản Quản Lý Chi Nhánh (Role 3) - Cổng Vận Hành dành riêng cho Quản Lý Vận Hành Chuỗi (Role 4). Đã chuyển về Cổng Chi Nhánh.");
+          window.location.replace("/manager");
+          return;
+        }
+
+        const isAllowed =
+          role === "BUSINESS_OPERATIONS_MANAGER" ||
+          role === "OPS" ||
+          role.includes("OPERATIONS_MANAGER") ||
+          role === "SYSTEM_ADMINISTRATOR" ||
+          role === "ADMIN" ||
+          role.includes("ADMIN");
+
+        if (!isAllowed) {
+          toast.error("Bạn không có quyền truy cập Cổng Vận Hành Doanh Nghiệp.");
+          window.location.replace("/dashboard");
+          return;
+        }
       } catch {}
     }
   }, []);
@@ -568,6 +609,25 @@ export default function BusinessOperationsPage() {
               {currentTabInfo.title.split(" - ")[0]}
             </span>
           </div>
+        </div>
+
+        {/* Cross-Role Quick Switcher */}
+        <div className="hidden xl:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs font-semibold">
+          <Link
+            href="/manager"
+            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-indigo-700 hover:bg-white transition"
+          >
+            Role 3: Quản Lý Cơ Sở
+          </Link>
+          <span className="px-2.5 py-1 rounded-lg bg-white text-amber-700 shadow-2xs font-bold">
+            Role 4: Vận Hành Chuỗi
+          </span>
+          <Link
+            href="/admin"
+            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-white transition"
+          >
+            Role 5: Quản Trị Hệ Thống
+          </Link>
         </div>
 
         {/* Right: Refresh button, Profile Pill & Logout */}

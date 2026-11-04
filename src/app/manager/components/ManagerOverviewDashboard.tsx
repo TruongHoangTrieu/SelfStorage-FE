@@ -65,9 +65,7 @@ export default function ManagerOverviewDashboard({
     }
   };
 
-  const displayRole = managerRole === 'BUSINESS_OPERATIONS_MANAGER'
-    ? 'Quản Lý Chuỗi Vận Hành'
-    : 'Quản Lý Chi Nhánh';
+  const displayRole = 'Quản Lý Cơ Sở (Role 3)';
 
   return (
     <div className="space-y-6 w-full max-w-[1800px] mx-auto">

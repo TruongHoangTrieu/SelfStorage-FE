@@ -148,12 +148,47 @@ export default function SystemAdministratorPage() {
   const [targetFacilityId, setTargetFacilityId] = useState("");
   const [roleInFacility, setRoleInFacility] = useState("STAFF");
 
-  // Load User from LocalStorage
+  // Load User from LocalStorage & Strict Role Guard for Role 5
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem("user");
-        if (raw) setCurrentUser(JSON.parse(raw));
+        if (!raw) {
+          window.location.replace("/login?redirect=/admin");
+          return;
+        }
+        const user = JSON.parse(raw);
+        setCurrentUser(user);
+
+        const role = (
+          typeof user?.role === "string" ? user.role : user?.role?.name || ""
+        ).toUpperCase();
+
+        const isAdmin =
+          role === "SYSTEM_ADMINISTRATOR" ||
+          role === "ADMIN" ||
+          role.includes("ADMIN");
+
+        if (!isAdmin) {
+          if (role === "BUSINESS_OPERATIONS_MANAGER" || role === "OPS" || role.includes("OPERATIONS_MANAGER")) {
+            toast.info("Tài khoản Vận Hành Chuỗi (Role 4) - Đang chuyển sang Cổng Vận Hành Doanh Nghiệp...");
+            window.location.replace("/operations");
+            return;
+          }
+          if (role === "FACILITY_MANAGER" || role === "MANAGER" || role.includes("MANAGER")) {
+            toast.info("Tài khoản Quản Lý Chi Nhánh (Role 3) - Đang chuyển sang Cổng Quản Lý Cơ Sở...");
+            window.location.replace("/manager");
+            return;
+          }
+          if (role.includes("STAFF")) {
+            toast.warning("Tài khoản Nhân viên không có quyền Quản Trị Hệ Thống. Đã chuyển về Cổng Nhân Viên.");
+            window.location.replace("/staff");
+            return;
+          }
+          toast.error("Chỉ Quản Trị Viên Hệ Thống mới có quyền truy cập Cổng Quản Trị.");
+          window.location.replace("/dashboard");
+          return;
+        }
       } catch {}
     }
   }, []);
@@ -500,23 +535,20 @@ export default function SystemAdministratorPage() {
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="hidden xl:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs font-semibold">
             <Link
-              href="/operations"
-              className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-white transition"
-            >
-              Vận Hành Chuỗi
-            </Link>
-            <Link
               href="/manager"
-              className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-white transition"
+              className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-indigo-700 hover:bg-white transition"
             >
-              Quản Lý Cơ Sở
+              Role 3: Quản Lý Cơ Sở
             </Link>
             <Link
-              href="/staff"
-              className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-white transition"
+              href="/operations"
+              className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-amber-700 hover:bg-white transition"
             >
-              Quầy Nhân Viên
+              Role 4: Vận Hành Chuỗi
             </Link>
+            <span className="px-2.5 py-1 rounded-lg bg-white text-blue-700 shadow-2xs font-bold">
+              Role 5: Quản Trị Hệ Thống
+            </span>
           </div>
 
           <button
@@ -862,15 +894,15 @@ export default function SystemAdministratorPage() {
                 {/* Users Table */}
                 <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
+                    <table className="w-full min-w-[1100px] text-left text-xs border-collapse">
                       <thead className="bg-slate-50/80 text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100">
                         <tr>
-                          <th className="px-5 py-3.5">Người Dùng</th>
-                          <th className="px-5 py-3.5">Vai Trò Hệ Thống (Role)</th>
-                          <th className="px-5 py-3.5">Cơ Sở Được Gán</th>
-                          <th className="px-5 py-3.5">Đăng Nhập Gần Nhất</th>
-                          <th className="px-5 py-3.5 text-center">Trạng Thái</th>
-                          <th className="px-5 py-3.5 text-right min-w-[260px]">Thao Tác Quản Trị</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap min-w-[220px]">Người Dùng</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap min-w-[170px]">Vai Trò Hệ Thống (Role)</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap min-w-[240px]">Cơ Sở Được Gán</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap min-w-[170px]">Đăng Nhập Gần Nhất</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap text-center min-w-[120px]">Trạng Thái</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap text-right min-w-[270px]">Thao Tác Quản Trị</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -893,7 +925,7 @@ export default function SystemAdministratorPage() {
                                 key={u.id}
                                 className={`hover:bg-slate-50/80 transition-colors border-l-4 ${roleObj.rowBorder}`}
                               >
-                                <td className="px-5 py-3.5">
+                                <td className="px-5 py-3.5 whitespace-nowrap min-w-[220px]">
                                   <div className="flex items-center gap-3">
                                     <div
                                       className={`w-9 h-9 rounded-full text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs ${roleObj.avatarBg}`}
@@ -901,14 +933,14 @@ export default function SystemAdministratorPage() {
                                       {u.fullName?.charAt(0) || "U"}
                                     </div>
                                     <div>
-                                      <p className="font-black text-slate-900 leading-tight">{u.fullName}</p>
-                                      <p className="text-slate-400 text-[11px] font-mono">{u.email}</p>
-                                      {u.phone && <p className="text-slate-400 text-[10px]">{u.phone}</p>}
+                                      <p className="font-black text-slate-900 leading-tight whitespace-nowrap">{u.fullName}</p>
+                                      <p className="text-slate-400 text-[11px] font-mono whitespace-nowrap">{u.email}</p>
+                                      {u.phone && <p className="text-slate-400 text-[10px] whitespace-nowrap">{u.phone}</p>}
                                     </div>
                                   </div>
                                 </td>
 
-                                <td className="px-5 py-3.5">
+                                <td className="px-5 py-3.5 whitespace-nowrap min-w-[170px]">
                                   <span
                                     className={`inline-block px-3 py-1 rounded-full text-[11px] font-extrabold border shadow-2xs whitespace-nowrap ${roleObj.color}`}
                                   >
@@ -916,32 +948,32 @@ export default function SystemAdministratorPage() {
                                   </span>
                                 </td>
 
-                                <td className="px-5 py-3.5 font-medium text-slate-600">
+                                <td className="px-5 py-3.5 whitespace-nowrap font-medium text-slate-600 min-w-[240px]">
                                   {u.assignedFacility ? (
-                                    <span className="inline-flex items-center gap-1.5 text-slate-800 font-bold bg-slate-100/70 px-2.5 py-1 rounded-lg">
+                                    <span className="inline-flex items-center gap-1.5 text-slate-800 font-bold bg-slate-100/70 px-2.5 py-1 rounded-lg whitespace-nowrap">
                                       <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                                       <span className="truncate max-w-[200px]">{u.assignedFacility.name}</span>
                                     </span>
                                   ) : (
-                                    <span className="text-slate-400 italic text-[11px]">
+                                    <span className="text-slate-400 italic text-[11px] whitespace-nowrap">
                                       Toàn quyền hệ thống / Chưa gán
                                     </span>
                                   )}
                                 </td>
 
-                                <td className="px-5 py-3.5 text-slate-500 font-medium">
+                                <td className="px-5 py-3.5 whitespace-nowrap text-slate-500 font-medium min-w-[170px]">
                                   {u.lastLoginAt ? (
-                                    <span className="text-xs font-semibold text-slate-700">
+                                    <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">
                                       {new Date(u.lastLoginAt).toLocaleString("vi-VN")}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-400 italic text-[11px]">Chưa đăng nhập</span>
+                                    <span className="text-slate-400 italic text-[11px] whitespace-nowrap">Chưa đăng nhập</span>
                                   )}
                                 </td>
 
-                                <td className="px-5 py-3.5 text-center">
+                                <td className="px-5 py-3.5 whitespace-nowrap text-center min-w-[120px]">
                                   <span
-                                    className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border ${
+                                    className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold uppercase border whitespace-nowrap ${
                                       u.status === "ACTIVE"
                                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                         : "bg-rose-50 text-rose-700 border-rose-200"
@@ -1167,15 +1199,15 @@ export default function SystemAdministratorPage() {
                 {/* Login History Table */}
                 <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
+                    <table className="w-full min-w-[1050px] text-left text-xs border-collapse">
                       <thead className="bg-slate-50/80 text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100">
                         <tr>
-                          <th className="px-5 py-3.5">Thời Gian Đăng Nhập</th>
-                          <th className="px-5 py-3.5">Tài Khoản / Người Dùng</th>
-                          <th className="px-5 py-3.5">Vai Trò Hệ Thống</th>
-                          <th className="px-5 py-3.5">Địa Chỉ IP</th>
-                          <th className="px-5 py-3.5">Thiết Bị / Trình Duyệt</th>
-                          <th className="px-5 py-3.5 text-center">Tình Trạng</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Thời Gian Đăng Nhập</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Tài Khoản / Người Dùng</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Vai Trò Hệ Thống</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Địa Chỉ IP</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Thiết Bị / Trình Duyệt</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap text-center">Tình Trạng</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -1293,15 +1325,15 @@ export default function SystemAdministratorPage() {
                 {/* Audit Logs Table */}
                 <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
+                    <table className="w-full min-w-[1100px] text-left text-xs border-collapse">
                       <thead className="bg-slate-50/80 text-slate-400 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-100">
                         <tr>
-                          <th className="px-5 py-3.5">Thời Gian</th>
-                          <th className="px-5 py-3.5">Người Thực Hiện</th>
-                          <th className="px-5 py-3.5">Hành Động</th>
-                          <th className="px-5 py-3.5">Đối Tượng Tác Động</th>
-                          <th className="px-5 py-3.5">Mô Tả Chi Tiết</th>
-                          <th className="px-5 py-3.5 text-center">Kiểm Toán</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Thời Gian</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Người Thực Hiện</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Hành Động</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Đối Tượng Tác Động</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap">Mô Tả Chi Tiết</th>
+                          <th className="px-5 py-3.5 whitespace-nowrap text-center">Kiểm Toán</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700">
