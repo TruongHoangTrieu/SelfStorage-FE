@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   X,
+  Shield,
   ShieldCheck,
   Box,
   Settings,
@@ -397,6 +398,46 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+
+            {hydrated && isOps && (
+              <Link
+                href="/operations"
+                className="px-3 py-1.5 rounded-xl text-amber-800 bg-amber-50 hover:bg-amber-100 font-bold border border-amber-200 transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs"
+              >
+                <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                <span>Vận Hành Chuỗi (Role 4)</span>
+              </Link>
+            )}
+
+            {hydrated && isManager && (
+              <Link
+                href="/manager"
+                className="px-3 py-1.5 rounded-xl text-indigo-800 bg-indigo-50 hover:bg-indigo-100 font-bold border border-indigo-200 transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs"
+              >
+                <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Quản Lý Cơ Sở (Role 3)</span>
+              </Link>
+            )}
+
+            {hydrated && isAdmin && (
+              <Link
+                href="/admin"
+                className="px-3 py-1.5 rounded-xl text-blue-800 bg-blue-50 hover:bg-blue-100 font-bold border border-blue-200 transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs"
+              >
+                <Shield className="w-3.5 h-3.5 text-blue-600" />
+                <span>Quản Trị Hệ Thống (Role 5)</span>
+              </Link>
+            )}
+
+            {hydrated && isPureStaff && (
+              <Link
+                href="/staff"
+                className="px-3 py-1.5 rounded-xl text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-bold border border-emerald-200 transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Cổng Nhân Viên (Role 2)</span>
+              </Link>
+            )}
           </nav>
 
           {/* 3. RIGHT ACTIONS (Hotline, Notifications, User Profile & CTA) */}
@@ -512,11 +553,11 @@ export default function Navbar() {
 
                     <div className="mt-2.5 pt-2 border-t border-slate-100 text-center">
                       <Link
-                        href={isManager ? "/manager" : isPureStaff ? "/staff" : isAdmin ? "/admin" : "/dashboard"}
+                        href={isOps ? "/operations" : isManager ? "/manager" : isPureStaff ? "/staff" : isAdmin ? "/admin" : "/dashboard"}
                         onClick={() => setNotificationOpen(false)}
                         className="text-[11px] font-bold text-blue-600 hover:underline"
                       >
-                        {isManager ? "Đến Cổng Quản Lý →" : isPureStaff ? "Đến Cổng Nhân Viên →" : isAdmin ? "Đến Cổng Quản Trị →" : "Đến trang Quản lý kho →"}
+                        {isOps ? "Đến Cổng Vận Hành Chuỗi →" : isManager ? "Đến Cổng Quản Lý →" : isPureStaff ? "Đến Cổng Nhân Viên →" : isAdmin ? "Đến Cổng Quản Trị →" : "Đến trang Quản lý kho →"}
                       </Link>
                     </div>
                   </div>
@@ -820,6 +861,16 @@ export default function Navbar() {
                       className="col-span-2 py-2.5 px-3 text-center bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition shadow-xs"
                     >
                       Cổng Quản Trị Hệ Thống
+                    </Link>
+                  </>
+                ) : isOps ? (
+                  <>
+                    <Link
+                      href="/operations"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="col-span-2 py-2.5 px-3 text-center bg-amber-600 text-white font-bold rounded-xl text-xs hover:bg-amber-700 transition shadow-xs"
+                    >
+                      Cổng Vận Hành Chuỗi (Ops)
                     </Link>
                   </>
                 ) : isManager ? (
