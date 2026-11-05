@@ -1307,8 +1307,23 @@ export default function StaffPortalPage() {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onLoginSuccess={(user) => {
+          const userRole = (
+            typeof (user as any)?.role === "string" ? (user as any).role : (user as any)?.role?.name || ""
+          ).toUpperCase();
+          if (userRole.includes('ADMIN')) {
+            window.location.replace('/admin');
+            return;
+          }
+          if (userRole.includes('OPERATIONS') || userRole === 'OPS') {
+            window.location.replace('/operations');
+            return;
+          }
+          if (userRole.includes('MANAGER')) {
+            window.location.replace('/manager');
+            return;
+          }
           setCurrentUser(user);
-          toast.success(`Đăng nhập thành công: ${user.fullName} (${user.role})`);
+          toast.success(`Đăng nhập thành công: ${user.fullName} (${userRole})`);
           loadBackendData(true, user.facilityId);
         }}
       />

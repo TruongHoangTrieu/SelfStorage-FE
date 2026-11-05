@@ -605,23 +605,10 @@ export default function BusinessOperationsPage() {
           </div>
         </div>
 
-        {/* Cross-Role Quick Switcher */}
-        <div className="hidden xl:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs font-semibold">
-          <Link
-            href="/manager"
-            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-indigo-700 hover:bg-white transition"
-          >
-            Role 3: Quản Lý Cơ Sở
-          </Link>
-          <span className="px-2.5 py-1 rounded-lg bg-white text-amber-700 shadow-2xs font-bold">
-            Role 4: Vận Hành Chuỗi
-          </span>
-          <Link
-            href="/admin"
-            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-white transition"
-          >
-            Role 5: Quản Trị Hệ Thống
-          </Link>
+        {/* Portal Identifier Badge */}
+        <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 bg-amber-50/90 rounded-xl border border-amber-200/70 text-xs font-bold text-amber-900 shadow-2xs">
+          <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
+          <span>Cổng Vận Hành Chuỗi (Role 4)</span>
         </div>
 
         {/* Right: Refresh button, Profile Pill & Logout */}

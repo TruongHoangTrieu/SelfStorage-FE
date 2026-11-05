@@ -338,7 +338,9 @@ export default function ManagerPortalPage() {
       return;
     }
 
-    const roleName = (stored.role || "").toUpperCase();
+    const roleName = (
+      typeof (stored as any)?.role === "string" ? (stored as any).role : (stored as any)?.role?.name || ""
+    ).toUpperCase();
 
     // 1. Nếu là Khách hàng -> Chuyển về Dashboard
     if (roleName === "STORAGE_CUSTOMER" || roleName === "CUSTOMER") {
@@ -379,7 +381,7 @@ export default function ManagerPortalPage() {
     if (
       roleName === "FACILITY_STAFF" ||
       roleName === "STAFF" ||
-      roleName.includes("STAFF")
+      (roleName.includes("STAFF") && !roleName.includes("MANAGER"))
     ) {
       toast.warning(
         "Tài khoản Nhân viên không có quyền truy cập Cổng Quản Lý Cơ Sở. Đã chuyển về Cổng Nhân Viên.",
@@ -394,7 +396,7 @@ export default function ManagerPortalPage() {
     const isFacilityManager =
       roleName === "FACILITY_MANAGER" ||
       roleName === "MANAGER" ||
-      roleName.includes("MANAGER");
+      (roleName.includes("MANAGER") && !roleName.includes("OPERATIONS"));
 
     if (!isFacilityManager) {
       toast.error("Bạn không có quyền truy cập Cổng Quản Lý Cơ Sở.");
@@ -1157,10 +1159,23 @@ export default function ManagerPortalPage() {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onLoginSuccess={(user) => {
+          const userRole = (
+            typeof (user as any)?.role === "string" ? (user as any).role : (user as any)?.role?.name || ""
+          ).toUpperCase();
+          if (userRole.includes('ADMIN')) {
+            window.location.replace('/admin');
+            return;
+          }
+          if (userRole.includes('OPERATIONS') || userRole === 'OPS') {
+            window.location.replace('/operations');
+            return;
+          }
+          if (userRole.includes('STAFF') && !userRole.includes('MANAGER')) {
+            window.location.replace('/staff');
+            return;
+          }
           setCurrentUser(user);
-          toast.success(
-            `Đăng nhập thành công: ${user.fullName} (${user.role})`,
-          );
+          toast.success(`Đăng nhập thành công: ${user.fullName} (${userRole})`);
           loadBackendData(true, user.facilityId);
         }}
       />
