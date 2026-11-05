@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Boxes,
   Plus,
@@ -179,11 +179,13 @@ export interface UnitTypeItem {
 interface UnitTypesPricingManagerProps {
   currentFacilityId?: string | number;
   currentUser?: StaffUser | null;
+  onFacilityChange?: (facilityId: string) => void;
 }
 
 export default function UnitTypesPricingManager({
   currentFacilityId,
   currentUser,
+  onFacilityChange,
 }: UnitTypesPricingManagerProps) {
   const roleName = (currentUser?.role || '').toUpperCase();
   const canEditPricing = Boolean(
@@ -258,6 +260,8 @@ export default function UnitTypesPricingManager({
   const [deletingItem, setDeletingItem] = useState<UnitTypeItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const prevCurrentFacilityIdRef = useRef(currentFacilityId);
+
   // Load facilities list
   useEffect(() => {
     async function fetchFacilities() {
@@ -273,12 +277,14 @@ export default function UnitTypesPricingManager({
             setSelectedFacilityId(targetId);
           }
         } else {
-          // Với Quản trị viên cấp cao: Nếu chưa chọn thì mặc định cơ sở hiện tại hoặc cơ sở đầu tiên
-          if (list.length > 0 && !selectedFacilityId) {
+          // Với Quản trị viên cấp cao: Nếu chưa chọn hoặc chọn cơ sở không tồn tại, tự động chọn cơ sở đầu tiên hoặc currentFacilityId
+          setSelectedFacilityId((prev) => {
+            const exists = list.some((f: any) => String(f.id) === String(prev));
+            if (exists) return prev;
             const defaultFac =
               list.find((f: any) => String(f.id) === String(currentFacilityId)) || list[0];
-            setSelectedFacilityId(defaultFac.id);
-          }
+            return defaultFac ? defaultFac.id : null;
+          });
         }
       } catch (err) {
         console.error('Failed to load facilities', err);
@@ -287,6 +293,14 @@ export default function UnitTypesPricingManager({
     }
     fetchFacilities();
   }, [assignedFacilityId, canSwitchFacility, currentFacilityId]);
+
+  // Đồng bộ khi component cha thực sự thay đổi currentFacilityId
+  useEffect(() => {
+    if (currentFacilityId && currentFacilityId !== prevCurrentFacilityIdRef.current) {
+      prevCurrentFacilityIdRef.current = currentFacilityId;
+      setSelectedFacilityId(currentFacilityId);
+    }
+  }, [currentFacilityId]);
 
   // Load Unit Types for selected facility
   const loadUnitTypes = useCallback(async () => {
@@ -765,7 +779,12 @@ export default function UnitTypesPricingManager({
                 <div className="relative">
                   <select
                     value={selectedFacilityId || ''}
-                    onChange={(e) => setSelectedFacilityId(e.target.value)}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      setSelectedFacilityId(newId);
+                      prevCurrentFacilityIdRef.current = newId;
+                      onFacilityChange?.(newId);
+                    }}
                     className="w-full pl-9 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-800 transition appearance-none cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   >
                     {facilities.map((fac) => (

@@ -812,25 +812,6 @@ export default function ManagerPortalPage() {
           </div>
         </div>
 
-        {/* Cross-Role Quick Switcher */}
-        <div className="hidden xl:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs font-semibold">
-          <span className="px-2.5 py-1 rounded-lg bg-white text-indigo-700 shadow-2xs font-bold">
-            Role 3: Quản Lý Cơ Sở
-          </span>
-          <Link
-            href="/operations"
-            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-amber-700 hover:bg-white transition"
-          >
-            Role 4: Vận Hành Chuỗi
-          </Link>
-          <Link
-            href="/admin"
-            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-white transition"
-          >
-            Role 5: Quản Trị Hệ Thống
-          </Link>
-        </div>
-
         {/* Right: Actions, Facility Badge & Manager Profile */}
         <div className="flex items-center gap-2.5 sm:gap-4">
           {/* Notification Bell with Badge & Dropdown */}

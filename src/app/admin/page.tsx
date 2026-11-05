@@ -596,25 +596,8 @@ export default function SystemAdministratorPage() {
           </div>
         </div>
 
-        {/* Right: Quick Role Portal Links, Actions & Profile */}
+        {/* Right: Actions & Profile */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="hidden xl:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs font-semibold">
-            <Link
-              href="/manager"
-              className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-indigo-700 hover:bg-white transition"
-            >
-              Role 3: Quản Lý Cơ Sở
-            </Link>
-            <Link
-              href="/operations"
-              className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-amber-700 hover:bg-white transition"
-            >
-              Role 4: Vận Hành Chuỗi
-            </Link>
-            <span className="px-2.5 py-1 rounded-lg bg-white text-blue-700 shadow-2xs font-bold">
-              Role 5: Quản Trị Hệ Thống
-            </span>
-          </div>
 
           <button
             type="button"

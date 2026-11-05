@@ -74,7 +74,7 @@ export default function BusinessOperationsPage() {
   const [facilityStatusFilter, setFacilityStatusFilter] = useState("ALL");
   const [isAddFacilityModalOpen, setIsAddFacilityModalOpen] = useState(false);
   const [editingFacility, setEditingFacility] = useState<FacilityItem | null>(null);
-  const [selectedFacilityForUnits, setSelectedFacilityForUnits] = useState<string>("1");
+  const [selectedFacilityForUnits, setSelectedFacilityForUnits] = useState<string>("");
   const [unitsSubTab, setUnitsSubTab] = useState<"unit_types" | "layout">("unit_types");
 
   // Fee Edit State
@@ -232,7 +232,14 @@ export default function BusinessOperationsPage() {
       ]);
 
       if (facRes.status === "fulfilled" && facRes.value) {
-        setFacilities(Array.isArray(facRes.value) ? facRes.value : (facRes.value as any)?.data || []);
+        const facList = Array.isArray(facRes.value) ? facRes.value : (facRes.value as any)?.data || [];
+        setFacilities(facList);
+        if (facList.length > 0) {
+          setSelectedFacilityForUnits((prev) => {
+            const exists = facList.some((f: any) => String(f.id) === String(prev));
+            return exists ? prev : String(facList[0].id);
+          });
+        }
       }
       if (usersRes.status === "fulfilled" && usersRes.value) {
         setAllUsers(Array.isArray(usersRes.value) ? usersRes.value : []);
@@ -739,25 +746,6 @@ export default function BusinessOperationsPage() {
           </div>
         </div>
 
-        {/* Cross-Role Quick Switcher */}
-        <div className="hidden xl:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 text-xs font-semibold">
-          <Link
-            href="/manager"
-            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-indigo-700 hover:bg-white transition"
-          >
-            Role 3: Quản Lý Cơ Sở
-          </Link>
-          <span className="px-2.5 py-1 rounded-lg bg-white text-amber-700 shadow-2xs font-bold">
-            Role 4: Vận Hành Chuỗi
-          </span>
-          <Link
-            href="/admin"
-            className="px-2.5 py-1 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-white transition"
-          >
-            Role 5: Quản Trị Hệ Thống
-          </Link>
-        </div>
-
         {/* Right: Refresh button, Profile Pill & Logout */}
         <div className="flex items-center gap-3 shrink-0">
           <button
@@ -1240,6 +1228,7 @@ export default function BusinessOperationsPage() {
                 {unitsSubTab === "unit_types" && (
                   <UnitTypesPricingManager
                     currentFacilityId={selectedFacilityForUnits}
+                    onFacilityChange={(fId) => setSelectedFacilityForUnits(fId)}
                     currentUser={{
                       ...currentUser,
                       role: "BUSINESS_OPERATIONS_MANAGER",
