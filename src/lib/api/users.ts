@@ -109,12 +109,21 @@ export const usersApi = {
     password?: string;
     roleName: string;
     facilityId?: string;
+    reason?: string;
   }) => {
     return api.post<UserItem>('/users', data);
   },
 
-  updateUserRole: async (userId: string, roleName: string) => {
-    return api.patch<UserItem>(`/users/${userId}/role`, { roleName });
+  updateUserRole: async (
+    userId: string,
+    roleName: string,
+    options?: { facilityId?: string; reason?: string },
+  ) => {
+    return api.patch<UserItem>(`/users/${userId}/role`, {
+      roleName,
+      facilityId: options?.facilityId,
+      reason: options?.reason,
+    });
   },
 
   updateUserStatus: async (userId: string, status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') => {

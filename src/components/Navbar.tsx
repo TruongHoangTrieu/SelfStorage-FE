@@ -279,11 +279,12 @@ export default function Navbar() {
 
   const getInitials = (name?: string, email?: string) => {
     if (name && name.trim()) {
-      const parts = name.trim().split(/\s+/);
+      const cleanName = name.replace(/\s*\(.*?\)\s*/g, " ").trim() || name.trim();
+      const parts = cleanName.split(/\s+/);
       if (parts.length >= 2) {
         return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
       }
-      return name.slice(0, 2).toUpperCase();
+      return cleanName.slice(0, 2).toUpperCase();
     }
     if (email) {
       return email.slice(0, 2).toUpperCase();
@@ -294,11 +295,12 @@ export default function Navbar() {
   // Concise name for top navbar pill (prevents layout crowding)
   const getConciseName = (name?: string, email?: string) => {
     if (name && name.trim()) {
-      const words = name.trim().split(/\s+/);
+      const cleanName = name.replace(/\s*\(.*?\)\s*/g, " ").trim() || name.trim();
+      const words = cleanName.split(/\s+/);
       if (words.length > 2) {
         return words.slice(-2).join(" ");
       }
-      return name;
+      return cleanName;
     }
     if (email) {
       return email.split("@")[0];
@@ -398,46 +400,6 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-
-            {hydrated && isOps && (
-              <Link
-                href="/operations"
-                className="px-3 py-1.5 rounded-xl text-amber-800 bg-amber-50 hover:bg-amber-100 font-bold border border-amber-200 transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs"
-              >
-                <Building2 className="w-3.5 h-3.5 text-amber-600" />
-                <span>Vận Hành Chuỗi (Role 4)</span>
-              </Link>
-            )}
-
-            {hydrated && isManager && (
-              <Link
-                href="/manager"
-                className="px-3 py-1.5 rounded-xl text-indigo-800 bg-indigo-50 hover:bg-indigo-100 font-bold border border-indigo-200 transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs"
-              >
-                <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Quản Lý Cơ Sở (Role 3)</span>
-              </Link>
-            )}
-
-            {hydrated && isAdmin && (
-              <Link
-                href="/admin"
-                className="px-3 py-1.5 rounded-xl text-blue-800 bg-blue-50 hover:bg-blue-100 font-bold border border-blue-200 transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs"
-              >
-                <Shield className="w-3.5 h-3.5 text-blue-600" />
-                <span>Quản Trị Hệ Thống (Role 5)</span>
-              </Link>
-            )}
-
-            {hydrated && isPureStaff && (
-              <Link
-                href="/staff"
-                className="px-3 py-1.5 rounded-xl text-emerald-800 bg-emerald-50 hover:bg-emerald-100 font-bold border border-emerald-200 transition-colors whitespace-nowrap flex items-center gap-1.5 text-xs"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Cổng Nhân Viên (Role 2)</span>
-              </Link>
-            )}
           </nav>
 
           {/* 3. RIGHT ACTIONS (Hotline, Notifications, User Profile & CTA) */}
@@ -980,46 +942,6 @@ export default function Navbar() {
               Gợi ý ngay
             </span>
           </button>
-
-          {hydrated && isOps && (
-            <Link
-              href="/operations"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2.5 rounded-lg text-base font-semibold text-amber-700 hover:bg-amber-50 transition"
-            >
-              Cổng Vận Hành Chuỗi (Ops)
-            </Link>
-          )}
-
-          {hydrated && isManager && (
-            <Link
-              href="/manager"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2.5 rounded-lg text-base font-semibold text-indigo-700 hover:bg-indigo-50 transition"
-            >
-              Cổng Quản Lý Cơ Sở
-            </Link>
-          )}
-
-          {hydrated && isPureStaff && (
-            <Link
-              href="/staff"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2.5 rounded-lg text-base font-semibold text-blue-700 hover:bg-blue-50 transition"
-            >
-              Cổng Nhân Viên Vận Hành
-            </Link>
-          )}
-
-          {hydrated && isAdmin && (
-            <Link
-              href="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-3 py-2.5 rounded-lg text-base font-semibold text-rose-700 hover:bg-rose-50 transition"
-            >
-              Quản Trị Hệ Thống
-            </Link>
-          )}
 
           {hydrated && canRentStorage && (
             <div className="pt-2 border-t border-slate-100">
