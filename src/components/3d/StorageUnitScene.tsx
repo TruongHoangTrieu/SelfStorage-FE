@@ -1,9 +1,49 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { UnitDimensions } from './unitDimensions';
+import {
+  Plus,
+  RotateCw,
+  Trash2,
+  Layers,
+  Move,
+  Box,
+  Sparkles,
+} from 'lucide-react';
+
+export type PlaceableItemType =
+  | 'box'
+  | 'luggage'
+  | 'bin'
+  | 'shelf'
+  | 'chair'
+  | 'fridge'
+  | 'sofa'
+  | 'washer'
+  | 'bike';
+
+export interface InteractiveItemMeta {
+  id: string;
+  type: PlaceableItemType;
+  label: string;
+  w: number;
+  h: number;
+  d: number;
+  canPlaceOnShelf: boolean;
+  shelfTier: number; // 0 = floor, 1 = tier 1, 2 = tier 2, 3 = tier 3
+}
+
+interface ShelfZone {
+  id: string;
+  meshGroup: THREE.Object3D;
+  sw: number;
+  sh: number;
+  sd: number;
+  tierHeights: number[];
+}
 
 interface StorageUnitSceneProps {
   dimensions: UnitDimensions;
@@ -16,6 +56,21 @@ interface StorageUnitSceneProps {
   resetSignal?: number;
   onUserOrbit?: () => void;
 }
+
+const ITEM_CATALOG: {
+  type: PlaceableItemType;
+  label: string;
+  shortLabel: string;
+  minCategory?: string;
+}[] = [
+  { type: 'shelf', label: 'Kệ sắt nhỏ 3 tầng', shortLabel: '+ Kệ nhỏ' },
+  { type: 'box', label: 'Thùng carton', shortLabel: '+ Thùng carton' },
+  { type: 'luggage', label: 'Vali du lịch', shortLabel: '+ Vali' },
+  { type: 'bin', label: 'Thùng hồ sơ nhựa', shortLabel: '+ Hộp hồ sơ' },
+  { type: 'fridge', label: 'Tủ lạnh gia đình', shortLabel: '+ Tủ lạnh' },
+  { type: 'sofa', label: 'Ghế Sofa / Nệm', shortLabel: '+ Sofa' },
+  { type: 'bike', label: 'Xe đạp / Xe máy', shortLabel: '+ Xe máy' },
+];
 
 export default function StorageUnitScene({
   dimensions,
@@ -37,17 +92,25 @@ export default function StorageUnitScene({
   const ceilingLampRef = useRef<THREE.Mesh | null>(null);
   const itemsGroupRef = useRef<THREE.Group | null>(null);
   const rulersGroupRef = useRef<THREE.Group | null>(null);
+  const selectionRingRef = useRef<THREE.Mesh | null>(null);
 
-  // Door animation state ref to prevent stale closure in animation loop
+  // Interactive items & shelves registries
+  const draggableObjectsRef = useRef<THREE.Object3D[]>([]);
+  const shelfZonesRef = useRef<ShelfZone[]>([]);
+  const selectedObjectRef = useRef<THREE.Object3D | null>(null);
+  const cardTexRef = useRef<THREE.Texture | null>(null);
+
+  const [selectedItemMeta, setSelectedItemMeta] = useState<InteractiveItemMeta | null>(null);
+  const [itemCount, setItemCount] = useState<number>(0);
+
+  // Door animation state ref
   const isDoorOpenRef = useRef<boolean>(isDoorOpen);
   useEffect(() => {
     isDoorOpenRef.current = isDoorOpen;
   }, [isDoorOpen]);
 
-  // Animation values
   const currentDoorProgress = useRef<number>(isDoorOpen ? 1 : 0);
 
-  // Helper to create ribbed metal texture for self-storage walls (Light Theme)
   const createCorrugatedTexture = (horizontal = false) => {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -84,7 +147,6 @@ export default function StorageUnitScene({
     return texture;
   };
 
-  // Helper to create cardboard box texture (Light clean finish)
   const createCardboardTexture = () => {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -93,11 +155,9 @@ export default function StorageUnitScene({
     ctx.fillStyle = '#d4a373';
     ctx.fillRect(0, 0, 128, 128);
 
-    // Tape across middle
     ctx.fillStyle = '#b08968';
     ctx.fillRect(48, 0, 32, 128);
 
-    // Up arrows and text
     ctx.fillStyle = '#6b4423';
     ctx.font = 'bold 16px Inter, "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillText('STORAGE', 16, 75);
@@ -106,11 +166,372 @@ export default function StorageUnitScene({
     return texture;
   };
 
-  // Primitive key to ensure rebuild occurs only when actual dimensions change
+  // Helper to update selection highlight ring position
+  const syncSelectionHighlight = useCallback((obj: THREE.Object3D | null) => {
+    const ring = selectionRingRef.current;
+    if (!ring) return;
+    if (!obj) {
+      ring.visible = false;
+      setSelectedItemMeta(null);
+      return;
+    }
+    const meta = obj.userData?.meta as InteractiveItemMeta | undefined;
+    if (!meta) {
+      ring.visible = false;
+      setSelectedItemMeta(null);
+      return;
+    }
+    ring.visible = true;
+    const radius = Math.max(meta.w, meta.d) * 0.68;
+    ring.scale.set(radius, radius, 1);
+    ring.position.set(obj.position.x, obj.position.y + 0.015, obj.position.z);
+    setSelectedItemMeta({ ...meta });
+  }, []);
+
+  // Helper to create a 3D draggable item mesh group and register it
+  const spawnDraggableItem = useCallback(
+    (
+      type: PlaceableItemType,
+      x: number,
+      z: number,
+      ry = 0,
+      initialShelfTier = 0
+    ): THREE.Object3D | null => {
+      const itemsGroup = itemsGroupRef.current;
+      if (!itemsGroup) return null;
+
+      const { width: W, depth: D, height: H } = dimensions;
+      const itemGroup = new THREE.Group();
+      const id = `item_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+      let w = 0.42;
+      let h = 0.34;
+      let d = 0.42;
+      let label = 'Thùng carton';
+      let canPlaceOnShelf = true;
+
+      if (type === 'box') {
+        w = 0.42;
+        h = 0.34;
+        d = 0.42;
+        label = 'Thùng carton';
+        canPlaceOnShelf = true;
+        const boxMat = new THREE.MeshStandardMaterial({
+          map: cardTexRef.current || undefined,
+          color: '#d4a373',
+          roughness: 0.82,
+          metalness: 0.05,
+        });
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), boxMat);
+        mesh.position.y = h / 2;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        itemGroup.add(mesh);
+      } else if (type === 'luggage') {
+        w = 0.36;
+        h = 0.54;
+        d = 0.24;
+        label = 'Vali du lịch';
+        canPlaceOnShelf = true;
+        const mat = new THREE.MeshStandardMaterial({
+          color: '#0284c7',
+          roughness: 0.35,
+          metalness: 0.25,
+        });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        body.position.y = h / 2;
+        body.castShadow = true;
+        itemGroup.add(body);
+
+        const handleMat = new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.8 });
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.03), handleMat);
+        handle.position.set(0, h + 0.05, 0);
+        itemGroup.add(handle);
+      } else if (type === 'bin') {
+        w = 0.44;
+        h = 0.28;
+        d = 0.34;
+        label = 'Hộp hồ sơ nhựa';
+        canPlaceOnShelf = true;
+        const bodyMat = new THREE.MeshStandardMaterial({
+          color: '#3b82f6',
+          roughness: 0.3,
+          metalness: 0.1,
+        });
+        const lidMat = new THREE.MeshStandardMaterial({
+          color: '#f8fafc',
+          roughness: 0.25,
+        });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h - 0.04, d), bodyMat);
+        body.position.y = (h - 0.04) / 2;
+        body.castShadow = true;
+        itemGroup.add(body);
+
+        const lid = new THREE.Mesh(new THREE.BoxGeometry(w + 0.02, 0.04, d + 0.02), lidMat);
+        lid.position.y = h - 0.02;
+        itemGroup.add(lid);
+      } else if (type === 'shelf') {
+        w = Math.min(0.95, Math.max(0.55, W * 0.42));
+        h = Math.min(1.65, H * 0.72);
+        d = Math.min(0.52, Math.max(0.36, D * 0.28));
+        label = 'Kệ nhỏ 3 tầng';
+        canPlaceOnShelf = false;
+
+        const metalMat = new THREE.MeshStandardMaterial({
+          color: '#1e293b',
+          metalness: 0.75,
+          roughness: 0.28,
+        });
+        const woodMat = new THREE.MeshStandardMaterial({
+          color: '#e2e8f0',
+          metalness: 0.2,
+          roughness: 0.5,
+        });
+        const postGeo = new THREE.BoxGeometry(0.035, h, 0.035);
+        const corners = [
+          [-w / 2 + 0.02, -d / 2 + 0.02],
+          [w / 2 - 0.02, -d / 2 + 0.02],
+          [-w / 2 + 0.02, d / 2 - 0.02],
+          [w / 2 - 0.02, d / 2 - 0.02],
+        ];
+        corners.forEach(([cx, cz]) => {
+          const post = new THREE.Mesh(postGeo, metalMat);
+          post.position.set(cx, h / 2, cz);
+          post.castShadow = true;
+          itemGroup.add(post);
+        });
+
+        const tierHeights = [0.12, h * 0.5, h * 0.88];
+        const tierGeo = new THREE.BoxGeometry(w, 0.028, d);
+        tierHeights.forEach((ty) => {
+          const tier = new THREE.Mesh(tierGeo, woodMat);
+          tier.position.set(0, ty, 0);
+          tier.receiveShadow = true;
+          tier.castShadow = true;
+          itemGroup.add(tier);
+        });
+
+        shelfZonesRef.current.push({
+          id,
+          meshGroup: itemGroup,
+          sw: w,
+          sh: h,
+          sd: d,
+          tierHeights,
+        });
+      } else if (type === 'chair') {
+        w = 0.46;
+        h = 0.78;
+        d = 0.46;
+        label = 'Ghế làm việc';
+        canPlaceOnShelf = false;
+        const chairMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.5 });
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.07, 0.45), chairMat);
+        seat.position.set(0, 0.42, 0);
+        seat.castShadow = true;
+        itemGroup.add(seat);
+        const back = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.4, 0.06), chairMat);
+        back.position.set(0, 0.64, -0.2);
+        back.castShadow = true;
+        itemGroup.add(back);
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.18, 0.42, 12), chairMat);
+        leg.position.set(0, 0.21, 0);
+        itemGroup.add(leg);
+      } else if (type === 'fridge') {
+        w = Math.min(0.7, W * 0.35);
+        h = Math.min(1.55, H * 0.72);
+        d = Math.min(0.65, D * 0.35);
+        label = 'Tủ lạnh';
+        canPlaceOnShelf = false;
+        const fridgeMat = new THREE.MeshStandardMaterial({
+          color: '#94a3b8',
+          metalness: 0.7,
+          roughness: 0.25,
+        });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), fridgeMat);
+        body.position.y = h / 2;
+        body.castShadow = true;
+        itemGroup.add(body);
+      } else if (type === 'sofa') {
+        w = Math.min(1.25, W * 0.55);
+        h = 0.72;
+        d = Math.min(0.75, D * 0.38);
+        label = 'Ghế Sofa';
+        canPlaceOnShelf = false;
+        const sofaMat = new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.65 });
+        const base = new THREE.Mesh(new THREE.BoxGeometry(w, 0.38, d), sofaMat);
+        base.position.y = 0.19;
+        base.castShadow = true;
+        itemGroup.add(base);
+        const back = new THREE.Mesh(new THREE.BoxGeometry(w, 0.36, 0.2), sofaMat);
+        back.position.set(0, 0.54, -d / 2 + 0.1);
+        back.castShadow = true;
+        itemGroup.add(back);
+      } else if (type === 'washer') {
+        w = 0.58;
+        h = 0.82;
+        d = 0.58;
+        label = 'Máy giặt';
+        canPlaceOnShelf = false;
+        const wmMat = new THREE.MeshStandardMaterial({
+          color: '#f1f5f9',
+          metalness: 0.35,
+          roughness: 0.3,
+        });
+        const wm = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wmMat);
+        wm.position.y = h / 2;
+        wm.castShadow = true;
+        itemGroup.add(wm);
+      } else if (type === 'bike') {
+        w = 0.45;
+        h = 0.95;
+        d = Math.min(1.35, D * 0.55);
+        label = 'Xe máy / Xe đạp';
+        canPlaceOnShelf = false;
+        const bikeBodyMat = new THREE.MeshStandardMaterial({
+          color: '#dc2626',
+          metalness: 0.7,
+          roughness: 0.3,
+        });
+        const wheelMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.9 });
+        const wheelGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.08, 16);
+        wheelGeo.rotateZ(Math.PI / 2);
+
+        const frontWheel = new THREE.Mesh(wheelGeo, wheelMat);
+        frontWheel.position.set(0, 0.22, d * 0.35);
+        itemGroup.add(frontWheel);
+
+        const backWheel = new THREE.Mesh(wheelGeo, wheelMat);
+        backWheel.position.set(0, 0.22, -d * 0.35);
+        itemGroup.add(backWheel);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.45, d * 0.68), bikeBodyMat);
+        body.position.set(0, 0.5, 0);
+        body.castShadow = true;
+        itemGroup.add(body);
+      }
+
+      // Compute Y position (either on floor or on a shelf tier)
+      let yPos = 0.03;
+      let activeTier = 0;
+      if (canPlaceOnShelf && initialShelfTier > 0 && shelfZonesRef.current.length > 0) {
+        const shelf = shelfZonesRef.current[0];
+        const tierIdx = Math.min(shelf.tierHeights.length - 1, initialShelfTier - 1);
+        yPos = 0.03 + shelf.tierHeights[tierIdx] + 0.015;
+        activeTier = tierIdx + 1;
+      }
+
+      // Clamp X and Z inside the room walls
+      const margin = 0.06;
+      const clampedX = Math.max(-W / 2 + w / 2 + margin, Math.min(W / 2 - w / 2 - margin, x));
+      const clampedZ = Math.max(-D / 2 + d / 2 + margin, Math.min(D / 2 - d / 2 - margin, z));
+
+      itemGroup.position.set(clampedX, yPos, clampedZ);
+      itemGroup.rotation.y = ry;
+
+      const meta: InteractiveItemMeta = {
+        id,
+        type,
+        label,
+        w,
+        h,
+        d,
+        canPlaceOnShelf,
+        shelfTier: activeTier,
+      };
+      itemGroup.userData = {
+        isDraggableRoot: true,
+        meta,
+      };
+
+      // Tag all child meshes with a reference to their draggable root group
+      itemGroup.traverse((child) => {
+        child.userData.draggableRoot = itemGroup;
+      });
+
+      itemsGroup.add(itemGroup);
+      draggableObjectsRef.current.push(itemGroup);
+      setItemCount(draggableObjectsRef.current.length);
+      return itemGroup;
+    },
+    [dimensions]
+  );
+
+  // Action: Add new item from toolbar
+  const handleAddItem = (type: PlaceableItemType) => {
+    const { width: W, depth: D } = dimensions;
+    // If adding a small item and a shelf exists, try placing on shelf or near center
+    const jitterX = (Math.random() - 0.5) * (W * 0.35);
+    const jitterZ = (Math.random() - 0.5) * (D * 0.35);
+    const newObj = spawnDraggableItem(type, jitterX, jitterZ, 0, 0);
+    if (newObj) {
+      selectedObjectRef.current = newObj;
+      syncSelectionHighlight(newObj);
+    }
+  };
+
+  // Action: Place selected small item onto a shelf tier (Kệ nhỏ: Sàn -> Tầng 1 -> Tầng 2 -> Tầng 3)
+  const handleCycleShelfTier = () => {
+    const obj = selectedObjectRef.current;
+    if (!obj) return;
+    const meta = obj.userData?.meta as InteractiveItemMeta | undefined;
+    if (!meta || !meta.canPlaceOnShelf) return;
+
+    // Ensure there is at least one shelf in the unit; if not, create one automatically!
+    if (shelfZonesRef.current.length === 0) {
+      spawnDraggableItem('shelf', -dimensions.width * 0.22, -dimensions.depth * 0.25, 0, 0);
+    }
+    const targetShelf = shelfZonesRef.current[0];
+    if (!targetShelf) return;
+
+    const nextTier = (meta.shelfTier + 1) % (targetShelf.tierHeights.length + 1);
+    meta.shelfTier = nextTier;
+
+    if (nextTier === 0) {
+      // Back to floor in front of shelf
+      obj.position.y = 0.03;
+      obj.position.x = Math.min(dimensions.width * 0.25, targetShelf.meshGroup.position.x + 0.35);
+      obj.position.z = Math.min(dimensions.depth * 0.25, targetShelf.meshGroup.position.z + 0.35);
+    } else {
+      const tierY = targetShelf.tierHeights[nextTier - 1];
+      const offsetWithinShelf = ((nextTier - 1) % 2 === 0 ? -1 : 1) * (targetShelf.sw * 0.18);
+      obj.position.x = targetShelf.meshGroup.position.x + offsetWithinShelf;
+      obj.position.z = targetShelf.meshGroup.position.z;
+      obj.position.y = 0.03 + tierY + 0.015;
+    }
+    syncSelectionHighlight(obj);
+  };
+
+  // Action: Rotate selected item 90 degrees
+  const handleRotateSelected = () => {
+    const obj = selectedObjectRef.current;
+    if (!obj) return;
+    obj.rotation.y += Math.PI / 2;
+    syncSelectionHighlight(obj);
+  };
+
+  // Action: Delete selected item
+  const handleDeleteSelected = () => {
+    const obj = selectedObjectRef.current;
+    const itemsGroup = itemsGroupRef.current;
+    if (!obj || !itemsGroup) return;
+
+    const meta = obj.userData?.meta as InteractiveItemMeta | undefined;
+    if (meta?.type === 'shelf') {
+      shelfZonesRef.current = shelfZonesRef.current.filter((s) => s.id !== meta.id);
+    }
+
+    itemsGroup.remove(obj);
+    draggableObjectsRef.current = draggableObjectsRef.current.filter((o) => o !== obj);
+    selectedObjectRef.current = null;
+    syncSelectionHighlight(null);
+    setItemCount(draggableObjectsRef.current.length);
+  };
+
   const dimKey = `${dimensions.width}_${dimensions.depth}_${dimensions.height}_${dimensions.category}_${dimensions.doorType}`;
 
   // --------------------------------------------------------------------------
-  // 1. Build Scene (Runs only when dimensions truly change)
+  // 1. Build Scene & Interactive Drag-and-Drop Raycaster
   // --------------------------------------------------------------------------
   useEffect(() => {
     const mount = mountRef.current;
@@ -119,22 +540,22 @@ export default function StorageUnitScene({
     const width = mount.clientWidth || 600;
     const height = mount.clientHeight || 450;
 
-    // Scene with Clean Studio Light Gray/White Background
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.background = new THREE.Color('#f8fafc'); // Slate-50 clean background
+    scene.background = new THREE.Color('#f8fafc');
 
-    // Camera with comfortable field of view
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     cameraRef.current = camera;
 
     const maxDim = Math.max(dimensions.width, dimensions.depth, dimensions.height);
-    // Camera distance sized so entire unit and rulers are framed in view
     const camDist = maxDim * 2.3;
     camera.position.set(camDist * 0.95, camDist * 0.75, camDist * 1.25);
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance',
+    });
     rendererRef.current = renderer;
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -146,7 +567,6 @@ export default function StorageUnitScene({
     mount.innerHTML = '';
     mount.appendChild(renderer.domElement);
 
-    // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
     controls.enableDamping = true;
@@ -156,7 +576,6 @@ export default function StorageUnitScene({
     controls.maxDistance = maxDim * 5.5;
     controls.target.set(0, dimensions.height * 0.45, 0);
 
-    // Notify parent when user manually orbits
     controls.addEventListener('start', () => {
       if (onUserOrbit) onUserOrbit();
     });
@@ -197,13 +616,12 @@ export default function StorageUnitScene({
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Subtle Architectural Grid
     const grid = new THREE.GridHelper(groundSize, 28, '#cbd5e1', '#e2e8f0');
     grid.position.y = 0.001;
     scene.add(grid);
 
     // BUILD STORAGE UNIT
-    const { width: W, depth: D, height: H, doorType } = dimensions;
+    const { width: W, depth: D, height: H, doorType, category } = dimensions;
     const wallThick = 0.06;
 
     const wallTexV = createCorrugatedTexture(false);
@@ -220,13 +638,13 @@ export default function StorageUnitScene({
     });
 
     const frameMat = new THREE.MeshStandardMaterial({
-      color: '#ea580c', // Signature SelfStorage energetic orange trim
+      color: '#ea580c',
       roughness: 0.35,
       metalness: 0.45,
     });
 
     const innerFloorMat = new THREE.MeshStandardMaterial({
-      color: '#475569', // Slate epoxy clean polished floor
+      color: '#475569',
       roughness: 0.25,
       metalness: 0.2,
     });
@@ -252,33 +670,26 @@ export default function StorageUnitScene({
     hazardMesh.position.set(0, 0.008, 0);
     scene.add(hazardMesh);
 
-    // Back Wall
-    const backWallGeo = new THREE.BoxGeometry(W, H, wallThick);
-    const backWall = new THREE.Mesh(backWallGeo, wallMat);
+    // Walls & Ceiling
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(W, H, wallThick), wallMat);
     backWall.position.set(0, H / 2, -D / 2);
     backWall.receiveShadow = true;
     backWall.castShadow = true;
     scene.add(backWall);
 
-    // Left Wall
-    const leftWallGeo = new THREE.BoxGeometry(wallThick, H, D);
-    const leftWall = new THREE.Mesh(leftWallGeo, wallMat);
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThick, H, D), wallMat);
     leftWall.position.set(-W / 2, H / 2, 0);
     leftWall.receiveShadow = true;
     leftWall.castShadow = true;
     scene.add(leftWall);
 
-    // Right Wall
-    const rightWallGeo = new THREE.BoxGeometry(wallThick, H, D);
-    const rightWall = new THREE.Mesh(rightWallGeo, wallMat);
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThick, H, D), wallMat);
     rightWall.position.set(W / 2, H / 2, 0);
     rightWall.receiveShadow = true;
     rightWall.castShadow = true;
     scene.add(rightWall);
 
-    // Ceiling
-    const ceilingGeo = new THREE.BoxGeometry(W, wallThick, D);
-    const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
+    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(W, wallThick, D), ceilingMat);
     ceiling.position.set(0, H + wallThick / 2, 0);
     ceiling.receiveShadow = true;
     ceiling.castShadow = true;
@@ -290,13 +701,12 @@ export default function StorageUnitScene({
     const beamXGeo = new THREE.BoxGeometry(W + colSize, colSize, colSize);
     const beamZGeo = new THREE.BoxGeometry(colSize, colSize, D + colSize);
 
-    const corners = [
+    [
       [-W / 2, -D / 2],
       [W / 2, -D / 2],
       [-W / 2, D / 2],
       [W / 2, D / 2],
-    ];
-    corners.forEach(([cx, cz]) => {
+    ].forEach(([cx, cz]) => {
       const col = new THREE.Mesh(colGeo, frameMat);
       col.position.set(cx, (H + wallThick) / 2, cz);
       col.castShadow = true;
@@ -305,7 +715,6 @@ export default function StorageUnitScene({
 
     const topFrontBeam = new THREE.Mesh(beamXGeo, frameMat);
     topFrontBeam.position.set(0, H + wallThick / 2, D / 2);
-    topFrontBeam.castShadow = true;
     scene.add(topFrontBeam);
 
     const topBackBeam = new THREE.Mesh(beamXGeo, frameMat);
@@ -367,13 +776,6 @@ export default function StorageUnitScene({
       const keypad = new THREE.Mesh(keypadGeo, keypadMat);
       keypad.position.set(doorW - 0.15, doorH / 2, 0.03);
       doorPivot.add(keypad);
-
-      const handleGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.12);
-      const handleMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', metalness: 0.9, roughness: 0.2 });
-      const handle = new THREE.Mesh(handleGeo, handleMat);
-      handle.rotation.z = Math.PI / 2;
-      handle.position.set(doorW - 0.12, doorH / 2 - 0.05, 0.04);
-      doorPivot.add(handle);
     } else {
       const canisterGeo = new THREE.CylinderGeometry(0.12, 0.12, W, 24);
       const canisterMat = new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 0.6, roughness: 0.3 });
@@ -407,27 +809,198 @@ export default function StorageUnitScene({
       doorGroup.add(keypad);
     }
 
-    // Interior Items
+    // Selection Highlight Ring on Floor / Shelf
+    const ringGeo = new THREE.RingGeometry(0.32, 0.4, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: '#2563eb',
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+    });
+    const selectionRing = new THREE.Mesh(ringGeo, ringMat);
+    selectionRing.rotation.x = -Math.PI / 2;
+    selectionRing.visible = false;
+    scene.add(selectionRing);
+    selectionRingRef.current = selectionRing;
+
+    // Initialize Interior Items Group & Default Shelving + Draggable Items
     const itemsGroup = new THREE.Group();
     itemsGroupRef.current = itemsGroup;
     scene.add(itemsGroup);
-    buildInteriorItems(itemsGroup, dimensions, createCardboardTexture);
 
-    // Dimension Rulers with Crisp Architectural Labels (NO EMOJIS)
+    draggableObjectsRef.current = [];
+    shelfZonesRef.current = [];
+    selectedObjectRef.current = null;
+    cardTexRef.current = createCardboardTexture();
+
+    // Populate default interactive shelves (`kệ nhỏ ở trong`) & items by unit category
+    if (category === 'MINI_LOCKER') {
+      spawnDraggableItem('shelf', -W * 0.18, -D * 0.22, 0, 0);
+      spawnDraggableItem('box', -W * 0.18, -D * 0.22, 0, 2);
+      spawnDraggableItem('bin', -W * 0.18, -D * 0.22, 0, 3);
+      spawnDraggableItem('luggage', W * 0.22, 0.05, 0, 0);
+    } else if (category === 'SMALL_UNIT') {
+      spawnDraggableItem('shelf', -W * 0.22, -D * 0.26, 0, 0);
+      spawnDraggableItem('box', -W * 0.22, -D * 0.26, 0, 1);
+      spawnDraggableItem('box', -W * 0.22, -D * 0.26, 0.08, 2);
+      spawnDraggableItem('bin', -W * 0.22, -D * 0.26, 0, 3);
+      spawnDraggableItem('luggage', W * 0.22, -D * 0.18, 0, 0);
+      spawnDraggableItem('box', W * 0.22, D * 0.18, 0, 0);
+      spawnDraggableItem('chair', -W * 0.15, D * 0.2, 0.3, 0);
+    } else if (category === 'MEDIUM_UNIT') {
+      spawnDraggableItem('shelf', -W * 0.26, -D * 0.32, 0, 0);
+      spawnDraggableItem('box', -W * 0.26, -D * 0.32, 0, 1);
+      spawnDraggableItem('bin', -W * 0.26, -D * 0.32, 0, 2);
+      spawnDraggableItem('luggage', -W * 0.26, -D * 0.32, 0, 3);
+      spawnDraggableItem('fridge', W * 0.26, -D * 0.28, 0, 0);
+      spawnDraggableItem('sofa', -W * 0.15, D * 0.15, 0, 0);
+      spawnDraggableItem('washer', W * 0.25, D * 0.2, 0, 0);
+    } else {
+      // LARGE / EXTRA LARGE
+      spawnDraggableItem('shelf', -W * 0.28, -D * 0.34, 0, 0);
+      spawnDraggableItem('shelf', W * 0.28, -D * 0.34, 0, 0);
+      spawnDraggableItem('box', -W * 0.28, -D * 0.34, 0, 1);
+      spawnDraggableItem('box', -W * 0.28, -D * 0.34, 0, 2);
+      spawnDraggableItem('bin', -W * 0.28, -D * 0.34, 0, 3);
+      spawnDraggableItem('fridge', W * 0.28, -D * 0.02, 0, 0);
+      spawnDraggableItem('sofa', -W * 0.2, 0.05, 0, 0);
+      spawnDraggableItem('bike', 0.15, D * 0.22, -Math.PI / 6, 0);
+    }
+
+    // Select first item by default so user immediately sees interactive controls
+    if (draggableObjectsRef.current.length > 1) {
+      const firstBox = draggableObjectsRef.current[1];
+      selectedObjectRef.current = firstBox;
+      syncSelectionHighlight(firstBox);
+    }
+
+    // Dimension Rulers
     const rulersGroup = new THREE.Group();
     rulersGroupRef.current = rulersGroup;
     scene.add(rulersGroup);
     buildDimensionRulers(rulersGroup, dimensions);
 
-    // Apply initial camera preset
     applyCameraPreset(camera, controls, cameraPreset, dimensions);
+
+    // ------------------------------------------------------------------------
+    // RAYCAST DRAG-AND-DROP INTERACTION ON FLOOR & SHELVES
+    // ------------------------------------------------------------------------
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.03);
+    const intersectPoint = new THREE.Vector3();
+    const dragOffset = new THREE.Vector3();
+    let isDraggingItem = false;
+
+    const updatePointer = (e: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    };
+
+    const getHitDraggableRoot = (): THREE.Object3D | null => {
+      if (!itemsGroupRef.current || !itemsGroupRef.current.visible) return null;
+      const intersects = raycaster.intersectObjects(draggableObjectsRef.current, true);
+      if (intersects.length === 0) return null;
+      return intersects[0].object.userData?.draggableRoot || null;
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      updatePointer(e);
+      raycaster.setFromCamera(pointer, camera);
+
+      const hitRoot = getHitDraggableRoot();
+      if (hitRoot) {
+        selectedObjectRef.current = hitRoot;
+        syncSelectionHighlight(hitRoot);
+        isDraggingItem = true;
+        controls.enabled = false; // Freeze camera orbit while dragging item
+
+        dragPlane.constant = -hitRoot.position.y;
+        if (raycaster.ray.intersectPlane(dragPlane, intersectPoint)) {
+          dragOffset.subVectors(hitRoot.position, intersectPoint);
+        } else {
+          dragOffset.set(0, 0, 0);
+        }
+        renderer.domElement.style.cursor = 'grabbing';
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      updatePointer(e);
+      raycaster.setFromCamera(pointer, camera);
+
+      if (isDraggingItem && selectedObjectRef.current) {
+        const activeObj = selectedObjectRef.current;
+        const meta = activeObj.userData?.meta as InteractiveItemMeta;
+        if (!meta) return;
+
+        if (raycaster.ray.intersectPlane(dragPlane, intersectPoint)) {
+          const rawX = intersectPoint.x + dragOffset.x;
+          const rawZ = intersectPoint.z + dragOffset.z;
+
+          const margin = 0.06;
+          const halfW = meta.w / 2;
+          const halfD = meta.d / 2;
+          const clampedX = Math.max(-W / 2 + halfW + margin, Math.min(W / 2 - halfW - margin, rawX));
+          const clampedZ = Math.max(-D / 2 + halfD + margin, Math.min(D / 2 - halfD - margin, rawZ));
+
+          activeObj.position.x = clampedX;
+          activeObj.position.z = clampedZ;
+
+          // Check if small item is dragged inside any shelf zone (`kệ nhỏ`)
+          if (meta.canPlaceOnShelf && shelfZonesRef.current.length > 0) {
+            let snappedToShelf = false;
+            for (const shelf of shelfZonesRef.current) {
+              const sx = shelf.meshGroup.position.x;
+              const sz = shelf.meshGroup.position.z;
+              const inX = Math.abs(clampedX - sx) <= shelf.sw / 2 + 0.08;
+              const inZ = Math.abs(clampedZ - sz) <= shelf.sd / 2 + 0.08;
+              if (inX && inZ) {
+                const tierIdx = meta.shelfTier > 0 ? meta.shelfTier - 1 : 1;
+                const safeIdx = Math.min(shelf.tierHeights.length - 1, tierIdx);
+                activeObj.position.y = 0.03 + shelf.tierHeights[safeIdx] + 0.015;
+                meta.shelfTier = safeIdx + 1;
+                snappedToShelf = true;
+                break;
+              }
+            }
+            if (!snappedToShelf) {
+              activeObj.position.y = 0.03;
+              meta.shelfTier = 0;
+            }
+          }
+
+          syncSelectionHighlight(activeObj);
+        }
+        return;
+      }
+
+      // Hover cursor feedback
+      const hoverRoot = getHitDraggableRoot();
+      renderer.domElement.style.cursor = hoverRoot ? 'grab' : 'default';
+    };
+
+    const onPointerUp = () => {
+      if (isDraggingItem) {
+        isDraggingItem = false;
+        controls.enabled = true;
+        renderer.domElement.style.cursor = 'grab';
+      }
+    };
+
+    const domElement = renderer.domElement;
+    domElement.addEventListener('pointerdown', onPointerDown);
+    domElement.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
 
     // Animation Loop
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
 
-      // Smooth door animation
       const targetProgress = isDoorOpenRef.current ? 1 : 0;
       currentDoorProgress.current += (targetProgress - currentDoorProgress.current) * 0.14;
 
@@ -463,24 +1036,23 @@ export default function StorageUnitScene({
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('pointerup', onPointerUp);
+      domElement.removeEventListener('pointerdown', onPointerDown);
+      domElement.removeEventListener('pointermove', onPointerMove);
       resizeObserver.disconnect();
       renderer.dispose();
       controls.dispose();
       if (mount) mount.innerHTML = '';
     };
-  }, [dimKey]);
+  }, [dimKey, spawnDraggableItem, syncSelectionHighlight]);
 
-  // --------------------------------------------------------------------------
-  // 2. Camera Preset Change Effect (Updates smoothly without rebuilding scene)
-  // --------------------------------------------------------------------------
+  // 2. Camera Preset Change Effect
   useEffect(() => {
     if (!cameraRef.current || !controlsRef.current) return;
     applyCameraPreset(cameraRef.current, controlsRef.current, cameraPreset, dimensions);
   }, [cameraPreset, resetSignal, dimKey]);
 
-  // --------------------------------------------------------------------------
   // 3. Toggle States Effects
-  // --------------------------------------------------------------------------
   useEffect(() => {
     if (interiorLightRef.current) {
       interiorLightRef.current.intensity = isLightOn ? 2.2 : 0.15;
@@ -493,6 +1065,9 @@ export default function StorageUnitScene({
 
   useEffect(() => {
     if (itemsGroupRef.current) itemsGroupRef.current.visible = showItems;
+    if (selectionRingRef.current) {
+      selectionRingRef.current.visible = showItems && Boolean(selectedObjectRef.current);
+    }
   }, [showItems]);
 
   useEffect(() => {
@@ -500,10 +1075,90 @@ export default function StorageUnitScene({
   }, [showRulers]);
 
   return (
-    <div
-      ref={mountRef}
-      className="w-full h-full relative cursor-grab active:cursor-grabbing select-none outline-none"
-    />
+    <div className="w-full h-full relative select-none outline-none">
+      {/* THREE.JS MOUNT CONTAINER */}
+      <div
+        ref={mountRef}
+        className="w-full h-full relative cursor-grab active:cursor-grabbing select-none outline-none"
+      />
+
+      {/* INTERACTIVE SHELF & DRAG-AND-DROP ITEM PALETTE OVERLAY */}
+      {showItems && (
+        <div className="absolute top-3 inset-x-3 z-10 flex flex-col gap-2 pointer-events-none">
+          {/* Row 1: Add Items / Shelves Palette */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-2xl border border-slate-200/90 shadow-md flex items-center gap-1.5 flex-wrap pointer-events-auto">
+              <span className="text-[11px] font-black text-slate-700 px-1.5 flex items-center gap-1">
+                <Move className="w-3.5 h-3.5 text-orange-500" />
+                <span>Kéo thả &amp; Thêm đồ ({itemCount}):</span>
+              </span>
+              {ITEM_CATALOG.map((item) => (
+                <button
+                  key={item.type}
+                  type="button"
+                  onClick={() => handleAddItem(item.type)}
+                  className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-100 hover:bg-orange-50 text-slate-700 hover:text-orange-700 border border-slate-200 hover:border-orange-200 transition cursor-pointer flex items-center gap-1"
+                  title={`Thêm ${item.label} vào kho`}
+                >
+                  <span>{item.shortLabel}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Row 2: Selected Item Manipulation Controls (Shelf Tier / Rotate / Delete) */}
+            {selectedItemMeta && (
+              <div className="bg-slate-900/95 backdrop-blur-md text-white px-3 py-1.5 rounded-2xl border border-slate-700 shadow-lg flex items-center gap-2 flex-wrap pointer-events-auto">
+                <span className="text-[11px] font-bold text-orange-300 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  <span>{selectedItemMeta.label}</span>
+                  {selectedItemMeta.shelfTier > 0 && (
+                    <span className="px-1.5 py-0.2 rounded bg-blue-500/30 text-blue-200 text-[10px]">
+                      Kệ tầng {selectedItemMeta.shelfTier}
+                    </span>
+                  )}
+                </span>
+
+                {selectedItemMeta.canPlaceOnShelf && (
+                  <button
+                    type="button"
+                    onClick={handleCycleShelfTier}
+                    className="px-2 py-0.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                    title="Đặt đồ vật lên kệ sắt nhỏ (Tầng 1 / 2 / 3) hoặc hạ xuống sàn"
+                  >
+                    <Layers className="w-3 h-3" />
+                    <span>
+                      {selectedItemMeta.shelfTier === 0
+                        ? 'Đặt lên kệ nhỏ'
+                        : `Đổi tầng kệ (${selectedItemMeta.shelfTier}/3)`}
+                    </span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleRotateSelected}
+                  className="px-2 py-0.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  title="Xoay đồ vật 90 độ"
+                >
+                  <RotateCw className="w-3 h-3" />
+                  <span>Xoay 90°</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDeleteSelected}
+                  className="px-2 py-0.5 rounded-lg bg-rose-500/80 hover:bg-rose-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  title="Xóa đồ vật đang chọn khỏi kho"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Xóa</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -520,19 +1175,15 @@ function applyCameraPreset(
   const maxDim = Math.max(W, D, H);
 
   if (preset === 'front') {
-    // Directly in front of the door, framing the entire height and width
     camera.position.set(0, H * 0.48, maxDim * 2.3);
     controls.target.set(0, H * 0.48, 0);
   } else if (preset === 'top') {
-    // Top-down architectural bird's eye view
-    camera.position.set(0, maxDim * 3.0, 0.001); // 0.001 on Z prevents collinear gimbal lock
+    camera.position.set(0, maxDim * 3.0, 0.001);
     controls.target.set(0, 0, 0);
   } else if (preset === 'interior') {
-    // Camera inside looking towards back wall
     camera.position.set(0, H * 0.45, D * 0.15);
     controls.target.set(0, H * 0.45, -D * 0.38);
   } else {
-    // Default Isometric 3D angle
     camera.position.set(maxDim * 1.8, maxDim * 1.45, maxDim * 2.0);
     controls.target.set(0, H * 0.45, 0);
   }
@@ -540,7 +1191,7 @@ function applyCameraPreset(
 }
 
 // --------------------------------------------------------------------------
-// HELPER: Architectural Dimension Label (Crisp Light Badge - NO EMOJIS)
+// HELPER: Architectural Dimension Label
 // --------------------------------------------------------------------------
 function createDimensionLabelSprite(text: string, accentColor = '#2563eb'): THREE.Sprite {
   const canvas = document.createElement('canvas');
@@ -548,7 +1199,6 @@ function createDimensionLabelSprite(text: string, accentColor = '#2563eb'): THRE
   canvas.height = 96;
   const ctx = canvas.getContext('2d')!;
 
-  // Clean White Studio Badge with Vibrant Border
   ctx.fillStyle = 'rgba(255, 255, 255, 0.97)';
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 4;
@@ -564,7 +1214,6 @@ function createDimensionLabelSprite(text: string, accentColor = '#2563eb'): THRE
   ctx.fill();
   ctx.stroke();
 
-  // Crisp Dark Slate Typography with Project Inter Font
   ctx.font = 'bold 38px Inter, "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#0f172a';
   ctx.textAlign = 'center';
@@ -585,22 +1234,20 @@ function createDimensionLabelSprite(text: string, accentColor = '#2563eb'): THRE
 }
 
 // --------------------------------------------------------------------------
-// HELPER: Build 3D Dimension Rulers (NO EMOJIS)
+// HELPER: Build 3D Dimension Rulers
 // --------------------------------------------------------------------------
 function buildDimensionRulers(group: THREE.Group, dimensions: UnitDimensions) {
   const { width: W, depth: D, height: H } = dimensions;
   const lineMat = new THREE.LineBasicMaterial({ color: '#2563eb', linewidth: 2 });
   const tickMat = new THREE.MeshBasicMaterial({ color: '#2563eb' });
 
-  // 1. Width Dimension Line (Front floor, along X)
   const wOffsetZ = D / 2 + 0.22;
   const wPoints = [
     new THREE.Vector3(-W / 2, 0.03, wOffsetZ),
     new THREE.Vector3(W / 2, 0.03, wOffsetZ),
   ];
   const wGeo = new THREE.BufferGeometry().setFromPoints(wPoints);
-  const wLine = new THREE.Line(wGeo, lineMat);
-  group.add(wLine);
+  group.add(new THREE.Line(wGeo, lineMat));
 
   const tickGeoZ = new THREE.BoxGeometry(0.02, 0.02, 0.12);
   const wTick1 = new THREE.Mesh(tickGeoZ, tickMat);
@@ -610,20 +1257,17 @@ function buildDimensionRulers(group: THREE.Group, dimensions: UnitDimensions) {
   wTick2.position.set(W / 2, 0.03, wOffsetZ);
   group.add(wTick2);
 
-  // WIDTH LABEL (NO EMOJIS)
   const widthLabel = createDimensionLabelSprite(`Rộng: ${W}m`, '#2563eb');
   widthLabel.position.set(0, 0.15, wOffsetZ + 0.15);
   group.add(widthLabel);
 
-  // 2. Depth Dimension Line (Right floor, along Z)
   const dOffsetX = W / 2 + 0.22;
   const dPoints = [
     new THREE.Vector3(dOffsetX, 0.03, -D / 2),
     new THREE.Vector3(dOffsetX, 0.03, D / 2),
   ];
   const dGeo = new THREE.BufferGeometry().setFromPoints(dPoints);
-  const dLine = new THREE.Line(dGeo, lineMat);
-  group.add(dLine);
+  group.add(new THREE.Line(dGeo, lineMat));
 
   const tickGeoX = new THREE.BoxGeometry(0.12, 0.02, 0.02);
   const dTick1 = new THREE.Mesh(tickGeoX, tickMat);
@@ -633,12 +1277,10 @@ function buildDimensionRulers(group: THREE.Group, dimensions: UnitDimensions) {
   dTick2.position.set(dOffsetX, 0.03, D / 2);
   group.add(dTick2);
 
-  // DEPTH LABEL (NO EMOJIS)
   const depthLabel = createDimensionLabelSprite(`Sâu: ${D}m`, '#ea580c');
   depthLabel.position.set(dOffsetX + 0.26, 0.15, 0);
   group.add(depthLabel);
 
-  // 3. Height Dimension Line (Left vertical, along Y)
   const hOffsetX = -W / 2 - 0.22;
   const hOffsetZ = D / 2 + 0.05;
   const hPoints = [
@@ -646,8 +1288,7 @@ function buildDimensionRulers(group: THREE.Group, dimensions: UnitDimensions) {
     new THREE.Vector3(hOffsetX, H, hOffsetZ),
   ];
   const hGeo = new THREE.BufferGeometry().setFromPoints(hPoints);
-  const hLine = new THREE.Line(hGeo, lineMat);
-  group.add(hLine);
+  group.add(new THREE.Line(hGeo, lineMat));
 
   const hTickGeo = new THREE.BoxGeometry(0.12, 0.02, 0.02);
   const hTick1 = new THREE.Mesh(hTickGeo, tickMat);
@@ -657,187 +1298,7 @@ function buildDimensionRulers(group: THREE.Group, dimensions: UnitDimensions) {
   hTick2.position.set(hOffsetX, H, hOffsetZ);
   group.add(hTick2);
 
-  // HEIGHT LABEL (NO EMOJIS)
   const heightLabel = createDimensionLabelSprite(`Cao: ${H}m`, '#16a34a');
   heightLabel.position.set(hOffsetX - 0.3, H / 2, hOffsetZ);
   group.add(heightLabel);
-}
-
-// --------------------------------------------------------------------------
-// HELPER: Build realistic items inside the unit
-// --------------------------------------------------------------------------
-function buildInteriorItems(
-  group: THREE.Group,
-  dimensions: UnitDimensions,
-  createCardboardTexture: () => THREE.Texture
-) {
-  const { width: W, depth: D, height: H, category } = dimensions;
-  const cardTex = createCardboardTexture();
-  const boxMat = new THREE.MeshStandardMaterial({
-    map: cardTex,
-    roughness: 0.85,
-    metalness: 0.05,
-  });
-
-  const addBox = (bw: number, bh: number, bd: number, x: number, y: number, z: number, ry = 0) => {
-    const geo = new THREE.BoxGeometry(bw, bh, bd);
-    const box = new THREE.Mesh(geo, boxMat);
-    box.position.set(x, y + bh / 2, z);
-    box.rotation.y = ry;
-    box.castShadow = true;
-    box.receiveShadow = true;
-    group.add(box);
-  };
-
-  const addShelf = (sw: number, sh: number, sd: number, x: number, z: number) => {
-    const shelfGroup = new THREE.Group();
-    const metalMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.8, roughness: 0.3 });
-    const postGeo = new THREE.BoxGeometry(0.03, sh, 0.03);
-    const corners = [
-      [-sw / 2, -sd / 2],
-      [sw / 2, -sd / 2],
-      [-sw / 2, sd / 2],
-      [sw / 2, sd / 2],
-    ];
-    corners.forEach(([cx, cz]) => {
-      const p = new THREE.Mesh(postGeo, metalMat);
-      p.position.set(cx, sh / 2, cz);
-      shelfGroup.add(p);
-    });
-    const tierGeo = new THREE.BoxGeometry(sw, 0.02, sd);
-    [0.1, sh * 0.5, sh * 0.95].forEach((ty) => {
-      const tier = new THREE.Mesh(tierGeo, metalMat);
-      tier.position.set(0, ty, 0);
-      shelfGroup.add(tier);
-    });
-    shelfGroup.position.set(x, 0, z);
-    group.add(shelfGroup);
-  };
-
-  if (category === 'MINI_LOCKER') {
-    const luggageGeo = new THREE.BoxGeometry(0.35, 0.55, 0.25);
-    const luggageMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.4, metalness: 0.2 });
-    const luggage = new THREE.Mesh(luggageGeo, luggageMat);
-    luggage.position.set(-W * 0.2, 0.55 / 2, -D * 0.15);
-    luggage.castShadow = true;
-    group.add(luggage);
-
-    addBox(0.4, 0.3, 0.4, W * 0.2, 0, -D * 0.15);
-    addBox(0.35, 0.25, 0.35, W * 0.2, 0.3, -D * 0.15, 0.1);
-
-    const packGeo = new THREE.BoxGeometry(0.25, 0.38, 0.2);
-    const packMat = new THREE.MeshStandardMaterial({ color: '#ea580c', roughness: 0.7 });
-    const pack = new THREE.Mesh(packGeo, packMat);
-    pack.position.set(0, 0.38 / 2, D * 0.15);
-    group.add(pack);
-    return;
-  }
-
-  if (category === 'SMALL_UNIT') {
-    addShelf(0.45, H * 0.75, D * 0.6, W * 0.3, -D * 0.1);
-
-    addBox(0.5, 0.4, 0.5, -W * 0.25, 0, -D * 0.2);
-    addBox(0.5, 0.4, 0.5, -W * 0.25, 0.4, -D * 0.2, 0.05);
-    addBox(0.45, 0.35, 0.45, -W * 0.25, 0.8, -D * 0.2, -0.05);
-
-    addBox(0.45, 0.4, 0.45, -W * 0.25, 0, D * 0.15);
-    addBox(0.4, 0.35, 0.4, -W * 0.25, 0.4, D * 0.15, 0.1);
-
-    const chairMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.5 });
-    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.08, 0.45), chairMat);
-    chairSeat.position.set(W * 0.05, 0.45, D * 0.15);
-    group.add(chairSeat);
-    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.06), chairMat);
-    chairBack.position.set(W * 0.05, 0.7, D * 0.35);
-    group.add(chairBack);
-    return;
-  }
-
-  if (category === 'MEDIUM_UNIT') {
-    const fridgeGeo = new THREE.BoxGeometry(0.65, 1.5, 0.65);
-    const fridgeMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', metalness: 0.7, roughness: 0.25 });
-    const fridge = new THREE.Mesh(fridgeGeo, fridgeMat);
-    fridge.position.set(-W * 0.25, 1.5 / 2, -D * 0.3);
-    fridge.castShadow = true;
-    group.add(fridge);
-
-    const sofaMat = new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.6 });
-    const sofa = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.75, 0.75), sofaMat);
-    sofa.position.set(W * 0.25, 0.75 / 2, -D * 0.2);
-    sofa.castShadow = true;
-    group.add(sofa);
-
-    const wmGeo = new THREE.BoxGeometry(0.6, 0.85, 0.6);
-    const wmMat = new THREE.MeshStandardMaterial({ color: '#f1f5f9', metalness: 0.4, roughness: 0.3 });
-    const wm = new THREE.Mesh(wmGeo, wmMat);
-    wm.position.set(W * 0.25, 0.85 / 2, D * 0.2);
-    group.add(wm);
-
-    addShelf(0.4, H * 0.7, D * 0.5, -W * 0.35, D * 0.1);
-
-    addBox(0.5, 0.4, 0.5, -W * 0.05, 0, -D * 0.1);
-    addBox(0.48, 0.38, 0.48, -W * 0.05, 0.4, -D * 0.1, 0.05);
-    addBox(0.45, 0.35, 0.45, -W * 0.05, 0.78, -D * 0.1);
-    return;
-  }
-
-  // Large & Extra Large
-  const sofaMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.7 });
-  const sofa = new THREE.Mesh(new THREE.BoxGeometry(W * 0.55, 0.75, 0.85), sofaMat);
-  sofa.position.set(-W * 0.15, 0.75 / 2, -D * 0.3);
-  sofa.castShadow = true;
-  group.add(sofa);
-
-  const fridgeGeo = new THREE.BoxGeometry(0.8, 1.75, 0.75);
-  const fridgeMat = new THREE.MeshStandardMaterial({ color: '#1e293b', metalness: 0.8, roughness: 0.2 });
-  const fridge = new THREE.Mesh(fridgeGeo, fridgeMat);
-  fridge.position.set(W * 0.32, 1.75 / 2, -D * 0.28);
-  fridge.castShadow = true;
-  group.add(fridge);
-
-  const wardGeo = new THREE.BoxGeometry(0.85, H * 0.75, 0.55);
-  const wardMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.5 });
-  const ward = new THREE.Mesh(wardGeo, wardMat);
-  ward.position.set(-W * 0.35, (H * 0.75) / 2, D * 0.1);
-  group.add(ward);
-
-  if (category === 'EXTRA_LARGE' || category === 'WAREHOUSE_XXL') {
-    const bikeGroup = new THREE.Group();
-    const bikeBodyMat = new THREE.MeshStandardMaterial({ color: '#dc2626', metalness: 0.7, roughness: 0.3 });
-    const wheelMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.9 });
-
-    const wheelGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.08, 16);
-    wheelGeo.rotateZ(Math.PI / 2);
-    const frontWheel = new THREE.Mesh(wheelGeo, wheelMat);
-    frontWheel.position.set(0, 0.22, 0.55);
-    bikeGroup.add(frontWheel);
-
-    const backWheel = new THREE.Mesh(wheelGeo, wheelMat);
-    backWheel.position.set(0, 0.22, -0.55);
-    bikeGroup.add(backWheel);
-
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.9), bikeBodyMat);
-    body.position.set(0, 0.5, 0);
-    bikeGroup.add(body);
-
-    bikeGroup.position.set(W * 0.25, 0, D * 0.2);
-    bikeGroup.rotation.y = -Math.PI / 6;
-    group.add(bikeGroup);
-  }
-
-  addShelf(0.55, H * 0.8, D * 0.5, W * 0.35, D * 0.15);
-
-  for (let col = 0; col < 3; col++) {
-    for (let row = 0; row < 3; row++) {
-      addBox(
-        0.48,
-        0.38,
-        0.48,
-        -W * 0.1 + (col - 1) * 0.5,
-        row * 0.38,
-        D * 0.25 + (col % 2) * 0.05,
-        col * 0.08
-      );
-    }
-  }
 }
