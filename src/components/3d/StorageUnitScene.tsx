@@ -12,6 +12,9 @@ import {
   Move,
   Box,
   Sparkles,
+  Lock,
+  AlertCircle,
+  ArrowUp,
 } from 'lucide-react';
 
 export type PlaceableItemType =
@@ -22,8 +25,7 @@ export type PlaceableItemType =
   | 'chair'
   | 'fridge'
   | 'sofa'
-  | 'washer'
-  | 'bike';
+  | 'washer';
 
 export interface InteractiveItemMeta {
   id: string;
@@ -34,6 +36,7 @@ export interface InteractiveItemMeta {
   d: number;
   canPlaceOnShelf: boolean;
   shelfTier: number; // 0 = floor, 1 = tier 1, 2 = tier 2, 3 = tier 3
+  stackLevel: number; // 1 = mặt sàn, 2 = chồng tầng 2, 3 = chồng tầng 3...
 }
 
 interface ShelfZone {
@@ -61,16 +64,30 @@ const ITEM_CATALOG: {
   type: PlaceableItemType;
   label: string;
   shortLabel: string;
-  minCategory?: string;
+  minAreaM2: number;
+  lockHint?: string;
 }[] = [
-  { type: 'shelf', label: 'Kệ sắt nhỏ 3 tầng', shortLabel: '+ Kệ nhỏ' },
-  { type: 'box', label: 'Thùng carton', shortLabel: '+ Thùng carton' },
-  { type: 'luggage', label: 'Vali du lịch', shortLabel: '+ Vali' },
-  { type: 'bin', label: 'Thùng hồ sơ nhựa', shortLabel: '+ Hộp hồ sơ' },
-  { type: 'fridge', label: 'Tủ lạnh gia đình', shortLabel: '+ Tủ lạnh' },
-  { type: 'sofa', label: 'Ghế Sofa / Nệm', shortLabel: '+ Sofa' },
-  { type: 'bike', label: 'Xe đạp / Xe máy', shortLabel: '+ Xe máy' },
+  { type: 'shelf', label: 'Kệ sắt nhỏ 3 tầng', shortLabel: '+ Kệ nhỏ', minAreaM2: 2, lockHint: 'Kệ sắt cao 1.65m cần kho ≥ 2m²' },
+  { type: 'box', label: 'Thùng carton', shortLabel: '+ Thùng carton', minAreaM2: 1 },
+  { type: 'luggage', label: 'Vali du lịch', shortLabel: '+ Vali', minAreaM2: 1 },
+  { type: 'bin', label: 'Thùng hồ sơ nhựa', shortLabel: '+ Hộp hồ sơ', minAreaM2: 1 },
+  { type: 'fridge', label: 'Tủ lạnh gia đình', shortLabel: '+ Tủ lạnh', minAreaM2: 6, lockHint: 'Tủ lạnh cần Kho Gia Đình (≥ 6m²)' },
+  { type: 'sofa', label: 'Ghế Sofa / Nệm', shortLabel: '+ Sofa', minAreaM2: 6, lockHint: 'Ghế Sofa dài cần Kho Gia Đình (≥ 6m²)' },
+  { type: 'washer', label: 'Máy giặt cửa trước', shortLabel: '+ Máy giặt', minAreaM2: 6, lockHint: 'Máy giặt cần Kho Gia Đình (≥ 6m²)' },
 ];
+
+function getUnitCapacityRules(category: UnitDimensions['category']) {
+  if (category === 'MINI_LOCKER') {
+    return { maxItems: 12, maxShelves: 0 };
+  }
+  if (category === 'SMALL_UNIT') {
+    return { maxItems: 24, maxShelves: 1 };
+  }
+  if (category === 'MEDIUM_UNIT') {
+    return { maxItems: 48, maxShelves: 2 };
+  }
+  return { maxItems: 100, maxShelves: 4 };
+}
 
 export default function StorageUnitScene({
   dimensions,
@@ -102,6 +119,21 @@ export default function StorageUnitScene({
 
   const [selectedItemMeta, setSelectedItemMeta] = useState<InteractiveItemMeta | null>(null);
   const [itemCount, setItemCount] = useState<number>(0);
+  const [restrictionAlert, setRestrictionAlert] = useState<string | null>(null);
+  const alertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Helper to recompute item count
+  const updateItemStats = useCallback(() => {
+    setItemCount(draggableObjectsRef.current.length);
+  }, []);
+
+  const showTempAlert = useCallback((msg: string) => {
+    setRestrictionAlert(msg);
+    if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+    alertTimerRef.current = setTimeout(() => {
+      setRestrictionAlert(null);
+    }, 3800);
+  }, []);
 
   // Door animation state ref
   const isDoorOpenRef = useRef<boolean>(isDoorOpen);
@@ -185,7 +217,20 @@ export default function StorageUnitScene({
     const radius = Math.max(meta.w, meta.d) * 0.68;
     ring.scale.set(radius, radius, 1);
     ring.position.set(obj.position.x, obj.position.y + 0.015, obj.position.z);
-    setSelectedItemMeta({ ...meta });
+
+    // Only update React state when item identity or stacking/tier states change,
+    // avoiding heavy 60fps React re-renders during smooth mouse drags
+    setSelectedItemMeta((prev) => {
+      if (
+        prev &&
+        prev.id === meta.id &&
+        prev.stackLevel === meta.stackLevel &&
+        prev.shelfTier === meta.shelfTier
+      ) {
+        return prev;
+      }
+      return { ...meta };
+    });
   }, []);
 
   // Helper to create a 3D draggable item mesh group and register it
@@ -374,57 +419,88 @@ export default function StorageUnitScene({
         label = 'Máy giặt';
         canPlaceOnShelf = false;
         const wmMat = new THREE.MeshStandardMaterial({
-          color: '#f1f5f9',
-          metalness: 0.35,
-          roughness: 0.3,
+          color: '#f8fafc',
+          metalness: 0.2,
+          roughness: 0.35,
         });
         const wm = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wmMat);
         wm.position.y = h / 2;
         wm.castShadow = true;
         itemGroup.add(wm);
-      } else if (type === 'bike') {
-        w = 0.45;
-        h = 0.95;
-        d = Math.min(1.35, D * 0.55);
-        label = 'Xe máy / Xe đạp';
-        canPlaceOnShelf = false;
-        const bikeBodyMat = new THREE.MeshStandardMaterial({
-          color: '#dc2626',
-          metalness: 0.7,
-          roughness: 0.3,
-        });
-        const wheelMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.9 });
-        const wheelGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.08, 16);
-        wheelGeo.rotateZ(Math.PI / 2);
 
-        const frontWheel = new THREE.Mesh(wheelGeo, wheelMat);
-        frontWheel.position.set(0, 0.22, d * 0.35);
-        itemGroup.add(frontWheel);
+        // Chi tiết thực tế: Cửa kính tròn lồng giặt phía trước
+        const doorRingMat = new THREE.MeshStandardMaterial({ color: '#475569', metalness: 0.8, roughness: 0.2 });
+        const doorRingGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.015, 24);
+        doorRingGeo.rotateX(Math.PI / 2);
+        const doorRing = new THREE.Mesh(doorRingGeo, doorRingMat);
+        doorRing.position.set(0, h * 0.44, d / 2 + 0.008);
+        itemGroup.add(doorRing);
 
-        const backWheel = new THREE.Mesh(wheelGeo, wheelMat);
-        backWheel.position.set(0, 0.22, -d * 0.35);
-        itemGroup.add(backWheel);
+        const glassMat = new THREE.MeshPhysicalMaterial ? new THREE.MeshPhysicalMaterial({
+          color: '#0f172a',
+          roughness: 0.1,
+          metalness: 0.1,
+          transmission: 0.6,
+          thickness: 0.02,
+        }) : new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.8, roughness: 0.1 });
+        const glassGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.02, 24);
+        glassGeo.rotateX(Math.PI / 2);
+        const glass = new THREE.Mesh(glassGeo, glassMat);
+        glass.position.set(0, h * 0.44, d / 2 + 0.012);
+        itemGroup.add(glass);
 
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.45, d * 0.68), bikeBodyMat);
-        body.position.set(0, 0.5, 0);
-        body.castShadow = true;
-        itemGroup.add(body);
-      }
+        // Bảng điều khiển và núm xoay phía trên
+        const panelMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.3 });
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(w * 0.25, 0.045, 0.01), panelMat);
+        panel.position.set(-w * 0.28, h * 0.86, d / 2 + 0.006);
+        itemGroup.add(panel);
 
-      // Compute Y position (either on floor or on a shelf tier)
-      let yPos = 0.03;
-      let activeTier = 0;
-      if (canPlaceOnShelf && initialShelfTier > 0 && shelfZonesRef.current.length > 0) {
-        const shelf = shelfZonesRef.current[0];
-        const tierIdx = Math.min(shelf.tierHeights.length - 1, initialShelfTier - 1);
-        yPos = 0.03 + shelf.tierHeights[tierIdx] + 0.015;
-        activeTier = tierIdx + 1;
+        const dialMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.6, roughness: 0.3 });
+        const dialGeo = new THREE.CylinderGeometry(0.028, 0.028, 0.015, 16);
+        dialGeo.rotateX(Math.PI / 2);
+        const dial = new THREE.Mesh(dialGeo, dialMat);
+        dial.position.set(0, h * 0.86, d / 2 + 0.008);
+        itemGroup.add(dial);
       }
 
       // Clamp X and Z inside the room walls
       const margin = 0.06;
       const clampedX = Math.max(-W / 2 + w / 2 + margin, Math.min(W / 2 - w / 2 - margin, x));
       const clampedZ = Math.max(-D / 2 + d / 2 + margin, Math.min(D / 2 - d / 2 - margin, z));
+
+      // Compute Y position (either on shelf tier, or stacked on another item, or on floor)
+      let yPos = 0.03;
+      let activeTier = 0;
+      let stackLevel = 1;
+
+      if (canPlaceOnShelf && initialShelfTier > 0 && shelfZonesRef.current.length > 0) {
+        const shelf = shelfZonesRef.current[0];
+        const tierIdx = Math.min(shelf.tierHeights.length - 1, initialShelfTier - 1);
+        yPos = 0.03 + shelf.tierHeights[tierIdx] + 0.015;
+        activeTier = tierIdx + 1;
+      } else if (canPlaceOnShelf) {
+        // Check if spawning on top of an existing flat-topped floor item (Auto-Stacking)
+        for (const otherObj of draggableObjectsRef.current) {
+          const otherMeta = otherObj.userData?.meta as InteractiveItemMeta | undefined;
+          if (!otherMeta || otherMeta.type === 'shelf' || otherMeta.shelfTier > 0) continue;
+          const canSupport =
+            otherMeta.type === 'box' ||
+            otherMeta.type === 'bin' ||
+            otherMeta.type === 'luggage' ||
+            otherMeta.type === 'washer';
+          if (!canSupport) continue;
+
+          const dx = Math.abs(clampedX - otherObj.position.x);
+          const dz = Math.abs(clampedZ - otherObj.position.z);
+          if (dx < (w + otherMeta.w) * 0.42 && dz < (d + otherMeta.d) * 0.42) {
+            const candidateY = Number((otherObj.position.y + otherMeta.h).toFixed(3));
+            if (candidateY + h <= H - 0.06 && candidateY > yPos) {
+              yPos = candidateY;
+              stackLevel = (otherMeta.stackLevel || 1) + 1;
+            }
+          }
+        }
+      }
 
       itemGroup.position.set(clampedX, yPos, clampedZ);
       itemGroup.rotation.y = ry;
@@ -438,6 +514,7 @@ export default function StorageUnitScene({
         d,
         canPlaceOnShelf,
         shelfTier: activeTier,
+        stackLevel,
       };
       itemGroup.userData = {
         isDraggableRoot: true,
@@ -451,23 +528,217 @@ export default function StorageUnitScene({
 
       itemsGroup.add(itemGroup);
       draggableObjectsRef.current.push(itemGroup);
-      setItemCount(draggableObjectsRef.current.length);
+      updateItemStats();
       return itemGroup;
+    },
+    [dimensions, updateItemStats]
+  );
+
+  // Recompute gravity / stacking for all floor items when an item moves or is removed
+  const settleFloorStacks = useCallback(
+    (excludeObj?: THREE.Object3D | null) => {
+      const { height: H } = dimensions;
+      const floorStackables = draggableObjectsRef.current
+        .filter((o) => {
+          if (o === excludeObj) return false;
+          const m = o.userData?.meta as InteractiveItemMeta | undefined;
+          return m && m.type !== 'shelf' && m.shelfTier === 0 && m.canPlaceOnShelf;
+        })
+        .sort((a, b) => a.position.y - b.position.y);
+
+      for (const obj of floorStackables) {
+        const meta = obj.userData?.meta as InteractiveItemMeta;
+        let bestY = 0.03;
+        let bestLevel = 1;
+
+        for (const below of draggableObjectsRef.current) {
+          if (below === obj) continue;
+          // An item currently being dragged in hand can never be a base for other resting items
+          if (below === excludeObj) continue;
+
+          const bMeta = below.userData?.meta as InteractiveItemMeta | undefined;
+          if (!bMeta || bMeta.type === 'shelf' || bMeta.shelfTier > 0) continue;
+
+          // Only consider items currently positioned strictly below this item
+          if (below.position.y >= obj.position.y - 0.01) continue;
+
+          const canSupport =
+            bMeta.type === 'box' ||
+            bMeta.type === 'bin' ||
+            bMeta.type === 'luggage' ||
+            bMeta.type === 'washer';
+          if (!canSupport) continue;
+
+          const dx = Math.abs(obj.position.x - below.position.x);
+          const dz = Math.abs(obj.position.z - below.position.z);
+          if (dx < (meta.w + bMeta.w) * 0.42 && dz < (meta.d + bMeta.d) * 0.42) {
+            const candidateY = Number((below.position.y + bMeta.h).toFixed(3));
+            if (candidateY + meta.h <= H - 0.06 && candidateY > bestY) {
+              bestY = candidateY;
+              bestLevel = (bMeta.stackLevel || 1) + 1;
+            }
+          }
+        }
+
+        obj.position.y = bestY;
+        meta.stackLevel = bestLevel;
+      }
     },
     [dimensions]
   );
 
-  // Action: Add new item from toolbar
+  // Helper to find an unoccupied spot on the floor so newly spawned items don't clip into existing ones
+  const findFreeFloorSpot = useCallback(
+    (itemW: number, itemD: number): { x: number; z: number } => {
+      const { width: W, depth: D } = dimensions;
+      const margin = 0.08;
+      const usableW = W - itemW - margin * 2;
+      const usableD = D - itemD - margin * 2;
+
+      const candidates: { x: number; z: number; distToCenter: number }[] = [];
+      const stepsX = Math.max(4, Math.round(usableW / 0.3));
+      const stepsZ = Math.max(4, Math.round(usableD / 0.3));
+
+      for (let ix = 0; ix <= stepsX; ix++) {
+        for (let iz = 0; iz <= stepsZ; iz++) {
+          const cx = -usableW / 2 + (usableW * ix) / stepsX;
+          const cz = -usableD / 2 + (usableD * iz) / stepsZ;
+
+          let hasOverlap = false;
+          for (const obj of draggableObjectsRef.current) {
+            const m = obj.userData?.meta as InteractiveItemMeta | undefined;
+            if (!m || m.shelfTier > 0) continue;
+            if (obj.position.y > 0.1) continue; // ignore items stacked on upper layers
+
+            const dx = Math.abs(cx - obj.position.x);
+            const dz = Math.abs(cz - obj.position.z);
+            if (dx < (itemW + m.w) / 2 + 0.03 && dz < (itemD + m.d) / 2 + 0.03) {
+              hasOverlap = true;
+              break;
+            }
+          }
+
+          if (!hasOverlap) {
+            candidates.push({ x: cx, z: cz, distToCenter: Math.hypot(cx, cz) });
+          }
+        }
+      }
+
+      if (candidates.length > 0) {
+        candidates.sort((a, b) => a.distToCenter - b.distToCenter);
+        const topPick = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))];
+        return { x: topPick.x, z: topPick.z };
+      }
+
+      return {
+        x: (Math.random() - 0.5) * (usableW * 0.5),
+        z: (Math.random() - 0.5) * (usableD * 0.5),
+      };
+    },
+    [dimensions]
+  );
+
+  // Action: Add new item from toolbar (with unit size & capacity restrictions)
   const handleAddItem = (type: PlaceableItemType) => {
-    const { width: W, depth: D } = dimensions;
-    // If adding a small item and a shelf exists, try placing on shelf or near center
-    const jitterX = (Math.random() - 0.5) * (W * 0.35);
-    const jitterZ = (Math.random() - 0.5) * (D * 0.35);
-    const newObj = spawnDraggableItem(type, jitterX, jitterZ, 0, 0);
+    const { width: W, depth: D, areaM2, category } = dimensions;
+    const rules = getUnitCapacityRules(category);
+    const catalogEntry = ITEM_CATALOG.find((c) => c.type === type);
+
+    // 1. Check if item type is too large for this unit's area
+    if (catalogEntry && areaM2 < catalogEntry.minAreaM2) {
+      showTempAlert(
+        catalogEntry.lockHint ||
+          `${catalogEntry.label} quá lớn so với kho ${areaM2}m² (Cần kho ≥ ${catalogEntry.minAreaM2}m²)`
+      );
+      return;
+    }
+
+    // 2. Check max shelves limit for this unit
+    if (type === 'shelf' && shelfZonesRef.current.length >= rules.maxShelves) {
+      if (rules.maxShelves === 0) {
+        showTempAlert('Tủ Locker 1m² (cao 1.4m) không đủ chiều cao đặt Kệ sắt 3 tầng (Cần kho ≥ 2m²)');
+      } else {
+        showTempAlert(`Kho ${areaM2}m² chỉ đặt tối đa ${rules.maxShelves} kệ sắt 3 tầng để đảm bảo lối đi`);
+      }
+      return;
+    }
+
+    // 3. Check total item capacity limit for this unit
+    if (draggableObjectsRef.current.length >= rules.maxItems) {
+      showTempAlert(
+        `Đã đạt giới hạn mô phỏng của kho ${areaM2}m² (${rules.maxItems}/${rules.maxItems} món). Hãy xóa bớt đồ hoặc chọn gói kho lớn hơn!`
+      );
+      return;
+    }
+
+    // If user currently has a stackable floor item selected and adds another box/bin/luggage, stack directly on top if possible!
+    const currentSelected = selectedObjectRef.current;
+    const currentMeta = currentSelected?.userData?.meta as InteractiveItemMeta | undefined;
+    const isAddingStackable = type === 'box' || type === 'bin' || type === 'luggage';
+
+    let spawnX = 0;
+    let spawnZ = 0;
+
+    if (
+      isAddingStackable &&
+      currentSelected &&
+      currentMeta &&
+      currentMeta.shelfTier === 0 &&
+      (currentMeta.type === 'box' || currentMeta.type === 'bin' || currentMeta.type === 'luggage' || currentMeta.type === 'washer') &&
+      currentSelected.position.y + currentMeta.h + 0.38 <= dimensions.height - 0.06
+    ) {
+      spawnX = currentSelected.position.x;
+      spawnZ = currentSelected.position.z;
+    } else {
+      const approxW =
+        type === 'sofa' ? 1.2 : type === 'shelf' ? 1.0 : type === 'fridge' ? 0.75 : 0.44;
+      const approxD =
+        type === 'sofa' ? 0.75 : type === 'shelf' ? 0.45 : type === 'fridge' ? 0.7 : 0.44;
+      const freeSpot = findFreeFloorSpot(approxW, approxD);
+      spawnX = freeSpot.x;
+      spawnZ = freeSpot.z;
+    }
+
+    const newObj = spawnDraggableItem(type, spawnX, spawnZ, 0, 0);
     if (newObj) {
       selectedObjectRef.current = newObj;
       syncSelectionHighlight(newObj);
     }
+  };
+
+  // Action: Stack selected small item onto another flat item on the floor
+  const handleStackOnAnotherItem = () => {
+    const obj = selectedObjectRef.current;
+    if (!obj) return;
+    const meta = obj.userData?.meta as InteractiveItemMeta | undefined;
+    if (!meta || !meta.canPlaceOnShelf) return;
+
+    const candidates = draggableObjectsRef.current.filter((other) => {
+      if (other === obj) return false;
+      const m = other.userData?.meta as InteractiveItemMeta | undefined;
+      if (!m || m.type === 'shelf' || m.shelfTier > 0) return false;
+      const canSupport = m.type === 'box' || m.type === 'bin' || m.type === 'luggage' || m.type === 'washer';
+      if (!canSupport) return false;
+      return other.position.y + m.h + meta.h <= dimensions.height - 0.06;
+    });
+
+    if (candidates.length === 0) {
+      showTempAlert('Không tìm thấy thùng đồ hoặc bề mặt phẳng nào bên dưới để xếp chồng thêm!');
+      return;
+    }
+
+    // Pick next candidate to stack onto
+    const targetBase = candidates[Math.floor(Math.random() * candidates.length)];
+    const baseMeta = targetBase.userData.meta as InteractiveItemMeta;
+
+    meta.shelfTier = 0;
+    obj.position.x = targetBase.position.x;
+    obj.position.z = targetBase.position.z;
+    obj.position.y = Number((targetBase.position.y + baseMeta.h).toFixed(3));
+    meta.stackLevel = (baseMeta.stackLevel || 1) + 1;
+
+    settleFloorStacks();
+    syncSelectionHighlight(obj);
   };
 
   // Action: Place selected small item onto a shelf tier (Kệ nhỏ: Sàn -> Tầng 1 -> Tầng 2 -> Tầng 3)
@@ -476,6 +747,12 @@ export default function StorageUnitScene({
     if (!obj) return;
     const meta = obj.userData?.meta as InteractiveItemMeta | undefined;
     if (!meta || !meta.canPlaceOnShelf) return;
+
+    const rules = getUnitCapacityRules(dimensions.category);
+    if (rules.maxShelves === 0) {
+      showTempAlert('Tủ Locker 1m² không sử dụng kệ sắt 3 tầng. Bạn có thể kéo hoặc bấm "Xếp chồng" các thùng lên nhau!');
+      return;
+    }
 
     // Ensure there is at least one shelf in the unit; if not, create one automatically!
     if (shelfZonesRef.current.length === 0) {
@@ -486,18 +763,21 @@ export default function StorageUnitScene({
 
     const nextTier = (meta.shelfTier + 1) % (targetShelf.tierHeights.length + 1);
     meta.shelfTier = nextTier;
+    meta.stackLevel = 1;
 
     if (nextTier === 0) {
       // Back to floor in front of shelf
       obj.position.y = 0.03;
       obj.position.x = Math.min(dimensions.width * 0.25, targetShelf.meshGroup.position.x + 0.35);
       obj.position.z = Math.min(dimensions.depth * 0.25, targetShelf.meshGroup.position.z + 0.35);
+      settleFloorStacks();
     } else {
       const tierY = targetShelf.tierHeights[nextTier - 1];
       const offsetWithinShelf = ((nextTier - 1) % 2 === 0 ? -1 : 1) * (targetShelf.sw * 0.18);
       obj.position.x = targetShelf.meshGroup.position.x + offsetWithinShelf;
       obj.position.z = targetShelf.meshGroup.position.z;
       obj.position.y = 0.03 + tierY + 0.015;
+      settleFloorStacks();
     }
     syncSelectionHighlight(obj);
   };
@@ -524,8 +804,9 @@ export default function StorageUnitScene({
     itemsGroup.remove(obj);
     draggableObjectsRef.current = draggableObjectsRef.current.filter((o) => o !== obj);
     selectedObjectRef.current = null;
+    settleFloorStacks();
     syncSelectionHighlight(null);
-    setItemCount(draggableObjectsRef.current.length);
+    updateItemStats();
   };
 
   const dimKey = `${dimensions.width}_${dimensions.depth}_${dimensions.height}_${dimensions.category}_${dimensions.doorType}`;
@@ -834,21 +1115,36 @@ export default function StorageUnitScene({
     selectedObjectRef.current = null;
     cardTexRef.current = createCardboardTexture();
 
-    // Populate default interactive shelves (`kệ nhỏ ở trong`) & items by unit category
+    // Populate default interactive shelves & items by unit category
     if (category === 'MINI_LOCKER') {
-      spawnDraggableItem('shelf', -W * 0.18, -D * 0.22, 0, 0);
-      spawnDraggableItem('box', -W * 0.18, -D * 0.22, 0, 2);
-      spawnDraggableItem('bin', -W * 0.18, -D * 0.22, 0, 3);
-      spawnDraggableItem('luggage', W * 0.22, 0.05, 0, 0);
+      // Tủ Locker 1 m² (1.0m x 1.0m x 1.4m): Chứa vali, thùng carton và hộp hồ sơ xếp chồng mẫu
+      spawnDraggableItem('luggage', -W * 0.22, -D * 0.18, 0, 0);
+      const baseBox = spawnDraggableItem('box', W * 0.18, -D * 0.18, 0, 0);
+      const topBin = spawnDraggableItem('bin', W * 0.18, -D * 0.18, 0.05, 0);
+      if (baseBox && topBin) {
+        const baseMeta = baseBox.userData.meta as InteractiveItemMeta;
+        const topMeta = topBin.userData.meta as InteractiveItemMeta;
+        topBin.position.y = Number((baseBox.position.y + baseMeta.h).toFixed(3));
+        topMeta.stackLevel = 2;
+      }
+      spawnDraggableItem('box', W * 0.2, D * 0.2, 0.15, 0);
     } else if (category === 'SMALL_UNIT') {
-      spawnDraggableItem('shelf', -W * 0.22, -D * 0.26, 0, 0);
-      spawnDraggableItem('box', -W * 0.22, -D * 0.26, 0, 1);
-      spawnDraggableItem('box', -W * 0.22, -D * 0.26, 0.08, 2);
-      spawnDraggableItem('bin', -W * 0.22, -D * 0.26, 0, 3);
-      spawnDraggableItem('luggage', W * 0.22, -D * 0.18, 0, 0);
-      spawnDraggableItem('box', W * 0.22, D * 0.18, 0, 0);
-      spawnDraggableItem('chair', -W * 0.15, D * 0.2, 0.3, 0);
+      // Kho Mini 2 m² (1.2m x 1.7m x 2.2m): 1 kệ sắt 3 tầng + thùng carton xếp chồng + vali + hộp hồ sơ
+      spawnDraggableItem('shelf', -W * 0.2, -D * 0.26, 0, 0);
+      spawnDraggableItem('box', -W * 0.2, -D * 0.26, 0, 1);
+      spawnDraggableItem('box', -W * 0.2, -D * 0.26, 0.08, 2);
+      spawnDraggableItem('bin', -W * 0.2, -D * 0.26, 0, 3);
+      spawnDraggableItem('luggage', W * 0.22, -D * 0.16, 0, 0);
+      const floorBox = spawnDraggableItem('box', W * 0.2, D * 0.2, 0, 0);
+      const stackedBox = spawnDraggableItem('box', W * 0.2, D * 0.2, 0.08, 0);
+      if (floorBox && stackedBox) {
+        const baseMeta = floorBox.userData.meta as InteractiveItemMeta;
+        const topMeta = stackedBox.userData.meta as InteractiveItemMeta;
+        stackedBox.position.y = Number((floorBox.position.y + baseMeta.h).toFixed(3));
+        topMeta.stackLevel = 2;
+      }
     } else if (category === 'MEDIUM_UNIT') {
+      // Kho Gia Đình Tiêu Chuẩn 6 m² (2.0m x 3.0m x 2.5m): 1 kệ sắt + Sofa + Tủ lạnh + Máy giặt + thùng đồ
       spawnDraggableItem('shelf', -W * 0.26, -D * 0.32, 0, 0);
       spawnDraggableItem('box', -W * 0.26, -D * 0.32, 0, 1);
       spawnDraggableItem('bin', -W * 0.26, -D * 0.32, 0, 2);
@@ -857,23 +1153,28 @@ export default function StorageUnitScene({
       spawnDraggableItem('sofa', -W * 0.15, D * 0.15, 0, 0);
       spawnDraggableItem('washer', W * 0.25, D * 0.2, 0, 0);
     } else {
-      // LARGE / EXTRA LARGE
+      // Kho Doanh Nghiệp Lớn 18 m² (3.6m x 5.0m x 2.8m): Hệ thống 2 kệ sắt 3 tầng + nhiều kiện hàng + nội thất lớn
       spawnDraggableItem('shelf', -W * 0.28, -D * 0.34, 0, 0);
       spawnDraggableItem('shelf', W * 0.28, -D * 0.34, 0, 0);
       spawnDraggableItem('box', -W * 0.28, -D * 0.34, 0, 1);
       spawnDraggableItem('box', -W * 0.28, -D * 0.34, 0, 2);
       spawnDraggableItem('bin', -W * 0.28, -D * 0.34, 0, 3);
+      spawnDraggableItem('box', W * 0.28, -D * 0.34, 0, 1);
+      spawnDraggableItem('luggage', W * 0.28, -D * 0.34, 0, 2);
+      spawnDraggableItem('bin', W * 0.28, -D * 0.34, 0, 3);
       spawnDraggableItem('fridge', W * 0.28, -D * 0.02, 0, 0);
       spawnDraggableItem('sofa', -W * 0.2, 0.05, 0, 0);
-      spawnDraggableItem('bike', 0.15, D * 0.22, -Math.PI / 6, 0);
+      spawnDraggableItem('washer', 0.15, D * 0.22, 0, 0);
     }
 
     // Select first item by default so user immediately sees interactive controls
-    if (draggableObjectsRef.current.length > 1) {
-      const firstBox = draggableObjectsRef.current[1];
+    if (draggableObjectsRef.current.length > 0) {
+      const targetIdx = draggableObjectsRef.current.length > 1 ? 1 : 0;
+      const firstBox = draggableObjectsRef.current[targetIdx];
       selectedObjectRef.current = firstBox;
       syncSelectionHighlight(firstBox);
     }
+    updateItemStats();
 
     // Dimension Rulers
     const rulersGroup = new THREE.Group();
@@ -884,7 +1185,7 @@ export default function StorageUnitScene({
     applyCameraPreset(camera, controls, cameraPreset, dimensions);
 
     // ------------------------------------------------------------------------
-    // RAYCAST DRAG-AND-DROP INTERACTION ON FLOOR & SHELVES
+    // RAYCAST DRAG-AND-DROP INTERACTION ON FLOOR, SHELVES & ITEM STACKING
     // ------------------------------------------------------------------------
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -918,9 +1219,13 @@ export default function StorageUnitScene({
         isDraggingItem = true;
         controls.enabled = false; // Freeze camera orbit while dragging item
 
-        dragPlane.constant = -hitRoot.position.y;
+        dragPlane.constant = -0.03;
         if (raycaster.ray.intersectPlane(dragPlane, intersectPoint)) {
-          dragOffset.subVectors(hitRoot.position, intersectPoint);
+          dragOffset.set(
+            hitRoot.position.x - intersectPoint.x,
+            0,
+            hitRoot.position.z - intersectPoint.z
+          );
         } else {
           dragOffset.set(0, 0, 0);
         }
@@ -944,15 +1249,15 @@ export default function StorageUnitScene({
           const margin = 0.06;
           const halfW = meta.w / 2;
           const halfD = meta.d / 2;
-          const clampedX = Math.max(-W / 2 + halfW + margin, Math.min(W / 2 - halfW - margin, rawX));
-          const clampedZ = Math.max(-D / 2 + halfD + margin, Math.min(D / 2 - halfD - margin, rawZ));
+          let clampedX = Math.max(-W / 2 + halfW + margin, Math.min(W / 2 - halfW - margin, rawX));
+          let clampedZ = Math.max(-D / 2 + halfD + margin, Math.min(D / 2 - halfD - margin, rawZ));
 
           activeObj.position.x = clampedX;
           activeObj.position.z = clampedZ;
 
-          // Check if small item is dragged inside any shelf zone (`kệ nhỏ`)
+          // 1. Check if small item is dragged inside any shelf zone (`kệ nhỏ`)
+          let snappedToShelf = false;
           if (meta.canPlaceOnShelf && shelfZonesRef.current.length > 0) {
-            let snappedToShelf = false;
             for (const shelf of shelfZonesRef.current) {
               const sx = shelf.meshGroup.position.x;
               const sz = shelf.meshGroup.position.z;
@@ -963,16 +1268,106 @@ export default function StorageUnitScene({
                 const safeIdx = Math.min(shelf.tierHeights.length - 1, tierIdx);
                 activeObj.position.y = 0.03 + shelf.tierHeights[safeIdx] + 0.015;
                 meta.shelfTier = safeIdx + 1;
+                meta.stackLevel = 1;
                 snappedToShelf = true;
                 break;
               }
             }
-            if (!snappedToShelf) {
+          }
+
+          // 2. If not on a shelf, check if a stackable item overlaps another flat-top floor item to stack on top
+          if (!snappedToShelf) {
+            meta.shelfTier = 0;
+            if (meta.canPlaceOnShelf) {
+              let targetY = 0.03;
+              let targetStackLevel = 1;
+
+              for (const otherObj of draggableObjectsRef.current) {
+                if (otherObj === activeObj) continue;
+                const otherMeta = otherObj.userData?.meta as InteractiveItemMeta | undefined;
+                if (!otherMeta || otherMeta.type === 'shelf' || otherMeta.shelfTier > 0) continue;
+
+                const canSupportStack =
+                  otherMeta.type === 'box' ||
+                  otherMeta.type === 'bin' ||
+                  otherMeta.type === 'luggage' ||
+                  otherMeta.type === 'washer';
+                if (!canSupportStack) continue;
+
+                const dx = Math.abs(clampedX - otherObj.position.x);
+                const dz = Math.abs(clampedZ - otherObj.position.z);
+
+                // Use hysteresis threshold to eliminate edge jittering / rapid flickering
+                const isCurrentlyStackedAbove = activeObj.position.y > otherObj.position.y;
+                const thresholdFactor = isCurrentlyStackedAbove ? 0.46 : 0.38;
+                const overlapX = (meta.w + otherMeta.w) * thresholdFactor;
+                const overlapZ = (meta.d + otherMeta.d) * thresholdFactor;
+
+                if (dx < overlapX && dz < overlapZ) {
+                  const candidateY = Number((otherObj.position.y + otherMeta.h).toFixed(3));
+                  if (candidateY + meta.h <= H - 0.06 && candidateY > targetY) {
+                    targetY = candidateY;
+                    targetStackLevel = (otherMeta.stackLevel || 1) + 1;
+                  }
+                }
+              }
+
+              activeObj.position.y = targetY;
+              meta.stackLevel = targetStackLevel;
+            } else {
               activeObj.position.y = 0.03;
-              meta.shelfTier = 0;
+              meta.stackLevel = 1;
             }
           }
 
+          // 3. Resolve horizontal AABB collisions with other items at the same height layer (Anti-clipping & Sliding)
+          if (!snappedToShelf) {
+            for (let iter = 0; iter < 2; iter++) {
+              let hadCollision = false;
+              for (const otherObj of draggableObjectsRef.current) {
+                if (otherObj === activeObj) continue;
+                const otherMeta = otherObj.userData?.meta as InteractiveItemMeta | undefined;
+                if (!otherMeta) continue;
+
+                // Check vertical overlap: items must share the same vertical height slice
+                const activeY = activeObj.position.y;
+                const otherY = otherObj.position.y;
+                const verticalOverlap =
+                  activeY < otherY + otherMeta.h - 0.03 &&
+                  activeY + meta.h > otherY + 0.03;
+
+                if (!verticalOverlap) continue;
+
+                // Check horizontal overlap
+                const dx = clampedX - otherObj.position.x;
+                const dz = clampedZ - otherObj.position.z;
+                const minDistX = halfW + otherMeta.w / 2;
+                const minDistZ = halfD + otherMeta.d / 2;
+                const penX = minDistX - Math.abs(dx);
+                const penZ = minDistZ - Math.abs(dz);
+
+                if (penX > 0 && penZ > 0) {
+                  hadCollision = true;
+                  // Push out along minimum penetration axis (Smooth edge sliding)
+                  if (penX < penZ) {
+                    clampedX += dx >= 0 ? penX : -penX;
+                  } else {
+                    clampedZ += dz >= 0 ? penZ : -penZ;
+                  }
+
+                  // Re-clamp inside room walls
+                  clampedX = Math.max(-W / 2 + halfW + margin, Math.min(W / 2 - halfW - margin, clampedX));
+                  clampedZ = Math.max(-D / 2 + halfD + margin, Math.min(D / 2 - halfD - margin, clampedZ));
+                  activeObj.position.x = clampedX;
+                  activeObj.position.z = clampedZ;
+                }
+              }
+              if (!hadCollision) break;
+            }
+          }
+
+          // Settle other items if their supporting box was just dragged out from underneath
+          settleFloorStacks(activeObj);
           syncSelectionHighlight(activeObj);
         }
         return;
@@ -987,6 +1382,54 @@ export default function StorageUnitScene({
       if (isDraggingItem) {
         isDraggingItem = false;
         controls.enabled = true;
+
+        if (selectedObjectRef.current) {
+          const activeObj = selectedObjectRef.current;
+          const meta = activeObj.userData?.meta as InteractiveItemMeta | undefined;
+          // Magnetic auto-alignment: If stacked on another item, snap its X & Z to neatly align
+          if (meta && meta.shelfTier === 0 && meta.stackLevel > 1) {
+            for (const otherObj of draggableObjectsRef.current) {
+              if (otherObj === activeObj) continue;
+              const otherMeta = otherObj.userData?.meta as InteractiveItemMeta | undefined;
+              if (!otherMeta || otherMeta.type === 'shelf' || otherMeta.shelfTier > 0) continue;
+              const dx = Math.abs(activeObj.position.x - otherObj.position.x);
+              const dz = Math.abs(activeObj.position.z - otherObj.position.z);
+              if (dx < (meta.w + otherMeta.w) * 0.46 && dz < (meta.d + otherMeta.d) * 0.46) {
+                if (Math.abs(activeObj.position.y - (otherObj.position.y + otherMeta.h)) < 0.05) {
+                  activeObj.position.x = otherObj.position.x;
+                  activeObj.position.z = otherObj.position.z;
+                  break;
+                }
+              }
+            }
+          } else if (meta && meta.shelfTier === 0 && meta.stackLevel === 1) {
+            // Separation polish on drop: ensure resting item on floor has zero overlap with floor neighbors
+            for (const otherObj of draggableObjectsRef.current) {
+              if (otherObj === activeObj) continue;
+              const otherMeta = otherObj.userData?.meta as InteractiveItemMeta | undefined;
+              if (!otherMeta || otherMeta.shelfTier > 0 || otherObj.position.y > 0.1) continue;
+              const dx = activeObj.position.x - otherObj.position.x;
+              const dz = activeObj.position.z - otherObj.position.z;
+              const minDistX = meta.w / 2 + otherMeta.w / 2 + 0.01;
+              const minDistZ = meta.d / 2 + otherMeta.d / 2 + 0.01;
+              const penX = minDistX - Math.abs(dx);
+              const penZ = minDistZ - Math.abs(dz);
+              if (penX > 0 && penZ > 0) {
+                if (penX < penZ) {
+                  activeObj.position.x += dx >= 0 ? penX : -penX;
+                } else {
+                  activeObj.position.z += dz >= 0 ? penZ : -penZ;
+                }
+              }
+            }
+          }
+        }
+
+        settleFloorStacks();
+        if (selectedObjectRef.current) {
+          syncSelectionHighlight(selectedObjectRef.current);
+        }
+        updateItemStats();
         renderer.domElement.style.cursor = 'grab';
       }
     };
@@ -1090,22 +1533,40 @@ export default function StorageUnitScene({
             <div className="bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-2xl border border-slate-200/90 shadow-md flex items-center gap-1.5 flex-wrap pointer-events-auto">
               <span className="text-[11px] font-black text-slate-700 px-1.5 flex items-center gap-1">
                 <Move className="w-3.5 h-3.5 text-orange-500" />
-                <span>Kéo thả &amp; Thêm đồ ({itemCount}):</span>
+                <span>
+                  Kéo thả &amp; Xếp chồng ({itemCount}/{getUnitCapacityRules(dimensions.category).maxItems}):
+                </span>
               </span>
-              {ITEM_CATALOG.map((item) => (
-                <button
-                  key={item.type}
-                  type="button"
-                  onClick={() => handleAddItem(item.type)}
-                  className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-100 hover:bg-orange-50 text-slate-700 hover:text-orange-700 border border-slate-200 hover:border-orange-200 transition cursor-pointer flex items-center gap-1"
-                  title={`Thêm ${item.label} vào kho`}
-                >
-                  <span>{item.shortLabel}</span>
-                </button>
-              ))}
+              {ITEM_CATALOG.map((item) => {
+                const rules = getUnitCapacityRules(dimensions.category);
+                const isLockedBySize =
+                  dimensions.areaM2 < item.minAreaM2 ||
+                  (item.type === 'shelf' && rules.maxShelves === 0);
+
+                return (
+                  <button
+                    key={item.type}
+                    type="button"
+                    onClick={() => handleAddItem(item.type)}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition cursor-pointer flex items-center gap-1 ${
+                      isLockedBySize
+                        ? 'bg-slate-100/70 text-slate-400 border-slate-200/80 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'
+                        : 'bg-slate-100 hover:bg-orange-50 text-slate-700 hover:text-orange-700 border-slate-200 hover:border-orange-200'
+                    }`}
+                    title={
+                      isLockedBySize
+                        ? `${item.label} bị giới hạn kích thước (${item.lockHint})`
+                        : `Thêm ${item.label} vào kho`
+                    }
+                  >
+                    {isLockedBySize && <Lock className="w-3 h-3 text-slate-400" />}
+                    <span>{isLockedBySize ? item.label : item.shortLabel}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Row 2: Selected Item Manipulation Controls (Shelf Tier / Rotate / Delete) */}
+            {/* Row 2: Selected Item Manipulation Controls (Stacking / Shelf Tier / Rotate / Delete) */}
             {selectedItemMeta && (
               <div className="bg-slate-900/95 backdrop-blur-md text-white px-3 py-1.5 rounded-2xl border border-slate-700 shadow-lg flex items-center gap-2 flex-wrap pointer-events-auto">
                 <span className="text-[11px] font-bold text-orange-300 flex items-center gap-1">
@@ -1116,23 +1577,41 @@ export default function StorageUnitScene({
                       Kệ tầng {selectedItemMeta.shelfTier}
                     </span>
                   )}
+                  {selectedItemMeta.shelfTier === 0 && selectedItemMeta.stackLevel > 1 && (
+                    <span className="px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200 text-[10px]">
+                      Chồng tầng {selectedItemMeta.stackLevel}
+                    </span>
+                  )}
                 </span>
 
                 {selectedItemMeta.canPlaceOnShelf && (
                   <button
                     type="button"
-                    onClick={handleCycleShelfTier}
-                    className="px-2 py-0.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
-                    title="Đặt đồ vật lên kệ sắt nhỏ (Tầng 1 / 2 / 3) hoặc hạ xuống sàn"
+                    onClick={handleStackOnAnotherItem}
+                    className="px-2 py-0.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                    title="Chồng món đồ này lên trên một thùng đồ / vali / hộp khác trong kho"
                   >
-                    <Layers className="w-3 h-3" />
-                    <span>
-                      {selectedItemMeta.shelfTier === 0
-                        ? 'Đặt lên kệ nhỏ'
-                        : `Đổi tầng kệ (${selectedItemMeta.shelfTier}/3)`}
-                    </span>
+                    <ArrowUp className="w-3 h-3" />
+                    <span>Chồng lên trên</span>
                   </button>
                 )}
+
+                {selectedItemMeta.canPlaceOnShelf &&
+                  getUnitCapacityRules(dimensions.category).maxShelves > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleCycleShelfTier}
+                      className="px-2 py-0.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                      title="Đặt đồ vật lên kệ sắt nhỏ (Tầng 1 / 2 / 3) hoặc hạ xuống sàn"
+                    >
+                      <Layers className="w-3 h-3" />
+                      <span>
+                        {selectedItemMeta.shelfTier === 0
+                          ? 'Đặt lên kệ nhỏ'
+                          : `Đổi tầng kệ (${selectedItemMeta.shelfTier}/3)`}
+                      </span>
+                    </button>
+                  )}
 
                 <button
                   type="button"
@@ -1156,6 +1635,14 @@ export default function StorageUnitScene({
               </div>
             )}
           </div>
+
+          {/* Row 3: Smart Size / Capacity Alert Toast */}
+          {restrictionAlert && (
+            <div className="self-start bg-rose-600/95 backdrop-blur-md text-white px-3.5 py-2 rounded-xl border border-rose-400/50 shadow-lg flex items-center gap-2 text-xs font-bold pointer-events-auto animate-in fade-in slide-in-from-top-1 duration-200">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-200" />
+              <span>{restrictionAlert}</span>
+            </div>
+          )}
         </div>
       )}
     </div>
