@@ -49,7 +49,6 @@ export default function BusinessOpsFlow4() {
   const [gracePeriodDays, setGracePeriodDays] = useState(7);
   const [dailyFinePercent, setDailyFinePercent] = useState(1.5);
   const [depositPercent, setDepositPercent] = useState(25);
-  const [securityDepositMultiplier, setSecurityDepositMultiplier] = useState('1.0');
   const [cancellationDays100, setCancellationDays100] = useState(3);
   const [cancellationDays50, setCancellationDays50] = useState(1);
   const [isSavingPolicy, setIsSavingPolicy] = useState(false);
@@ -106,7 +105,8 @@ export default function BusinessOpsFlow4() {
 
         const depositPol = polList.find((p) => p.policyType === 'DEPOSIT');
         if (depositPol?.value) {
-          if (depositPol.value.reservation_deposit_percent) setDepositPercent(depositPol.value.reservation_deposit_percent);
+          const pct = depositPol.value.depositPercent ?? depositPol.value.reservation_deposit_percent;
+          if (pct) setDepositPercent(Number(pct));
         }
 
         const cancelPol = polList.find((p) => p.policyType === 'CANCELLATION');
@@ -139,9 +139,9 @@ export default function BusinessOpsFlow4() {
         }),
         operationsApi.createPolicy({
           policyType: 'DEPOSIT',
-          name: 'Quy tắc đặt cọc giữ chỗ & cọc bảo đảm',
-          description: `Cọc giữ chỗ ${depositPercent}%, hệ số cọc ${securityDepositMultiplier}x`,
-          value: { reservation_deposit_percent: depositPercent, security_deposit_multiplier: securityDepositMultiplier },
+          name: 'Quy tắc đặt cọc theo % tiền thuê',
+          description: `Tiền cọc tự động bằng ${depositPercent}% tiền thuê tháng`,
+          value: { depositPercent, reservation_deposit_percent: depositPercent },
           valueType: 'JSON',
           effectiveFrom: new Date().toISOString().split('T')[0],
         }),
@@ -422,13 +422,14 @@ export default function BusinessOpsFlow4() {
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Tỷ lệ tiền cọc giữ chỗ khi Đặt online
+                  Tỷ lệ tiền cọc (% dựa trên tiền thuê tháng)
                 </label>
                 <div className="relative">
                   <input
                     type="number"
-                    min={10}
-                    max={100}
+                    min={5}
+                    max={200}
+                    step={5}
                     value={depositPercent}
                     onChange={(e) => setDepositPercent(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -438,25 +439,7 @@ export default function BusinessOpsFlow4() {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Khách chuyển khoản cọc qua VietQR để giữ chỗ ô kho trong 72 giờ trước khi tới check-in.
-                </p>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Hệ số cọc bảo đảm hoàn lại (Security Deposit)
-                </label>
-                <select
-                  value={securityDepositMultiplier}
-                  onChange={(e) => setSecurityDepositMultiplier(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  <option value="1.0">1.0 tháng tiền thuê (Tiêu chuẩn cá nhân)</option>
-                  <option value="1.5">1.5 tháng tiền thuê (Kho giá trị cao có điều hòa)</option>
-                  <option value="2.0">2.0 tháng tiền thuê (Kho doanh nghiệp / Logistics)</option>
-                </select>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Được hoàn trả 100% trong vòng 48h sau khi nghiệm thu trả kho nguyên trạng.
+                  Áp dụng tự động cho toàn bộ loại kho trong hệ thống (không còn tự nhập số cọc cố định riêng lẻ).
                 </p>
               </div>
             </div>

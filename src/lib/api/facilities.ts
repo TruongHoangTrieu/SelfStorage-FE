@@ -86,6 +86,11 @@ export interface FacilityItem {
   status?: string;
   totalFloors?: number;
   storageUnitsCount?: number;
+  totalArea?: number;
+  usedArea?: number;
+  remainingArea?: number;
+  totalUnits?: number;
+  availableUnits?: number;
 }
 
 export const facilitiesApi = {
@@ -175,6 +180,7 @@ export const facilitiesApi = {
     name: string;
     code: string;
     address: string;
+    totalArea?: number;
     description?: string;
     phone?: string;
     email?: string;
@@ -191,6 +197,7 @@ export const facilitiesApi = {
       name: string;
       code: string;
       address: string;
+      totalArea?: number;
       description?: string;
       phone?: string;
       email?: string;

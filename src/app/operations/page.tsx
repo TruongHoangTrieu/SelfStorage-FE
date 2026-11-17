@@ -51,16 +51,16 @@ import FacilityLayoutView from "../staff/components/FacilityLayoutView";
 import UnitTypesPricingManager from "../staff/components/UnitTypesPricingManager";
 
 type OpsTab =
+  | "performance"
   | "facilities"
   | "branch_personnel"
   | "storage_units"
   | "policies"
   | "pricing_fees"
-  | "performance"
   | "reports";
 
 export default function BusinessOperationsPage() {
-  const [activeTab, setActiveTab] = useState<OpsTab>("facilities");
+  const [activeTab, setActiveTab] = useState<OpsTab>("performance");
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -94,6 +94,7 @@ export default function BusinessOperationsPage() {
   const [facPhone, setFacPhone] = useState("");
   const [facEmail, setFacEmail] = useState("");
   const [facDescription, setFacDescription] = useState("");
+  const [facTotalArea, setFacTotalArea] = useState<number>(300);
   const [facStatus, setFacStatus] = useState<"ACTIVE" | "INACTIVE" | "UNDER_MAINTENANCE">("ACTIVE");
   const [isSavingFacility, setIsSavingFacility] = useState(false);
 
@@ -102,7 +103,6 @@ export default function BusinessOperationsPage() {
   const [gracePeriodDays, setGracePeriodDays] = useState(7);
   const [dailyFinePercent, setDailyFinePercent] = useState(1.5);
   const [depositPercent, setDepositPercent] = useState(25);
-  const [securityDepositMultiplier, setSecurityDepositMultiplier] = useState("1.0");
   const [cancellationDays100, setCancellationDays100] = useState(3);
   const [cancellationDays50, setCancellationDays50] = useState(1);
   const [autoLockoutDays, setAutoLockoutDays] = useState(14);
@@ -253,8 +253,8 @@ export default function BusinessOperationsPage() {
         }
         const depositPol = polRes.value.find((p) => p.policyType === "DEPOSIT");
         if (depositPol?.value) {
-          if (depositPol.value.depositPercent) setDepositPercent(depositPol.value.depositPercent);
-          if (depositPol.value.multiplier) setSecurityDepositMultiplier(String(depositPol.value.multiplier));
+          const pct = depositPol.value.depositPercent ?? depositPol.value.reservation_deposit_percent;
+          if (pct) setDepositPercent(Number(pct));
         }
       }
       if (feeRes.status === "fulfilled" && feeRes.value) {
@@ -293,11 +293,11 @@ export default function BusinessOperationsPage() {
         }),
         operationsApi.createPolicy({
           policyType: "DEPOSIT",
-          name: "Chính Sách Đặt Cọc & Hoàn Cọc Toàn Hệ Thống",
-          description: "Mức cọc tối thiểu và cọc an ninh",
+          name: "Chính Sách Đặt Cọc Theo % Tiền Thuê",
+          description: `Tiền cọc tự động bằng ${depositPercent}% tiền thuê tháng (đồng bộ toàn hệ thống)`,
           value: {
             depositPercent,
-            securityDepositMultiplier: parseFloat(securityDepositMultiplier) || 1,
+            reservation_deposit_percent: depositPercent,
             cancellationDays100,
             cancellationDays50,
           },
@@ -305,7 +305,7 @@ export default function BusinessOperationsPage() {
           effectiveFrom: new Date().toISOString(),
         }),
       ]);
-      toast.success("Đã lưu và cập nhật chính sách cho toàn bộ hệ thống!");
+      toast.success(`Đã lưu chính sách & đồng bộ tiền cọc ${depositPercent}% tiền thuê cho toàn bộ loại kho!`);
       const updatedPols = await operationsApi.getPolicies();
       setPolicies(updatedPols);
     } catch (err: any) {
@@ -324,6 +324,7 @@ export default function BusinessOperationsPage() {
     setFacPhone("");
     setFacEmail("");
     setFacDescription("");
+    setFacTotalArea(300);
     setFacStatus("ACTIVE");
     setIsAddFacilityModalOpen(true);
   };
@@ -336,7 +337,8 @@ export default function BusinessOperationsPage() {
     setFacPhone(fac.phone || "");
     setFacEmail(fac.email || "");
     setFacDescription(fac.district || "");
-    setFacStatus((fac.isActive ? "ACTIVE" : "INACTIVE") as any);
+    setFacTotalArea(Number(fac.totalArea) || 300);
+    setFacStatus((fac.status || (fac.isActive ? "ACTIVE" : "INACTIVE")) as any);
     setIsAddFacilityModalOpen(true);
   };
 
@@ -346,6 +348,10 @@ export default function BusinessOperationsPage() {
       toast.error("Vui lòng điền tên cơ sở, mã cơ sở và địa chỉ!");
       return;
     }
+    if (!facTotalArea || Number(facTotalArea) <= 0) {
+      toast.error("Diện tích cơ sở (m²) phải lớn hơn 0!");
+      return;
+    }
     setIsSavingFacility(true);
     try {
       if (editingFacility) {
@@ -353,6 +359,7 @@ export default function BusinessOperationsPage() {
           name: facName.trim(),
           code: facCode.trim().toUpperCase(),
           address: facAddress.trim(),
+          totalArea: Number(facTotalArea),
           phone: facPhone.trim() || undefined,
           email: facEmail.trim() || undefined,
           description: facDescription.trim() || undefined,
@@ -364,6 +371,7 @@ export default function BusinessOperationsPage() {
           name: facName.trim(),
           code: facCode.trim().toUpperCase(),
           address: facAddress.trim(),
+          totalArea: Number(facTotalArea),
           phone: facPhone.trim() || undefined,
           email: facEmail.trim() || undefined,
           description: facDescription.trim() || undefined,
@@ -652,8 +660,9 @@ export default function BusinessOperationsPage() {
     }
   };
 
-  // Navigation Items for Sidebar
+  // Navigation Items for Sidebar (Trang Doanh thu & Hiệu suất lên đầu sidebar)
   const navSection1 = [
+    { id: "performance" as OpsTab, label: "Doanh thu, Tỷ lệ sử dụng & Hiệu suất", icon: TrendingUp },
     { id: "facilities" as OpsTab, label: "Danh sách cơ sở kho", icon: Building2, badge: facilities.length },
     { id: "branch_personnel" as OpsTab, label: "Nhân sự & Điều phối chi nhánh", icon: Users, badge: branchPersonnel.length },
     { id: "storage_units" as OpsTab, label: "Quản lý kho & Sơ đồ", icon: Boxes },
@@ -662,7 +671,6 @@ export default function BusinessOperationsPage() {
   ];
 
   const navSection2 = [
-    { id: "performance" as OpsTab, label: "Doanh thu, Tỷ lệ sử dụng & Hiệu suất", icon: TrendingUp },
     { id: "reports" as OpsTab, label: "Báo cáo & Xuất dữ liệu", icon: Download },
   ];
 
@@ -1140,11 +1148,39 @@ export default function BusinessOperationsPage() {
                             </div>
                           )}
                         </div>
+
+                        {/* Diện tích mặt bằng cơ sở & tỷ lệ sử dụng */}
+                        {(() => {
+                          const totalArea = Number(fac.totalArea) || 300;
+                          const usedArea = Number(fac.usedArea) || 0;
+                          const remainingArea = Math.max(0, Number((totalArea - usedArea).toFixed(2)));
+                          const areaPct = Math.min(100, Math.round((usedArea / totalArea) * 100));
+                          return (
+                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-slate-600">Diện tích cơ sở:</span>
+                                <span className="font-black text-blue-700">{totalArea} m²</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    areaPct >= 90 ? "bg-rose-500" : areaPct >= 70 ? "bg-amber-500" : "bg-emerald-500"
+                                  }`}
+                                  style={{ width: `${areaPct}%` }}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium">
+                                <span>Đã bố trí: <strong className="text-slate-700">{usedArea} m²</strong> ({fac.totalUnits || 0} ô)</span>
+                                <span>Còn trống: <strong className="text-emerald-600">{remainingArea} m²</strong></span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                         <span className="text-[11px] font-bold text-slate-500">
-                          Quy mô: <strong className="text-slate-800">{fac.totalFloors || 3} Tầng</strong>
+                          Số ô kho: <strong className="text-slate-800">{fac.totalUnits || 0} Ô</strong> ({fac.availableUnits ?? 0} trống)
                         </span>
                         <div className="flex items-center gap-2">
                           <button
@@ -1267,8 +1303,8 @@ export default function BusinessOperationsPage() {
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Tỷ Lệ Tiền Cọc Giữ Chỗ Lúc Đặt Kho (% trên tổng đơn)
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Tỷ Lệ Tiền Cọc (% Dựa Trên Tiền Thuê Tháng)
                       </label>
                       <div className="flex items-center gap-3">
                         <input
@@ -1276,30 +1312,29 @@ export default function BusinessOperationsPage() {
                           min="10"
                           max="100"
                           step="5"
-                          value={depositPercent}
+                          value={Math.min(100, depositPercent)}
                           onChange={(e) => setDepositPercent(Number(e.target.value))}
                           className="flex-1 accent-blue-600"
                         />
-                        <span className="font-black text-base text-blue-600 w-16 text-right">
-                          {depositPercent}%
-                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <input
+                            type="number"
+                            min="5"
+                            max="200"
+                            step="5"
+                            value={depositPercent}
+                            onChange={(e) => setDepositPercent(Math.max(5, Math.min(200, Number(e.target.value) || 5)))}
+                            className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-sm font-black text-blue-600 text-right bg-slate-50 outline-none focus:border-blue-500"
+                          />
+                          <span className="font-black text-sm text-blue-600">%</span>
+                        </div>
                       </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Hệ Số Cọc An Ninh Bảo Đảm Tài Sản (Tháng tiền thuê)
-                      </label>
-                      <select
-                        value={securityDepositMultiplier}
-                        onChange={(e) => setSecurityDepositMultiplier(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-slate-50"
-                      >
-                        <option value="0.5">0.5 Tháng tiền thuê</option>
-                        <option value="1.0">1.0 Tháng tiền thuê (Khuyên dùng)</option>
-                        <option value="1.5">1.5 Tháng tiền thuê</option>
-                        <option value="2.0">2.0 Tháng tiền thuê</option>
-                      </select>
+                      <p className="text-[11px] text-slate-500 mt-1.5">
+                        Tiền cọc tại tất cả các loại kho trong chuỗi sẽ được tính tự động bằng{" "}
+                        <strong className="text-blue-700">{depositPercent}% giá thuê/tháng</strong>{" "}
+                        (VD: Giá thuê 1.000.000 đ &rarr; Cọc{" "}
+                        <strong>{((1000000 * depositPercent) / 100).toLocaleString("vi-VN")} đ</strong>). Đã bỏ cơ chế nhập số cọc cố định riêng lẻ.
+                      </p>
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 space-y-2">
@@ -2134,6 +2169,33 @@ export default function BusinessOperationsPage() {
                   onChange={(e) => setFacAddress(e.target.value)}
                   className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tổng Diện Tích Mặt Bằng Cơ Sở (m²) (*)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={editingFacility?.usedArea ? Math.ceil(editingFacility.usedArea) : 10}
+                    step="1"
+                    required
+                    placeholder="VD: 300"
+                    value={facTotalArea}
+                    onChange={(e) => setFacTotalArea(Number(e.target.value))}
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-black text-blue-700 outline-none focus:border-blue-500"
+                  />
+                  <span className="text-xs font-bold text-slate-500 shrink-0">m²</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Dùng để tính giới hạn số ô kho tối đa theo kích thước mỗi loại kho.
+                  {editingFacility && (
+                    <span className="text-blue-700 font-semibold block">
+                      Hiện tại cơ sở đang dùng {editingFacility.usedArea || 0} m² cho {editingFacility.totalUnits || 0} ô kho.
+                    </span>
+                  )}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

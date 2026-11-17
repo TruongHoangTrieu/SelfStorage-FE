@@ -33,6 +33,10 @@ interface Facility {
   name: string;
   code: string;
   address?: string;
+  totalArea?: number;
+  usedArea?: number;
+  remainingArea?: number;
+  totalUnits?: number;
 }
 
 export interface UnitPenaltyFee {
@@ -162,6 +166,12 @@ export interface UnitTypeItem {
   sizeUnit: string;
   price: number;
   depositAmount: number | string;
+  depositPercent?: number;
+  facilityTotalArea?: number;
+  facilityUsedArea?: number;
+  facilityRemainingArea?: number;
+  maxTotalUnitsAtSize?: number;
+  maxAddableUnits?: number;
   penaltyFees?: UnitPenaltyFee[];
   lateFeePerDay?: number;
   cleaningFee?: number;
@@ -218,6 +228,7 @@ export default function UnitTypesPricingManager({
     assignedFacilityId,
   );
   const [unitTypes, setUnitTypes] = useState<UnitTypeItem[]>([]);
+  const [depositPercent, setDepositPercent] = useState<number>(25);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -262,37 +273,52 @@ export default function UnitTypesPricingManager({
 
   const prevCurrentFacilityIdRef = useRef(currentFacilityId);
 
-  // Load facilities list
-  useEffect(() => {
-    async function fetchFacilities() {
-      try {
-        const data = await api.get('/facilities');
-        const list = Array.isArray(data) ? data : data?.data || [];
-        setFacilities(list);
+  // Load facilities list & deposit percentage policy
+  const fetchFacilities = useCallback(async () => {
+    try {
+      const [data, polRes] = await Promise.all([
+        api.get('/facilities'),
+        api.get('/operations/policies?policyType=DEPOSIT').catch(() => null),
+      ]);
+      const list = Array.isArray(data) ? data : data?.data || [];
+      setFacilities(list);
 
-        if (!canSwitchFacility) {
-          // Với Quản lý cơ sở: Luôn cố định cơ sở được giao, không cho chọn cơ sở khác
-          const targetId = assignedFacilityId || (list.length > 0 ? list[0].id : null);
-          if (targetId) {
-            setSelectedFacilityId(targetId);
-          }
-        } else {
-          // Với Quản trị viên cấp cao: Nếu chưa chọn hoặc chọn cơ sở không tồn tại, tự động chọn cơ sở đầu tiên hoặc currentFacilityId
-          setSelectedFacilityId((prev) => {
-            const exists = list.some((f: any) => String(f.id) === String(prev));
-            if (exists) return prev;
-            const defaultFac =
-              list.find((f: any) => String(f.id) === String(currentFacilityId)) || list[0];
-            return defaultFac ? defaultFac.id : null;
-          });
+      const polList = Array.isArray(polRes) ? polRes : polRes?.data || [];
+      if (polList.length > 0) {
+        const depositPol = polList[0];
+        const pct = Number(
+          depositPol?.value?.depositPercent ??
+            depositPol?.value?.reservation_deposit_percent ??
+            25,
+        );
+        if (Number.isFinite(pct) && pct > 0) {
+          setDepositPercent(pct);
         }
-      } catch (err) {
-        console.error('Failed to load facilities', err);
-        toast.error('Không thể tải danh sách cơ sở');
       }
+
+      if (!canSwitchFacility) {
+        const targetId = assignedFacilityId || (list.length > 0 ? list[0].id : null);
+        if (targetId) {
+          setSelectedFacilityId(targetId);
+        }
+      } else {
+        setSelectedFacilityId((prev) => {
+          const exists = list.some((f: any) => String(f.id) === String(prev));
+          if (exists) return prev;
+          const defaultFac =
+            list.find((f: any) => String(f.id) === String(currentFacilityId)) || list[0];
+          return defaultFac ? defaultFac.id : null;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load facilities', err);
+      toast.error('Không thể tải danh sách cơ sở');
     }
-    fetchFacilities();
   }, [assignedFacilityId, canSwitchFacility, currentFacilityId]);
+
+  useEffect(() => {
+    fetchFacilities();
+  }, [fetchFacilities]);
 
   // Đồng bộ khi component cha thực sự thay đổi currentFacilityId
   useEffect(() => {
@@ -311,6 +337,9 @@ export default function UnitTypesPricingManager({
         `/storage-unit-types?facilityId=${selectedFacilityId}`,
       );
       const rawList = Array.isArray(data) ? data : data?.data || [];
+      if (rawList.length > 0 && rawList[0]?.depositPercent) {
+        setDepositPercent(Number(rawList[0].depositPercent));
+      }
       const list = rawList.map((u: any) => {
         let { cleanDescription, penaltyFees, lateFeePerDay, cleaningFee, damageFee } = parsePenaltyFees(u.description);
         if (typeof window !== 'undefined') {
@@ -531,6 +560,15 @@ export default function UnitTypesPricingManager({
       return;
     }
 
+    const unitSize = Number(addUnitsItem.size) || 0;
+    const maxAddable = unitSize > 0 ? Math.floor(facilityRemainingArea / unitSize) : 0;
+    if (unitSize > 0 && addUnitsCount > maxAddable) {
+      toast.error(
+        `Diện tích còn trống của cơ sở (${facilityRemainingArea} m²) chỉ đủ thêm tối đa ${maxAddable} ô kích thước ${unitSize} m²!`,
+      );
+      return;
+    }
+
     setIsSubmittingUnits(true);
     let successCount = 0;
     const prefix = (addUnitsPrefix.trim() || addUnitsItem.code || 'UNIT').toUpperCase();
@@ -574,6 +612,7 @@ export default function UnitTypesPricingManager({
           }),
         );
         loadUnitTypes();
+        fetchFacilities();
         setAddUnitsItem(null);
       } else {
         toast.error('Không thể tạo ô kho mới. Vui lòng kiểm tra lại quyền hạn hoặc mã phòng.');
@@ -600,10 +639,21 @@ export default function UnitTypesPricingManager({
       return;
     }
 
-    if (formData.price < 0 || formData.depositAmount < 0) {
-      toast.error('Giá thuê và tiền cọc không được nhỏ hơn 0');
+    if (formData.price < 0) {
+      toast.error('Giá thuê không được nhỏ hơn 0');
       return;
     }
+
+    const unitSize = Number(formData.size) || 0;
+    const maxAddableForForm = unitSize > 0 ? Math.floor(facilityRemainingArea / unitSize) : 0;
+    if (formData.initialUnitsCount > 0 && unitSize > 0 && formData.initialUnitsCount > maxAddableForForm) {
+      toast.error(
+        `Diện tích còn trống của cơ sở (${facilityRemainingArea} m²) chỉ đủ khởi tạo tối đa ${maxAddableForForm} ô kho kích thước ${unitSize} m²!`,
+      );
+      return;
+    }
+
+    const computedDepositAmount = Math.round((Number(formData.price) || 0) * (depositPercent / 100));
 
     setSubmitting(true);
     try {
@@ -627,7 +677,7 @@ export default function UnitTypesPricingManager({
           size: Number(formData.size),
           sizeUnit: formData.sizeUnit.trim(),
           price: Number(formData.price),
-          depositAmount: Number(formData.depositAmount),
+          depositAmount: computedDepositAmount,
           status: formData.status,
         });
         toast.success(`Đã cập nhật bảng giá loại kho "${formData.name}" thành công!`);
@@ -646,7 +696,7 @@ export default function UnitTypesPricingManager({
           size: Number(formData.size),
           sizeUnit: formData.sizeUnit.trim(),
           price: Number(formData.price),
-          depositAmount: Number(formData.depositAmount),
+          depositAmount: computedDepositAmount,
           status: formData.status,
         });
         unitTypeId = createRes?.id || createRes?.data?.id;
@@ -686,6 +736,7 @@ export default function UnitTypesPricingManager({
 
       setIsModalOpen(false);
       loadUnitTypes();
+      fetchFacilities();
     } catch (err: any) {
       toast.error('Lỗi lưu loại kho: ' + (err?.message || 'Không thể thực hiện'));
     } finally {
@@ -732,6 +783,19 @@ export default function UnitTypesPricingManager({
 
   const selectedFacility = facilities.find(
     (f) => String(f.id) === String(selectedFacilityId),
+  );
+
+  const facilityTotalArea = Number(
+    selectedFacility?.totalArea ?? unitTypes[0]?.facilityTotalArea ?? 300,
+  );
+  const facilityUsedArea = Number(
+    selectedFacility?.usedArea ??
+      unitTypes[0]?.facilityUsedArea ??
+      unitTypes.reduce((sum, u) => sum + Number(u.size || 0) * Number(u.totalUnits || 0), 0),
+  );
+  const facilityRemainingArea = Math.max(
+    0,
+    Number((facilityTotalArea - facilityUsedArea).toFixed(2)),
   );
 
   const currentFacilityDisplayName =
@@ -851,8 +915,8 @@ export default function UnitTypesPricingManager({
           </div>
         )}
 
-        {/* Search bar */}
-        <div className="mt-6 pt-5 border-t border-slate-100">
+        {/* Search bar & Facility Area Summary */}
+        <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -862,6 +926,23 @@ export default function UnitTypesPricingManager({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50/80 border border-blue-200 text-xs">
+              <Maximize2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="text-slate-600 font-medium">Diện tích cơ sở:</span>
+              <strong className="text-blue-800 font-black">{facilityTotalArea} m²</strong>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-600">Đã dùng: <strong className="text-slate-800">{facilityUsedArea} m²</strong></span>
+              <span className="text-slate-300">|</span>
+              <span className="text-emerald-700 font-bold">Còn trống: {facilityRemainingArea} m²</span>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>Tỷ lệ cọc hiện hành: {depositPercent}% giá thuê</span>
+            </div>
           </div>
         </div>
       </div>
@@ -926,8 +1007,14 @@ export default function UnitTypesPricingManager({
               <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
                 {filteredUnitTypes.map((item) => {
                   const rentalPrice = Number(item.price || item.depositAmount);
-                  const deposit = Number(item.depositAmount);
-                  const isPriceDifferent = rentalPrice !== deposit;
+                  const deposit = Math.round(rentalPrice * (depositPercent / 100));
+                  const itemSize = Number(item.size) || 0;
+                  const maxTotalAtSize =
+                    item.maxTotalUnitsAtSize ??
+                    (itemSize > 0 ? Math.floor(facilityTotalArea / itemSize) : 0);
+                  const maxAddableAtSize =
+                    item.maxAddableUnits ??
+                    (itemSize > 0 ? Math.floor(facilityRemainingArea / itemSize) : 0);
 
                   return (
                     <tr
@@ -974,6 +1061,9 @@ export default function UnitTypesPricingManager({
                             {item.size} {item.sizeUnit === 'm2' ? 'm²' : item.sizeUnit === 'm3' ? 'm³' : item.sizeUnit}
                           </span>
                         </span>
+                        <div className="text-[10px] text-slate-500 font-medium mt-1">
+                          Tối đa cơ sở: <strong className="text-slate-700">{maxTotalAtSize} ô</strong> • Thêm tối đa: <strong className={maxAddableAtSize > 0 ? 'text-emerald-600' : 'text-rose-500'}>{maxAddableAtSize} ô</strong>
+                        </div>
                       </td>
 
                       {/* Rental Price */}
@@ -991,15 +1081,9 @@ export default function UnitTypesPricingManager({
                         <div className="font-bold text-slate-800 tabular-nums text-sm sm:text-base">
                           {deposit.toLocaleString('vi-VN')} ₫
                         </div>
-                        {isPriceDifferent ? (
-                          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 mt-0.5">
-                            <span>Khác giá thuê</span>
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                            Bằng giá thuê
-                          </div>
-                        )}
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mt-0.5">
+                          <span>Tự động ({depositPercent}% giá thuê)</span>
+                        </div>
                       </td>
 
                       {/* Availability Count (Refined Pill Layout with Progress Bar) */}
@@ -1237,28 +1321,25 @@ export default function UnitTypesPricingManager({
                   </span>
                 </div>
 
-                {/* Tiền Cọc Tiêu Chuẩn */}
+                {/* Tiền Cọc Tự Động (% Dựa Trên Giá Thuê) */}
                 <div>
                   <label className="text-xs font-black text-amber-950 block mb-1 flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Tiền Cọc Tiêu Chuẩn (VNĐ) *</span>
+                    <span>Tiền Cọc Tự Động ({depositPercent}% Giá Thuê)</span>
                   </label>
-                  <input
-                    type="number"
-                    step="10000"
-                    min="0"
-                    required
-                    value={formData.depositAmount}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        depositAmount: Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-amber-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                  <span className="text-[11px] text-slate-500 mt-1 block">
-                    = {Number(formData.depositAmount || 0).toLocaleString('vi-VN')} đ (cọc)
+                  <div className="w-full px-3.5 py-2.5 bg-amber-100/60 border border-amber-300 rounded-xl text-sm font-black text-amber-900 tabular-nums flex items-center justify-between">
+                    <span>
+                      {Math.round(
+                        (Number(formData.price) || 0) * (depositPercent / 100),
+                      ).toLocaleString('vi-VN')}{' '}
+                      ₫
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white text-amber-800 border border-amber-200">
+                      {depositPercent}%
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-amber-800/80 mt-1 block">
+                    Tự động tính theo % tiền thuê do Operation Manager quy định
                   </span>
                 </div>
               </div>
@@ -1526,81 +1607,109 @@ export default function UnitTypesPricingManager({
               </div>
 
               {/* KHỞI TẠO / TĂNG SỐ LƯỢNG Ô KHO TRỐNG VẬT LÝ */}
-              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
-                    <Boxes className="w-4 h-4 text-emerald-600" />
-                    <span>
-                      {editingItem
-                        ? 'Tạo thêm ô kho trống mới ngay (Tùy chọn)'
-                        : 'Khởi tạo số lượng ô kho trống ban đầu'}
-                    </span>
-                  </label>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
-                    Trạng thái: AVAILABLE (Sẵn sàng)
-                  </span>
-                </div>
+              {(() => {
+                const modalUnitSize = Number(formData.size) || 0;
+                const modalMaxTotal =
+                  modalUnitSize > 0 ? Math.floor(facilityTotalArea / modalUnitSize) : 0;
+                const modalMaxAddable =
+                  modalUnitSize > 0 ? Math.floor(facilityRemainingArea / modalUnitSize) : 0;
+                const isExceedingArea =
+                  modalUnitSize > 0 && formData.initialUnitsCount > modalMaxAddable;
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <span className="text-[11px] font-semibold text-slate-600 block mb-1">
-                      Số lượng ô kho muốn tạo:
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={formData.initialUnitsCount}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            initialUnitsCount: Math.max(0, parseInt(e.target.value) || 0),
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-black text-emerald-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                      <div className="flex gap-1 shrink-0">
-                        {[1, 2, 5].map((num) => (
-                          <button
-                            key={num}
-                            type="button"
-                            onClick={() =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                initialUnitsCount: prev.initialUnitsCount + num,
-                              }))
+                return (
+                  <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <label className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                        <Boxes className="w-4 h-4 text-emerald-600" />
+                        <span>
+                          {editingItem
+                            ? 'Tạo thêm ô kho trống mới ngay (Tùy chọn)'
+                            : 'Khởi tạo số lượng ô kho trống ban đầu'}
+                        </span>
+                      </label>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                        Trạng thái: AVAILABLE (Sẵn sàng)
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-white/90 border border-emerald-200 text-[11px] flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-slate-600">
+                        Diện tích trống: <strong className="text-emerald-700">{facilityRemainingArea} m²</strong> / {facilityTotalArea} m²
+                      </span>
+                      <span className="text-slate-600">
+                        Với <strong>{modalUnitSize} m²/ô</strong>: Tối đa cơ sở <strong>{modalMaxTotal} ô</strong> • Có thể thêm tối đa <strong className={modalMaxAddable > 0 ? 'text-emerald-700' : 'text-rose-600'}>{modalMaxAddable} ô</strong>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-[11px] font-semibold text-slate-600 block mb-1">
+                          Số lượng ô kho muốn tạo:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max={Math.max(0, modalMaxAddable)}
+                            value={formData.initialUnitsCount}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                initialUnitsCount: Math.max(0, parseInt(e.target.value) || 0),
+                              })
                             }
-                            className="px-2 py-1.5 bg-white hover:bg-emerald-100 border border-emerald-300 rounded-lg text-xs font-bold text-emerald-800 transition cursor-pointer"
-                          >
-                            +{num}
-                          </button>
-                        ))}
+                            className={`w-full px-3 py-2 bg-white border rounded-xl text-sm font-black tabular-nums focus:outline-none focus:ring-2 ${
+                              isExceedingArea
+                                ? 'border-rose-400 text-rose-600 focus:ring-rose-500'
+                                : 'border-slate-300 text-emerald-700 focus:ring-emerald-500'
+                            }`}
+                          />
+                          <div className="flex gap-1 shrink-0">
+                            {[1, 2, 5].map((num) => (
+                              <button
+                                key={num}
+                                type="button"
+                                disabled={formData.initialUnitsCount + num > modalMaxAddable}
+                                onClick={() =>
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    initialUnitsCount: Math.min(modalMaxAddable, prev.initialUnitsCount + num),
+                                  }))
+                                }
+                                className="px-2 py-1.5 bg-white hover:bg-emerald-100 disabled:opacity-40 border border-emerald-300 rounded-lg text-xs font-bold text-emerald-800 transition cursor-pointer"
+                              >
+                                +{num}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <span className={`text-[10px] mt-1 block ${isExceedingArea ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+                          {isExceedingArea
+                            ? `Vượt quá giới hạn diện tích! Chỉ có thể tạo tối đa ${modalMaxAddable} ô.`
+                            : formData.initialUnitsCount > 0
+                            ? `Sẽ tự động tạo ${formData.initialUnitsCount} ô kho dạng [${formData.code || 'MÃ'}-01, ...] ngay sau khi lưu`
+                            : 'Để 0 nếu chưa muốn tạo thêm ô kho vật lý'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[11px] font-semibold text-slate-600 block mb-1">
+                          Vị trí Tầng (Floor):
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="VD: 1, 2, Tầng Trệt..."
+                          value={formData.initialUnitsFloor}
+                          onChange={(e) =>
+                            setFormData({ ...formData, initialUnitsFloor: e.target.value })
+                          }
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
                       </div>
                     </div>
-                    <span className="text-[10px] text-slate-500 mt-1 block">
-                      {formData.initialUnitsCount > 0
-                        ? `Sẽ tự động tạo ${formData.initialUnitsCount} ô kho dạng [${formData.code || 'MÃ'}-01, ...] ngay sau khi lưu`
-                        : 'Để 0 nếu chưa muốn tạo thêm ô kho vật lý'}
-                    </span>
                   </div>
-
-                  <div>
-                    <span className="text-[11px] font-semibold text-slate-600 block mb-1">
-                      Vị trí Tầng (Floor):
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="VD: 1, 2, Tầng Trệt..."
-                      value={formData.initialUnitsFloor}
-                      onChange={(e) =>
-                        setFormData({ ...formData, initialUnitsFloor: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Modal Buttons - Sticky at bottom */}
               <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white/95 backdrop-blur-xs -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 shrink-0 shadow-lg z-10">
@@ -1731,12 +1840,35 @@ export default function UnitTypesPricingManager({
                     {addUnitsItem.size} {addUnitsItem.sizeUnit}
                   </span>
                 </div>
+                <div className="flex justify-between items-center text-slate-600 pt-1.5 border-t border-slate-200/60">
+                  <span>Diện tích cơ sở (Còn trống / Tổng):</span>
+                  <span className="font-bold text-blue-700">
+                    {facilityRemainingArea} m² / {facilityTotalArea} m²
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600 pt-1.5 border-t border-slate-200/60">
+                  <span>Số ô tối đa theo kích thước này:</span>
+                  <div className="text-right">
+                    <span className="font-black text-emerald-700">
+                      Thêm tối đa {Number(addUnitsItem.size) > 0 ? Math.floor(facilityRemainingArea / Number(addUnitsItem.size)) : 0} ô
+                    </span>
+                    <span className="text-slate-400 ml-1">
+                      (Tổng tối đa {Number(addUnitsItem.size) > 0 ? Math.floor(facilityTotalArea / Number(addUnitsItem.size)) : 0} ô)
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* 1. Số lượng ô kho cần tạo thêm */}
+              {(() => {
+                const maxAddableForModal =
+                  Number(addUnitsItem.size) > 0
+                    ? Math.floor(facilityRemainingArea / Number(addUnitsItem.size))
+                    : 100;
+                return (
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                  Số lượng ô kho muốn tạo thêm: <span className="text-rose-500">*</span>
+                  Số lượng ô kho muốn tạo thêm (tối đa {maxAddableForModal} ô): <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <button
@@ -1749,7 +1881,7 @@ export default function UnitTypesPricingManager({
                   <input
                     type="number"
                     min="1"
-                    max="100"
+                    max={Math.max(1, maxAddableForModal)}
                     required
                     value={addUnitsCount}
                     onChange={(e) => setAddUnitsCount(Math.max(1, parseInt(e.target.value) || 1))}
@@ -1757,7 +1889,7 @@ export default function UnitTypesPricingManager({
                   />
                   <button
                     type="button"
-                    onClick={() => setAddUnitsCount((prev) => Math.min(100, prev + 1))}
+                    onClick={() => setAddUnitsCount((prev) => Math.min(Math.max(1, maxAddableForModal), prev + 1))}
                     className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-base text-slate-700 flex items-center justify-center transition cursor-pointer"
                   >
                     +
@@ -1765,14 +1897,15 @@ export default function UnitTypesPricingManager({
                 </div>
 
                 {/* Nút chọn nhanh */}
-                <div className="flex items-center gap-1.5 mt-2">
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
                   <span className="text-[11px] text-slate-400 font-medium mr-1">Chọn nhanh:</span>
                   {[1, 2, 5, 10, 20].map((num) => (
                     <button
                       key={num}
                       type="button"
+                      disabled={num > maxAddableForModal}
                       onClick={() => setAddUnitsCount(num)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer disabled:opacity-40 ${
                         addUnitsCount === num
                           ? 'bg-emerald-600 text-white shadow-2xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -1781,8 +1914,24 @@ export default function UnitTypesPricingManager({
                       +{num} ô
                     </button>
                   ))}
+                  {maxAddableForModal > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAddUnitsCount(maxAddableForModal)}
+                      className="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition cursor-pointer"
+                    >
+                      Tối đa ({maxAddableForModal} ô)
+                    </button>
+                  )}
                 </div>
+                {addUnitsCount > maxAddableForModal && (
+                  <p className="text-[11px] text-rose-600 font-bold mt-1.5">
+                    Cảnh báo: Số lượng vượt quá diện tích còn trống của cơ sở (tối đa {maxAddableForModal} ô)!
+                  </p>
+                )}
               </div>
+                );
+              })()}
 
               {/* 2. Cấu hình tiền tố mã ô và Tầng */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
