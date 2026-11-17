@@ -74,7 +74,7 @@ export default function BusinessOperationsPage() {
   const [facilityStatusFilter, setFacilityStatusFilter] = useState("ALL");
   const [isAddFacilityModalOpen, setIsAddFacilityModalOpen] = useState(false);
   const [editingFacility, setEditingFacility] = useState<FacilityItem | null>(null);
-  const [selectedFacilityForUnits, setSelectedFacilityForUnits] = useState<string>("1");
+  const [selectedFacilityForUnits, setSelectedFacilityForUnits] = useState<string>("");
   const [unitsSubTab, setUnitsSubTab] = useState<"unit_types" | "layout">("unit_types");
 
   // Fee Edit State
@@ -232,7 +232,14 @@ export default function BusinessOperationsPage() {
       ]);
 
       if (facRes.status === "fulfilled" && facRes.value) {
-        setFacilities(Array.isArray(facRes.value) ? facRes.value : (facRes.value as any)?.data || []);
+        const facList = Array.isArray(facRes.value) ? facRes.value : (facRes.value as any)?.data || [];
+        setFacilities(facList);
+        if (facList.length > 0) {
+          setSelectedFacilityForUnits((prev) => {
+            const exists = facList.some((f: any) => String(f.id) === String(prev));
+            return exists ? prev : String(facList[0].id);
+          });
+        }
       }
       if (usersRes.status === "fulfilled" && usersRes.value) {
         setAllUsers(Array.isArray(usersRes.value) ? usersRes.value : []);
@@ -739,12 +746,6 @@ export default function BusinessOperationsPage() {
           </div>
         </div>
 
-        {/* Portal Identifier Badge */}
-        <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 bg-amber-50/90 rounded-xl border border-amber-200/70 text-xs font-bold text-amber-900 shadow-2xs">
-          <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
-          <span>Cổng Vận Hành Chuỗi (Role 4)</span>
-        </div>
-
         {/* Right: Refresh button, Profile Pill & Logout */}
         <div className="flex items-center gap-3 shrink-0">
           <button
@@ -1227,6 +1228,7 @@ export default function BusinessOperationsPage() {
                 {unitsSubTab === "unit_types" && (
                   <UnitTypesPricingManager
                     currentFacilityId={selectedFacilityForUnits}
+                    onFacilityChange={(fId) => setSelectedFacilityForUnits(fId)}
                     currentUser={{
                       ...currentUser,
                       role: "BUSINESS_OPERATIONS_MANAGER",

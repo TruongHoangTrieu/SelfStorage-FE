@@ -10,6 +10,18 @@ export interface UnitDimensions {
   capacitySummary: string;
 }
 
+function classifyUnitCategory(
+  vol: number,
+  w: number,
+  h: number
+): UnitDimensions['category'] {
+  if (vol <= 2.5 || (w <= 1.1 && h <= 1.6)) return 'MINI_LOCKER';
+  if (vol <= 6.5) return 'SMALL_UNIT';
+  if (vol <= 18.0) return 'MEDIUM_UNIT';
+  if (vol <= 35.0) return 'LARGE_UNIT';
+  return 'EXTRA_LARGE';
+}
+
 /**
  * Resolves accurate real-world 3D dimensions based on unit specifications,
  * ensuring each unit type has a distinctive, accurately proportioned 3D model.
@@ -17,15 +29,15 @@ export interface UnitDimensions {
 export function resolveUnitDimensions(unit: any): UnitDimensions {
   if (!unit) {
     return {
-      width: 1.8,
-      depth: 2.2,
-      height: 2.4,
-      volumeM3: 9.5,
-      areaM2: 3.96,
+      width: 2.0,
+      depth: 3.0,
+      height: 2.5,
+      volumeM3: 15.0,
+      areaM2: 6.0,
       category: 'MEDIUM_UNIT',
       doorType: 'ROLLUP',
-      recommendedItems: ['10-15 thùng đồ', 'Sofa đơn', 'Bàn làm việc', 'Tủ lạnh', 'Xe đạp'],
-      capacitySummary: 'Phù hợp căn hộ 1 phòng ngủ hoặc văn phòng nhỏ',
+      recommendedItems: getItemsForVolume(15.0),
+      capacitySummary: getCapacitySummary(15.0),
     };
   }
 
@@ -37,14 +49,15 @@ export function resolveUnitDimensions(unit: any): UnitDimensions {
   if (rawW > 0 && rawD > 0 && rawH > 0) {
     const vol = Number((rawW * rawD * rawH).toFixed(2));
     const area = Number((rawW * rawD).toFixed(2));
-    const isSmall = vol <= 2.5 || (rawW <= 1.2 && rawH <= 1.6);
+    const category = classifyUnitCategory(vol, rawW, rawH);
+    const isSmall = category === 'MINI_LOCKER';
     return {
       width: Number(rawW.toFixed(2)),
       depth: Number(rawD.toFixed(2)),
       height: Number(rawH.toFixed(2)),
       volumeM3: vol,
       areaM2: area,
-      category: isSmall ? 'MINI_LOCKER' : vol <= 6 ? 'SMALL_UNIT' : vol <= 16 ? 'LARGE_UNIT' : 'EXTRA_LARGE',
+      category,
       doorType: isSmall ? 'HINGED' : 'ROLLUP',
       recommendedItems: getItemsForVolume(vol),
       capacitySummary: getCapacitySummary(vol),
@@ -65,14 +78,15 @@ export function resolveUnitDimensions(unit: any): UnitDimensions {
     if (w > 0 && d > 0 && h > 0) {
       const vol = Number((w * d * h).toFixed(2));
       const area = Number((w * d).toFixed(2));
-      const isSmall = vol <= 2.5 || (w <= 1.1 && h <= 1.6);
+      const category = classifyUnitCategory(vol, w, h);
+      const isSmall = category === 'MINI_LOCKER';
       return {
         width: w,
         depth: d,
         height: h,
         volumeM3: vol,
         areaM2: area,
-        category: isSmall ? 'MINI_LOCKER' : vol <= 6 ? 'SMALL_UNIT' : vol <= 16 ? 'LARGE_UNIT' : 'EXTRA_LARGE',
+        category,
         doorType: isSmall ? 'HINGED' : 'ROLLUP',
         recommendedItems: getItemsForVolume(vol),
         capacitySummary: getCapacitySummary(vol),
@@ -85,17 +99,18 @@ export function resolveUnitDimensions(unit: any): UnitDimensions {
     const w = parseFloat(dim2Match[1]);
     const d = parseFloat(dim2Match[2]);
     if (w > 0 && d > 0) {
-      const h = (w <= 1.1 && d <= 1.1) ? 1.4 : (w >= 3 || d >= 3.5) ? 2.8 : 2.4;
+      const h = (w <= 1.1 && d <= 1.1) ? 1.4 : (w >= 3 || d >= 3.5) ? 2.8 : 2.5;
       const vol = Number((w * d * h).toFixed(2));
       const area = Number((w * d).toFixed(2));
-      const isSmall = vol <= 2.5 || (w <= 1.1 && h <= 1.6);
+      const category = classifyUnitCategory(vol, w, h);
+      const isSmall = category === 'MINI_LOCKER';
       return {
         width: w,
         depth: d,
         height: h,
         volumeM3: vol,
         areaM2: area,
-        category: isSmall ? 'MINI_LOCKER' : vol <= 6 ? 'SMALL_UNIT' : vol <= 16 ? 'LARGE_UNIT' : 'EXTRA_LARGE',
+        category,
         doorType: isSmall ? 'HINGED' : 'ROLLUP',
         recommendedItems: getItemsForVolume(vol),
         capacitySummary: getCapacitySummary(vol),
@@ -103,22 +118,23 @@ export function resolveUnitDimensions(unit: any): UnitDimensions {
     }
   }
 
-  // 3. Parse from size number and sizeUnit (e.g. 1m2, 3m2, 5m2, 10m2 or 3 CBM, 5 CBM, 15 CBM)
+  // 3. Parse from size number and sizeUnit (standardized: 1m2, 2m2, 6m2, 18m2)
   const rawSize = parseFloat(String(unit.size || '0').replace(',', '.'));
   const sizeUnit = String(unit.sizeUnit || '').toUpperCase();
   const isM2 = sizeUnit.includes('M2') || sizeUnit.includes('M²') || name.includes('m2') || name.includes('m²');
 
   if (isM2 && rawSize > 0) {
-    // Exact square meters calculation
     let w = 1.0;
     let d = 1.0;
     let h = 2.4;
 
     if (rawSize <= 1.2) {
+      // 1 m² Locker: 1.0m x 1.0m x 1.4m
       w = 1.0;
       d = 1.0;
       h = 1.4;
     } else if (rawSize <= 2.5) {
+      // 2 m² Mini Unit: 1.2m x 1.7m x 2.2m
       w = 1.2;
       d = Number((rawSize / 1.2).toFixed(1));
       h = 2.2;
@@ -126,27 +142,26 @@ export function resolveUnitDimensions(unit: any): UnitDimensions {
       w = 1.5;
       d = Number((rawSize / 1.5).toFixed(1));
       h = 2.4;
-    } else if (rawSize <= 6.5) {
+    } else if (rawSize <= 7.0) {
+      // 6 m² Standard / Family Unit: 2.0m x 3.0m x 2.5m
       w = 2.0;
       d = Number((rawSize / 2.0).toFixed(1));
       h = 2.5;
-    } else if (rawSize <= 10.0) {
+    } else if (rawSize <= 12.0) {
       w = 2.5;
       d = Number((rawSize / 2.5).toFixed(1));
       h = 2.6;
-    } else if (rawSize <= 16.0) {
-      w = 3.0;
-      d = Number((rawSize / 3.0).toFixed(1));
-      h = 2.8;
     } else {
-      w = 4.0;
-      d = Number((rawSize / 4.0).toFixed(1));
-      h = 3.0;
+      // 18 m² Enterprise / Large Unit: 3.6m x 5.0m x 2.8m
+      w = 3.6;
+      d = Number((rawSize / 3.6).toFixed(1));
+      h = 2.8;
     }
 
-    const area = Number((w * d).toFixed(2));
+    const area = Number(rawSize.toFixed(1));
     const vol = Number((w * d * h).toFixed(2));
-    const isSmall = vol <= 2.5 || (w <= 1.1 && h <= 1.6);
+    const category = classifyUnitCategory(vol, w, h);
+    const isSmall = category === 'MINI_LOCKER';
 
     return {
       width: w,
@@ -154,7 +169,7 @@ export function resolveUnitDimensions(unit: any): UnitDimensions {
       height: h,
       volumeM3: vol,
       areaM2: area,
-      category: isSmall ? 'MINI_LOCKER' : vol <= 6 ? 'SMALL_UNIT' : vol <= 16 ? 'LARGE_UNIT' : 'EXTRA_LARGE',
+      category,
       doorType: isSmall ? 'HINGED' : 'ROLLUP',
       recommendedItems: getItemsForVolume(vol),
       capacitySummary: getCapacitySummary(vol),
@@ -172,10 +187,9 @@ export function resolveUnitDimensions(unit: any): UnitDimensions {
     }
   }
 
-  // Mini Locker (<= 2 CBM)
+  // Mini Locker (1 m² / <= 2.5 CBM)
   if (
-    parsedVolume <= 2 ||
-    name.includes('mini') ||
+    parsedVolume <= 2.5 ||
     name.includes('locker') ||
     code.includes('lock') ||
     name.includes('1 cbm') ||
@@ -184,149 +198,129 @@ export function resolveUnitDimensions(unit: any): UnitDimensions {
     const w = 1.0;
     const d = 1.0;
     const h = 1.4;
+    const vol = Number((w * d * h).toFixed(2));
     return {
       width: w,
       depth: d,
       height: h,
-      volumeM3: Number((w * d * h).toFixed(2)),
-      areaM2: Number((w * d).toFixed(2)),
+      volumeM3: vol,
+      areaM2: 1.0,
       category: 'MINI_LOCKER',
       doorType: 'HINGED',
-      recommendedItems: ['2 vali du lịch cỡ lớn', '4 thùng carton tiêu chuẩn', 'Balo & tài liệu hồ sơ', 'Túi gậy golf'],
-      capacitySummary: 'Tủ cá nhân Mini: Lưu trữ đồ dùng cá nhân, hồ sơ, vali du lịch',
+      recommendedItems: getItemsForVolume(vol),
+      capacitySummary: getCapacitySummary(vol),
     };
   }
 
-  // Small Unit (3 - 5 CBM)
+  // Small / Mini Unit (2 m² / ~4.5 CBM)
   if (
-    parsedVolume <= 5.5 ||
-    name.includes('3 - 5') ||
+    parsedVolume <= 6.5 ||
+    name.includes('mini') ||
     name.includes('nhỏ') ||
     name.includes('tiểu') ||
-    name.includes('small') ||
-    name.includes('3 cbm') ||
-    name.includes('5 cbm')
+    name.includes('small')
   ) {
-    const w = 1.4;
-    const d = 1.6;
+    const w = 1.2;
+    const d = 1.7;
     const h = 2.2;
+    const vol = Number((w * d * h).toFixed(2));
     return {
       width: w,
       depth: d,
       height: h,
-      volumeM3: Number((w * d * h).toFixed(2)),
-      areaM2: Number((w * d).toFixed(2)),
+      volumeM3: vol,
+      areaM2: 2.0,
       category: 'SMALL_UNIT',
       doorType: 'ROLLUP',
-      recommendedItems: ['10-15 thùng đồ', 'Xe đạp gấp gọn', 'Kệ sắt 3 tầng', 'Quạt cây & máy hút bụi', 'Đồ cắm trại'],
-      capacitySummary: 'Kho tiêu chuẩn S: Lưu trữ đồ đạc phòng trọ, sinh viên, tài liệu văn phòng',
+      recommendedItems: getItemsForVolume(vol),
+      capacitySummary: getCapacitySummary(vol),
     };
   }
 
-  // Medium Unit (6 - 10 CBM)
+  // Standard / Family Unit (6 m² / ~15 CBM)
   if (
-    parsedVolume <= 10.5 ||
+    parsedVolume <= 18.0 ||
+    name.includes('tiêu chuẩn') ||
+    name.includes('gia đình') ||
     name.includes('vừa') ||
-    name.includes('medium') ||
-    name.includes('6 - 8') ||
-    name.includes('8 cbm') ||
-    name.includes('10 cbm')
+    name.includes('medium')
   ) {
-    const w = 1.8;
-    const d = 2.2;
-    const h = 2.4;
+    const w = 2.0;
+    const d = 3.0;
+    const h = 2.5;
+    const vol = Number((w * d * h).toFixed(2));
     return {
       width: w,
       depth: d,
       height: h,
-      volumeM3: Number((w * d * h).toFixed(2)),
-      areaM2: Number((w * d).toFixed(2)),
+      volumeM3: vol,
+      areaM2: 6.0,
       category: 'MEDIUM_UNIT',
       doorType: 'ROLLUP',
-      recommendedItems: ['20-25 thùng đồ', 'Sofa bọc nỉ', 'Máy giặt & tủ lạnh mini', 'Bàn trà & ghế tựa', 'Tủ quần áo nhỏ'],
-      capacitySummary: 'Kho tiêu chuẩn M: Đồ đạc căn hộ 1 phòng ngủ, chuyển nhà ngắn hạn',
+      recommendedItems: getItemsForVolume(vol),
+      capacitySummary: getCapacitySummary(vol),
     };
   }
 
-  // Large Unit (11 - 18 CBM)
-  if (
-    parsedVolume <= 18 ||
-    name.includes('lớn') ||
-    name.includes('gia đình') ||
-    name.includes('large') ||
-    name.includes('12 cbm') ||
-    name.includes('15 cbm')
-  ) {
-    const w = 2.4;
-    const d = 2.6;
-    const h = 2.6;
-    return {
-      width: w,
-      depth: d,
-      height: h,
-      volumeM3: Number((w * d * h).toFixed(2)),
-      areaM2: Number((w * d).toFixed(2)),
-      category: 'LARGE_UNIT',
-      doorType: 'ROLLUP',
-      recommendedItems: ['35-40 thùng đồ', 'Sofa lớn 3 chỗ', 'Tủ lạnh 2 cánh Side-by-side', 'Giường & nệm King size', 'Máy giặt & máy sấy'],
-      capacitySummary: 'Kho gia đình L: Đồ đạc trọn gói căn hộ 2-3 phòng ngủ khi sửa nhà',
-    };
-  }
-
-  // Extra Large (19 - 35 CBM)
-  if (
-    parsedVolume <= 35 ||
-    name.includes('doanh nghiệp') ||
-    name.includes('kinh doanh') ||
-    name.includes('xl') ||
-    name.includes('25 cbm') ||
-    name.includes('30 cbm')
-  ) {
-    const w = 3.0;
-    const d = 3.6;
-    const h = 2.8;
-    return {
-      width: w,
-      depth: d,
-      height: h,
-      volumeM3: Number((w * d * h).toFixed(2)),
-      areaM2: Number((w * d).toFixed(2)),
-      category: 'EXTRA_LARGE',
-      doorType: 'ROLLUP',
-      recommendedItems: ['1 Xe máy', '60+ thùng hàng hóa', '2 Pallet hàng tiêu chuẩn', 'Hệ thống kệ kho công nghiệp 4 tầng', 'Toàn bộ nội thất nhà phố'],
-      capacitySummary: 'Kho thương mại XL: Kho hàng TMĐT, nhà phân phối hoặc nội thất biệt thự',
-    };
-  }
-
-  // Warehouse XXL (> 35 CBM)
-  const w = 3.8;
-  const d = 4.6;
-  const h = 3.0;
+  // Enterprise / Large Unit (18 m² / ~50.4 CBM)
+  const w = 3.6;
+  const d = 5.0;
+  const h = 2.8;
+  const vol = Number((w * d * h).toFixed(2));
   return {
     width: w,
     depth: d,
     height: h,
-    volumeM3: Number((w * d * h).toFixed(2)),
-    areaM2: Number((w * d).toFixed(2)),
-    category: 'WAREHOUSE_XXL',
+    volumeM3: vol,
+    areaM2: 18.0,
+    category: 'EXTRA_LARGE',
     doorType: 'ROLLUP',
-    recommendedItems: ['2 Xe máy', '100+ kiện hàng', '4 Pallet lưu kho', 'Nhiều dãy kệ sắt công nghiệp'],
-    capacitySummary: 'Kho cực đại XXL: Doanh nghiệp logistics, hàng xuất nhập khẩu quy mô lớn',
+    recommendedItems: getItemsForVolume(vol),
+    capacitySummary: getCapacitySummary(vol),
   };
 }
 
 function getItemsForVolume(vol: number): string[] {
-  if (vol <= 2.5) return ['2 vali du lịch cỡ lớn', '4 thùng carton tiêu chuẩn', 'Balo & tài liệu hồ sơ'];
-  if (vol <= 6) return ['10-15 thùng đồ', 'Xe đạp gấp gọn', 'Kệ sắt 3 tầng', 'Quạt cây & máy hút bụi'];
-  if (vol <= 12) return ['20-25 thùng đồ', 'Sofa', 'Máy giặt & tủ lạnh mini', 'Bàn trà & ghế tựa'];
-  if (vol <= 25) return ['35-40 thùng đồ', 'Sofa lớn', 'Tủ lạnh 2 cánh', 'Giường & nệm', 'Máy giặt'];
-  return ['1-2 Xe máy', '60-100+ kiện hàng TMĐT', 'Pallet hàng hóa', 'Dãy kệ kho công nghiệp'];
+  if (vol <= 2.5) {
+    return [
+      '1–2 vali du lịch',
+      '3–4 thùng carton / hộp hồ sơ',
+      'Balo & vật dụng cá nhân nhỏ',
+    ];
+  }
+  if (vol <= 6.5) {
+    return [
+      '1 kệ sắt 3 tầng phân loại đồ',
+      '6–8 thùng carton tiêu chuẩn',
+      '1–2 vali du lịch & hộp hồ sơ',
+      'Ghế làm việc & đồ phòng trọ',
+    ];
+  }
+  if (vol <= 18.0) {
+    return [
+      '1 kệ sắt 3 tầng + 10–12 thùng đồ',
+      '1 Tủ lạnh & 1 Máy giặt gia đình',
+      '1 Ghế Sofa vừa & vali du lịch',
+      'Nội thất căn hộ Studio / 1PN',
+    ];
+  }
+  return [
+    'Hệ thống 2 kệ sắt 3 tầng lớn',
+    '25–30 thùng carton / kiện hàng TMĐT',
+    'Bộ Sofa lớn, Tủ lạnh & Máy giặt',
+    'Hàng hóa kinh doanh & thiết bị',
+  ];
 }
 
 function getCapacitySummary(vol: number): string {
-  if (vol <= 2.5) return 'Tủ cá nhân: Lưu trữ tài liệu, vali, túi gậy golf hoặc đồ gia dụng nhỏ';
-  if (vol <= 6) return 'Kho tiêu chuẩn S: Phù hợp phòng trọ sinh viên hoặc đồ văn phòng';
-  if (vol <= 12) return 'Kho tiêu chuẩn M: Phù hợp căn hộ 1-2 phòng ngủ, chuyển nhà';
-  if (vol <= 25) return 'Kho gia đình L: Phù hợp căn hộ 3 phòng ngủ hoặc nhà phố sửa chữa';
-  return 'Kho kho bãi XL: Dành cho doanh nghiệp bán hàng online, kho hàng kinh doanh';
+  if (vol <= 2.5) {
+    return 'Tủ Locker cá nhân (1 m²): Gửi vali du lịch, hộp hồ sơ tài liệu, balo cá nhân ngắn hạn';
+  }
+  if (vol <= 6.5) {
+    return 'Kho Mini cá nhân (2 m²): Phù hợp đồ đạc phòng trọ sinh viên, lưu trữ hồ sơ cá nhân';
+  }
+  if (vol <= 18.0) {
+    return 'Kho Gia Đình tiêu chuẩn (6 m²): Phù hợp nội thất căn hộ Studio / 1 phòng ngủ';
+  }
+  return 'Kho Doanh Nghiệp lớn (18 m²): Phù hợp căn hộ 2–3 phòng ngủ hoặc kho hàng Shop Online';
 }

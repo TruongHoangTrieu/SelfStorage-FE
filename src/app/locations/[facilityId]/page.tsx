@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import StorageUnit3DModal from "@/components/3d/StorageUnit3DModal";
+import FacilityOverview3DScene from "@/components/3d/FacilityOverview3DScene";
 import { api } from "@/lib/api";
 import { THEME } from "@/lib/theme";
 import {
@@ -535,6 +536,34 @@ export default function FacilityDetailPage({
             </div>
           </section>
 
+          {/* 3.5. 3D FACILITY TOTAL OVERVIEW MODEL (MÔ HÌNH 3D TỔNG THỂ TRỤ SỞ & TẤT CẢ Ô KHO) */}
+          <section className="py-12 sm:py-16 bg-slate-50 border-b border-slate-200">
+            <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
+              <div className="mb-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-black uppercase tracking-wider mb-2">
+                  <Box className="w-3.5 h-3.5 text-blue-600" />
+                  <span>SƠ ĐỒ 3D TRỰC QUAN TOÀN BỘ Ô KHO TẠI TRỤ SỞ</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
+                  Mô Hình 3D Tổng Thể Các Loại Kho Tại <span className="text-orange-600">{facility.name}</span>
+                </h2>
+                <p className="mt-1.5 text-xs sm:text-sm text-slate-600 max-w-4xl">
+                  Thể hiện trực quan toàn bộ các loại kho và tổng số lượng ô kho đang có tại trụ sở. Bấm vào bất kỳ ô kho nào trên mô hình 3D để xem thông số hoặc vào bên trong tự tay kéo thả đồ đạc lên kệ nhỏ.
+                </p>
+              </div>
+
+              <FacilityOverview3DScene
+                initialFacilityId={facility.id}
+                onInspectUnitInterior={(unitType, cellCode) => {
+                  setModal3dUnit({
+                    ...unitType,
+                    name: `${unitType.name} (Ô #${cellCode})`,
+                  });
+                }}
+              />
+            </div>
+          </section>
+
           {/* 4. AVAILABLE STORAGE UNITS & PRICING CATALOG (Bảng giá các loại kho tại cơ sở này) */}
           <section id="unit-types-section" className="py-12 sm:py-16 bg-gradient-to-b from-white via-slate-50/60 to-white border-b border-slate-200">
             <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 lg:px-12 xl:px-16">
@@ -716,7 +745,7 @@ export default function FacilityDetailPage({
                             className="w-full mb-2.5 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs text-blue-700 bg-blue-50/90 hover:bg-blue-100 border border-blue-200/80 transition-all cursor-pointer hover:shadow-xs group/btn"
                           >
                             <Box className="w-3.5 h-3.5 text-blue-600 group-hover/btn:scale-110 transition-transform" />
-                            <span>Xem Mô Hình Phòng Kho 3D</span>
+                            <span>Tương Tác Kho 3D (Kệ Nhỏ &amp; Kéo Thả Đồ)</span>
                           </button>
 
                           {/* Dynamic Action Button */}

@@ -596,12 +596,8 @@ export default function SystemAdministratorPage() {
           </div>
         </div>
 
-        {/* Right: Quick Role Portal Links, Actions & Profile */}
+        {/* Right: Actions & Profile */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 bg-blue-50/90 rounded-xl border border-blue-200/70 text-xs font-bold text-blue-900 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-            <span>Cổng Quản Trị Hệ Thống (Role 5)</span>
-          </div>
 
           <button
             type="button"

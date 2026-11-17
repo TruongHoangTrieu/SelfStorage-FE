@@ -65,7 +65,7 @@ export default function ManagerOverviewDashboard({
     }
   };
 
-  const displayRole = 'Quản Lý Cơ Sở (Role 3)';
+  const displayRole = 'Quản Lý Cơ Sở';
 
   return (
     <div className="space-y-6 w-full max-w-[1800px] mx-auto">
