@@ -1003,7 +1003,8 @@ export default function BusinessOperationsPage() {
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
           <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6">
             
-            {/* Standard Header Banner Card (matching staff/dashboard) */}
+            {/* Standard Header Banner Card (hidden on performance dashboard for clean Bento view) */}
+            {activeTab !== "performance" && (
             <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
@@ -1064,6 +1065,7 @@ export default function BusinessOperationsPage() {
                 </button>
               )}
             </div>
+            )}
 
             {/* TAB 1: DANH SÁCH CƠ SỞ KHO */}
             {activeTab === "facilities" && (

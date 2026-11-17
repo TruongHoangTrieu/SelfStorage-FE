@@ -583,297 +583,361 @@ export default function MultiBranchRevenueAnalytics() {
   const barGroupWidth = branchData.length > 0 ? (barChartWidth - barPaddingX * 2) / branchData.length : 100;
 
   return (
-    <div className="space-y-6">
-      {/* 1. HEADER EXECUTIVE BANNER */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-7 border border-slate-800 shadow-xs relative overflow-hidden">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-blue-300 border border-slate-700 text-xs font-semibold tracking-wide">
-              <Building2 className="w-3.5 h-3.5 text-blue-400" />
-              <span>Hệ Thống {branchData.length} Cơ Sở Kho Toàn Chuỗi</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Giám Sát Doanh Thu, Tỷ Lệ Sử Dụng Kho &amp; Hiệu Suất Từng Cơ Sở
-            </h1>
-            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Theo dõi 3 trụ cột vận hành then chốt: <strong>Doanh Thu Thực Thu</strong>,{' '}
-              <strong>Tỷ Lệ Sử Dụng Mặt Bằng Kho (Storage Usage Rate)</strong> và{' '}
-              <strong>Hiệu Suất Vận Hành (Active Contracts &amp; Quá Hạn)</strong> của từng cơ sở theo thời gian thực.
-            </p>
+    <div className="space-y-5">
+      {/* 1. COMPACT DASHBOARD HEADER + TOP-RIGHT BRANCH DROPDOWN */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+            DASHBOARD
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Tổng quan doanh thu, công suất lấp đầy và hiệu suất khai thác chuỗi {branchData.length} cơ sở
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <div className="relative flex items-center">
+            <Building2 className="w-4 h-4 text-blue-600 absolute left-3 pointer-events-none" />
+            <select
+              value={selectedBranchFilter}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedBranchFilter(val);
+                if (val !== 'ALL') {
+                  const idx = branchData.findIndex((b) => String(b.id) === String(val));
+                  if (idx >= 0) setSelectedBranchIdx(idx);
+                }
+              }}
+              aria-label="Chọn chi nhánh kho"
+              className="pl-9 pr-8 py-2 rounded-xl bg-white border border-slate-200 hover:border-blue-400 focus:border-blue-600 text-xs font-bold text-slate-800 shadow-2xs outline-none cursor-pointer transition"
+            >
+              <option value="ALL">Toàn Hệ Thống ({branchData.length} cơ sở)</option>
+              {branchData.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name} ({formatShortM(branch.actualRevenue)})
+                </option>
+              ))}
+            </select>
           </div>
 
           <button
             type="button"
             onClick={() => loadDatabaseData(true)}
             disabled={isRefreshing}
-            className="self-start lg:self-center px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-2 shadow-sm cursor-pointer shrink-0"
+            className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer shrink-0"
+            title="Đồng bộ dữ liệu mới nhất"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Đồng bộ dữ liệu</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Đồng bộ</span>
           </button>
         </div>
       </div>
 
-      {/* 2. CHUYỂN ĐỔI CHẾ ĐỘ GIÁM SÁT (3 TRỤ CỘT ĐỀ BÀI YÊU CẦU) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-2 bg-slate-100/90 rounded-2xl border border-slate-200">
-        <button
-          type="button"
-          onClick={() => setAnalyticsFocus('ALL_IN_ONE')}
-          className={`p-3 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-            analyticsFocus === 'ALL_IN_ONE'
-              ? 'bg-white text-blue-700 shadow-xs border border-blue-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-          }`}
-        >
-          <div className="flex items-center gap-1.5">
-            <Activity className="w-4 h-4 text-blue-600" />
-            <span>Tổng Hợp Toàn Diện</span>
-          </div>
-          <span className="text-[10px] text-slate-400 font-normal">3 Trụ cột vận hành</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setAnalyticsFocus('REVENUE')}
-          className={`p-3 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-            analyticsFocus === 'REVENUE'
-              ? 'bg-white text-blue-700 shadow-xs border border-blue-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-          }`}
-        >
-          <div className="flex items-center gap-1.5">
-            <DollarSign className="w-4 h-4 text-emerald-600" />
-            <span>1. Giám Sát Doanh Thu</span>
-          </div>
-          <span className="text-[10px] text-slate-400 font-normal">Thực thu, tiền thuê, cọc</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setAnalyticsFocus('USAGE_RATE')}
-          className={`p-3 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-            analyticsFocus === 'USAGE_RATE'
-              ? 'bg-white text-blue-700 shadow-xs border border-blue-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-          }`}
-        >
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-cyan-600" />
-            <span>2. Tỷ Lệ Sử Dụng Kho</span>
-          </div>
-          <span className="text-[10px] text-slate-400 font-normal">Lấp đầy %, ô thuê vs trống</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setAnalyticsFocus('OPERATING_PERFORMANCE')}
-          className={`p-3 rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-            analyticsFocus === 'OPERATING_PERFORMANCE'
-              ? 'bg-white text-blue-700 shadow-xs border border-blue-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-          }`}
-        >
-          <div className="flex items-center gap-1.5">
-            <TrendingUp className="w-4 h-4 text-amber-600" />
-            <span>3. Hiệu Suất Hoạt Động</span>
-          </div>
-          <span className="text-[10px] text-slate-400 font-normal">Hợp đồng &amp; Quá hạn</span>
-        </button>
-      </div>
-
-      {/* 3. BỘ LỌC CHI NHÁNH LINH HOẠT (CHỌN TỪNG CƠ SỞ HOẶC TOÀN HỆ THỐNG) */}
-      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/90 shadow-2xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5 pl-1">
-            <Building2 className="w-4 h-4 text-blue-600" />
-            Chi nhánh đang chọn:
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
-          <button
-            type="button"
-            onClick={() => setSelectedBranchFilter('ALL')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-              selectedBranchFilter === 'ALL'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Toàn Hệ Thống ({branchData.length} cơ sở)</span>
-          </button>
-
-          {branchData.map((branch, idx) => (
-            <button
-              key={branch.id}
-              type="button"
-              onClick={() => {
-                setSelectedBranchFilter(branch.id);
-                setSelectedBranchIdx(idx);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                selectedBranchFilter === branch.id
-                  ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-300'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              <span>{branch.name}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  selectedBranchFilter === branch.id
-                    ? 'bg-blue-700 text-blue-100'
-                    : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                {formatShortM(branch.actualRevenue)}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 4. CÁC THẺ CHỈ SỐ THEO TRỤ CỘT ĐƯỢC CHỌN (DYNAMIC SCORECARDS) */}
+      {/* 4. CÁC THẺ CHỈ SỐ BENTO KÈM MINI SPARKLINE & RADIAL RING */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Doanh Thu */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-blue-400 hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              {currentBranch ? `Doanh Thu ${currentBranch.name}` : 'Tổng Thu Toàn Hệ Thống'}
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-              <DollarSign className="w-4 h-4" />
+        {/* KPI 1: Doanh Thu + Mini Pink/Rose Area Sparkline */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-rose-400 hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                {currentBranch ? `Doanh Thu ${currentBranch.name}` : 'Tổng Thu Toàn Hệ Thống'}
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <DollarSign className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-black text-rose-600 mt-1.5 tabular-nums">
+              {formatMoney(currentBranch ? currentBranch.actualRevenue : totalSystemRevenue)}
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              <span>
+                {currentBranch
+                  ? `${currentBranch.paidCount} giao dịch thành công`
+                  : `${realPayments.filter((p) => p.status === 'PAID').length} giao dịch đối soát`}
+              </span>
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 mt-2.5 tabular-nums">
-            {formatMoney(currentBranch ? currentBranch.actualRevenue : totalSystemRevenue)}
+          {/* Mini Area Chart (Image 1 style) */}
+          <div className="mt-3 pt-1">
+            <svg viewBox="0 0 200 54" className="w-full h-13 overflow-visible">
+              <defs>
+                <linearGradient id="kpiPinkGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.85" />
+                  <stop offset="100%" stopColor="#fb7185" stopOpacity="0.2" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,48 L25,32 L55,36 L85,18 L115,26 L150,6 L180,16 L200,10 L200,52 L0,52 Z"
+                fill="url(#kpiPinkGrad)"
+              />
+              <polyline
+                fill="none"
+                stroke="#e11d48"
+                strokeWidth="2.2"
+                points="0,48 25,32 55,36 85,18 115,26 150,6 180,16 200,10"
+              />
+              {[
+                [25, 32],
+                [55, 36],
+                [85, 18],
+                [115, 26],
+                [150, 6],
+                [180, 16],
+              ].map(([cx, cy], idx) => (
+                <circle
+                  key={idx}
+                  cx={cx}
+                  cy={cy}
+                  r="3"
+                  fill="#ffffff"
+                  stroke="#e11d48"
+                  strokeWidth="2"
+                />
+              ))}
+            </svg>
           </div>
-          <div className="mt-2 flex items-center gap-1 text-xs text-emerald-600 font-bold">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>
+        </div>
+
+        {/* KPI 2: Quỹ Cọc & Thuê Kho + Mini Teal Area Sparkline */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-cyan-400 hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                {currentBranch ? 'Tiền Cọc Cơ Sở' : 'Tổng Quỹ Cọc Hệ Thống'}
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-black text-cyan-600 mt-1.5 tabular-nums">
+              {formatMoney(currentBranch ? currentBranch.depositVault : totalSystemDeposits)}
+            </div>
+            <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500 font-semibold">
+              <span>
+                {currentBranch
+                  ? `Thuê kho: ${formatMoney(currentBranch.rentalRevenue)}`
+                  : `Thuê kho: ${formatMoney(totalSystemRentals)}`}
+              </span>
+            </div>
+          </div>
+          {/* Mini Cyan Area Chart (Image 1 style) */}
+          <div className="mt-3 pt-1">
+            <svg viewBox="0 0 200 54" className="w-full h-13 overflow-visible">
+              <defs>
+                <linearGradient id="kpiCyanGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.2" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,45 L30,44 L60,24 L95,30 L125,8 L160,20 L185,14 L200,22 L200,52 L0,52 Z"
+                fill="url(#kpiCyanGrad)"
+              />
+              <polyline
+                fill="none"
+                stroke="#0891b2"
+                strokeWidth="2.2"
+                points="0,45 30,44 60,24 95,30 125,8 160,20 185,14 200,22"
+              />
+              {[
+                [30, 44],
+                [60, 24],
+                [95, 30],
+                [125, 8],
+                [160, 20],
+                [185, 14],
+              ].map(([cx, cy], idx) => (
+                <circle
+                  key={idx}
+                  cx={cx}
+                  cy={cy}
+                  r="3"
+                  fill="#ffffff"
+                  stroke="#0891b2"
+                  strokeWidth="2"
+                />
+              ))}
+            </svg>
+          </div>
+        </div>
+
+        {/* KPI 3: Tỷ Lệ Lấp Đầy Kho + Circular Radial Gauge (Image 2 75% style) */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-blue-400 hover:shadow-md transition flex items-center justify-between gap-3">
+          <div className="space-y-1.5">
+            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">
+              Tỷ Lệ Lấp Đầy Kho
+            </span>
+            <div className="text-2xl font-black text-slate-900 tabular-nums">
+              {currentBranch ? currentBranch.occupancyRate : systemOccupancyRate}%
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium leading-snug">
               {currentBranch
-                ? `${currentBranch.paidCount} giao dịch thành công`
-                : `${realPayments.filter((p) => p.status === 'PAID').length} giao dịch đối soát`}
+                ? `${currentBranch.occupiedUnits}/${currentBranch.totalUnits} ô đang thuê`
+                : `${totalSystemOccupied}/${totalSystemUnits} ô toàn chuỗi`}
+            </p>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
+              <Boxes className="w-3 h-3" /> Công suất thực tế
+            </span>
+          </div>
+          <div className="relative w-22 h-22 shrink-0 flex items-center justify-center">
+            {(() => {
+              const occ = currentBranch ? currentBranch.occupancyRate : systemOccupancyRate;
+              const r = 36;
+              const circ = 2 * Math.PI * r;
+              const offset = circ - (Math.min(100, Math.max(0, occ)) / 100) * circ;
+              return (
+                <svg viewBox="0 0 88 88" className="w-full h-full -rotate-90">
+                  <circle cx="44" cy="44" r={r} fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                  <circle
+                    cx="44"
+                    cy="44"
+                    r={r}
+                    fill="none"
+                    stroke="url(#radialOccGrad)"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={circ}
+                    strokeDashoffset={offset}
+                  />
+                  <defs>
+                    <linearGradient id="radialOccGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#06b6d4" />
+                      <stop offset="100%" stopColor="#2563eb" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              );
+            })()}
+            <span className="absolute text-sm font-black text-slate-800">
+              {currentBranch ? currentBranch.occupancyRate : systemOccupancyRate}%
             </span>
           </div>
         </div>
 
-        {/* KPI 2: Tỷ Lệ Sử Dụng Kho */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-cyan-400 hover:shadow-md transition">
+        {/* KPI 4: Hợp Đồng & Đúng Hạn + Dual Radial Rings (Image 2 25K / 90K style) */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-indigo-400 hover:shadow-md transition flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              Tỷ Lệ Sử Dụng Kho (Lấp Đầy)
+              Hợp Đồng &amp; Tuân Thủ
             </span>
-            <div className="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold">
-              <Layers className="w-4 h-4" />
-            </div>
+            <Activity className="w-4 h-4 text-indigo-600" />
           </div>
-          <div className="text-2xl font-black text-slate-900 mt-2.5 tabular-nums">
-            {currentBranch ? currentBranch.occupancyRate : systemOccupancyRate}%
-          </div>
-          <div className="mt-2 flex items-center gap-1 text-xs text-cyan-700 font-semibold">
-            <Boxes className="w-3.5 h-3.5 text-cyan-500" />
-            <span>
-              {currentBranch
-                ? `${currentBranch.occupiedUnits}/${currentBranch.totalUnits} ô đang có khách`
-                : `${totalSystemOccupied}/${totalSystemUnits} ô kho toàn hệ thống`}
-            </span>
-          </div>
-        </div>
+          <div className="grid grid-cols-2 gap-2 my-1">
+            {(() => {
+              const act = currentBranch ? currentBranch.activeContracts : totalActiveContracts;
+              const ovd = currentBranch ? currentBranch.overdueContracts : totalOverdueContracts;
+              const onTimePct = act > 0 ? Math.max(0, Math.round(((act - ovd) / act) * 100)) : 100;
+              const r = 24;
+              const circ = 2 * Math.PI * r;
+              return (
+                <>
+                  <div className="flex flex-col items-center p-1.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="relative w-14 h-14 flex items-center justify-center">
+                      <svg viewBox="0 0 60 60" className="w-full h-full -rotate-90">
+                        <circle cx="30" cy="30" r={r} fill="none" stroke="#e2e8f0" strokeWidth="5" />
+                        <circle
+                          cx="30"
+                          cy="30"
+                          r={r}
+                          fill="none"
+                          stroke="#8b5cf6"
+                          strokeWidth="5"
+                          strokeLinecap="round"
+                          strokeDasharray={circ}
+                          strokeDashoffset={circ * 0.22}
+                        />
+                      </svg>
+                      <span className="absolute text-xs font-black text-slate-800">{act}</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-600 mt-1">Đang chạy</span>
+                  </div>
 
-        {/* KPI 3: Tiền Cọc Đang Quản Lý */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-amber-400 hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              {currentBranch ? 'Tiền Cọc Cơ Sở' : 'Tổng Quỹ Cọc Hệ Thống'}
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
+                  <div className="flex flex-col items-center p-1.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="relative w-14 h-14 flex items-center justify-center">
+                      <svg viewBox="0 0 60 60" className="w-full h-full -rotate-90">
+                        <circle cx="30" cy="30" r={r} fill="none" stroke="#e2e8f0" strokeWidth="5" />
+                        <circle
+                          cx="30"
+                          cy="30"
+                          r={r}
+                          fill="none"
+                          stroke="#10b981"
+                          strokeWidth="5"
+                          strokeLinecap="round"
+                          strokeDasharray={circ}
+                          strokeDashoffset={circ - (onTimePct / 100) * circ}
+                        />
+                      </svg>
+                      <span className="absolute text-xs font-black text-emerald-700">{onTimePct}%</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-600 mt-1">Đúng hạn</span>
+                  </div>
+                </>
+              );
+            })()}
           </div>
-          <div className="text-2xl font-black text-slate-900 mt-2.5 tabular-nums">
-            {formatMoney(currentBranch ? currentBranch.depositVault : totalSystemDeposits)}
-          </div>
-          <div className="mt-2 flex items-center gap-1 text-xs text-amber-700 font-semibold">
-            <span>
-              {currentBranch
-                ? `Thuê kho: ${formatMoney(currentBranch.rentalRevenue)}`
-                : `Thuê kho: ${formatMoney(totalSystemRentals)}`}
-            </span>
-          </div>
-        </div>
-
-        {/* KPI 4: Hiệu Suất Vận Hành & Quá Hạn */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs relative overflow-hidden group hover:border-indigo-400 hover:shadow-md transition">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              Hợp Đồng &amp; Quá Hạn
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-              <Activity className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-slate-900 mt-2.5 tabular-nums flex items-baseline gap-2">
-            <span>{currentBranch ? currentBranch.activeContracts : totalActiveContracts}</span>
-            <span className="text-xs font-normal text-slate-400">hợp đồng chạy</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1 text-xs text-rose-600 font-bold">
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-            <span>
-              {currentBranch
-                ? `${currentBranch.overdueContracts} ca trễ hạn (${formatMoney(currentBranch.overdueFeeSum)})`
-                : `${totalOverdueContracts} ca trễ hạn (${formatMoney(totalOverdueFeeSum)})`}
-            </span>
+          <div className="text-[11px] text-rose-600 font-bold flex items-center justify-between pt-1 border-t border-slate-100">
+            <span>Quá hạn: {currentBranch ? currentBranch.overdueContracts : totalOverdueContracts} ca</span>
+            <span>{formatShortM(currentBranch ? currentBranch.overdueFeeSum : totalOverdueFeeSum)}</span>
           </div>
         </div>
       </div>
 
-      {/* 5. KHỐI BIỂU ĐỒ CHUYÊN SÂU THEO YÊU CẦU */}
+      {/* 5. BENTO GRID ĐA BIỂU ĐỒ TRỰC QUAN (MULTI-CHART EXECUTIVE DASHBOARD) */}
 
       {/* A. NẾU ĐANG CHỌN TOÀN HỆ THỐNG */}
       {selectedBranchFilter === 'ALL' && (
         <div className="space-y-6">
-          {/* Biểu đồ Doanh Thu So Sánh 6 Chi Nhánh */}
-          {(analyticsFocus === 'ALL_IN_ONE' || analyticsFocus === 'REVENUE') && (
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          {/* HÀNG BENTO 1: BIỂU ĐỒ CỘT ĐÔI ĐA SẮC (7 CỘT) + VÒNG ĐỒNG TÂM ĐA TẦNG (5 CỘT) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Ô Trái (7 cột): Biểu đồ Cột Đôi Đa Sắc So Sánh 6 Chi Nhánh */}
+            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                 <div>
-                  <h3 className="font-black text-base sm:text-lg text-slate-900 flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-blue-600" />
-                    So Sánh Doanh Thu Thực Tế Các Chi Nhánh ({branchData.length} Cơ Sở)
+                  <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-indigo-600" />
+                    So Sánh Doanh Thu &amp; Quỹ Cọc ({branchData.length} Cơ Sở)
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Cột màu xanh: Doanh thu thực thu từ database. Nhấp vào cột để xem chi tiết chi nhánh đó.
+                    Nhấp vào cột bất kỳ để xem hồ sơ chuyên sâu của từng chi nhánh
                   </p>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs font-bold shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded bg-blue-600" />
-                    <span className="text-slate-700">Thực thu</span>
-                  </div>
+                <div className="flex items-center gap-3 text-[11px] font-bold shrink-0">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-3 h-3 rounded-sm bg-cyan-500" /> Thực thu
+                  </span>
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-3 h-3 rounded-sm bg-purple-600" /> Tiền thuê
+                  </span>
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="w-3 h-3 rounded-sm bg-rose-500" /> Tiền cọc
+                  </span>
                 </div>
               </div>
 
-              {/* Interactive SVG Bar Chart Container */}
-              <div className="w-full mt-6 overflow-x-auto">
-                <div className="min-w-[660px]">
+              <div className="w-full mt-4 overflow-x-auto">
+                <div className="min-w-[540px]">
                   <svg
                     viewBox={`0 0 ${barChartWidth} ${barChartHeight}`}
-                    className="w-full h-64 select-none overflow-visible"
+                    className="w-full h-60 select-none overflow-visible"
                   >
                     <defs>
-                      <linearGradient id="actualBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#2563eb" />
-                        <stop offset="100%" stopColor="#3b82f6" />
+                      <linearGradient id="bentoCyanGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#06b6d4" />
+                        <stop offset="100%" stopColor="#0891b2" />
                       </linearGradient>
-                      <linearGradient id="selectedBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#1d4ed8" />
-                        <stop offset="100%" stopColor="#2563eb" />
+                      <linearGradient id="bentoPurpleGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#9333ea" />
+                        <stop offset="100%" stopColor="#7e22ce" />
+                      </linearGradient>
+                      <linearGradient id="bentoPinkGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f43f5e" />
+                        <stop offset="100%" stopColor="#e11d48" />
                       </linearGradient>
                     </defs>
 
-                    {/* Horizontal Reference Lines */}
                     {[0.25, 0.5, 0.75, 1.0].map((ratio) => {
                       const val = Math.round(maxBarVal * ratio);
                       const y =
@@ -887,10 +951,9 @@ export default function MultiBranchRevenueAnalytics() {
                             y2={y}
                             stroke="#f1f5f9"
                             strokeWidth="1.5"
-                            strokeDasharray="4 4"
                           />
                           <text
-                            x={barPaddingX - 10}
+                            x={barPaddingX - 8}
                             y={y + 3.5}
                             textAnchor="end"
                             fontSize="9.5"
@@ -903,16 +966,17 @@ export default function MultiBranchRevenueAnalytics() {
                       );
                     })}
 
-                    {/* Bars per branch */}
                     {branchData.map((branch, i) => {
                       const groupCenterX = barPaddingX + i * barGroupWidth + barGroupWidth / 2;
                       const isSelected = selectedBranchIdx === i;
+                      const chartUsableH = barChartHeight - barPaddingBottom - 25;
 
-                      const actualHeight = Math.max(
-                        3,
-                        (branch.actualRevenue / maxBarVal) * (barChartHeight - barPaddingBottom - 25)
-                      );
-                      const actualY = barChartHeight - barPaddingBottom - actualHeight;
+                      const totalH = Math.max(6, (branch.actualRevenue / maxBarVal) * chartUsableH);
+                      const rentalH = Math.max(4, (branch.rentalRevenue / maxBarVal) * chartUsableH);
+                      const depositH = Math.max(4, (branch.depositVault / maxBarVal) * chartUsableH);
+
+                      const paletteGrads = ['url(#bentoPurpleGrad)', 'url(#bentoCyanGrad)', 'url(#bentoPinkGrad)'];
+                      const mainGrad = paletteGrads[i % paletteGrads.length];
 
                       return (
                         <g
@@ -924,33 +988,53 @@ export default function MultiBranchRevenueAnalytics() {
                           className="cursor-pointer group"
                         >
                           <rect
-                            x={groupCenterX - barGroupWidth / 2 + 5}
+                            x={groupCenterX - barGroupWidth / 2 + 4}
                             y={10}
-                            width={barGroupWidth - 10}
+                            width={barGroupWidth - 8}
                             height={barChartHeight - barPaddingBottom - 10}
-                            rx="12"
-                            fill={isSelected ? '#dbeafe' : 'transparent'}
-                            fillOpacity={isSelected ? '0.6' : '0'}
+                            rx="10"
+                            fill={isSelected ? '#f1f5f9' : 'transparent'}
                             className="transition-all duration-200 group-hover:fill-slate-50"
                           />
 
+                          {/* Bar 1: Actual Total */}
                           <rect
-                            x={groupCenterX - 18}
-                            y={actualY}
-                            width={36}
-                            height={actualHeight}
-                            rx="5"
-                            fill={isSelected ? 'url(#selectedBarGrad)' : 'url(#actualBarGrad)'}
+                            x={groupCenterX - 20}
+                            y={barChartHeight - barPaddingBottom - totalH}
+                            width={18}
+                            height={totalH}
+                            rx="4"
+                            fill={mainGrad}
                             className="transition-all duration-200 group-hover:brightness-110"
+                          />
+
+                          {/* Bar 2: Rental vs Deposit side-by-side */}
+                          <rect
+                            x={groupCenterX + 2}
+                            y={barChartHeight - barPaddingBottom - rentalH}
+                            width={9}
+                            height={rentalH}
+                            rx="3"
+                            fill="#06b6d4"
+                            opacity="0.85"
+                          />
+                          <rect
+                            x={groupCenterX + 13}
+                            y={barChartHeight - barPaddingBottom - depositH}
+                            width={9}
+                            height={depositH}
+                            rx="3"
+                            fill="#f43f5e"
+                            opacity="0.85"
                           />
 
                           <text
                             x={groupCenterX}
-                            y={actualY - 8}
+                            y={barChartHeight - barPaddingBottom - totalH - 7}
                             textAnchor="middle"
                             fontSize="9.5"
                             fontWeight="800"
-                            fill="#1e3a8a"
+                            fill="#334155"
                           >
                             {formatShortM(branch.actualRevenue)}
                           </text>
@@ -961,16 +1045,16 @@ export default function MultiBranchRevenueAnalytics() {
                             textAnchor="middle"
                             fontSize="10"
                             fontWeight={isSelected ? '800' : '600'}
-                            fill={isSelected ? '#1d4ed8' : '#475569'}
+                            fill={isSelected ? '#0f172a' : '#475569'}
                           >
-                            {branch.name.length > 15 ? branch.name.slice(0, 14) + '...' : branch.name}
+                            {branch.name.replace('Chi Nhánh ', '').slice(0, 12)}
                           </text>
 
                           <text
                             x={groupCenterX}
                             y={barChartHeight - 3}
                             textAnchor="middle"
-                            fontSize="9"
+                            fontSize="8.5"
                             fill="#94a3b8"
                           >
                             {branch.district}
@@ -982,19 +1066,404 @@ export default function MultiBranchRevenueAnalytics() {
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Biểu đồ So Sánh Tỷ Lệ Sử Dụng Kho (Storage Usage Rate) Giữa Các Chi Nhánh */}
+            {/* Ô Phải (5 cột): Biểu đồ Vòng Khuyên Đồng Tâm 3 Tầng (Concentric Multi-Ring Chart giống Hình 1) */}
+            <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between">
+              <div className="pb-4 border-b border-slate-100">
+                <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                  <PieChartIcon className="w-5 h-5 text-rose-500" />
+                  Cơ Cấu Khai Thác &amp; Chỉ Số Vòng Đồng Tâm
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Tỷ lệ lấp đầy kho, tỷ lệ thu tiền thuê và tỷ lệ hợp đồng chuẩn hạn
+                </p>
+              </div>
+
+              {(() => {
+                const occPct = Math.min(100, Math.max(12, systemOccupancyRate));
+                const rentalSharePct =
+                  totalSystemRevenue > 0
+                    ? Math.min(100, Math.max(15, Math.round((totalSystemRentals / totalSystemRevenue) * 100)))
+                    : 68;
+                const onTimeContractPct =
+                  totalActiveContracts > 0
+                    ? Math.min(
+                        100,
+                        Math.max(
+                          20,
+                          Math.round(((totalActiveContracts - totalOverdueContracts) / totalActiveContracts) * 100)
+                        )
+                      )
+                    : 85;
+
+                const r1 = 72;
+                const r2 = 54;
+                const r3 = 36;
+                const c1 = 2 * Math.PI * r1;
+                const c2 = 2 * Math.PI * r2;
+                const c3 = 2 * Math.PI * r3;
+
+                return (
+                  <div className="my-auto py-3 flex flex-col sm:flex-row items-center justify-around gap-4">
+                    {/* Concentric SVG Rings */}
+                    <div className="relative w-44 h-44 flex items-center justify-center shrink-0">
+                      <svg viewBox="0 0 180 180" className="w-full h-full -rotate-90">
+                        {/* Track backgrounds */}
+                        <circle cx="90" cy="90" r={r1} fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                        <circle cx="90" cy="90" r={r2} fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                        <circle cx="90" cy="90" r={r3} fill="none" stroke="#f1f5f9" strokeWidth="12" />
+
+                        {/* Outer Ring: Purple (Compliance / On-time) */}
+                        <circle
+                          cx="90"
+                          cy="90"
+                          r={r1}
+                          fill="none"
+                          stroke="#9333ea"
+                          strokeWidth="12"
+                          strokeLinecap="round"
+                          strokeDasharray={c1}
+                          strokeDashoffset={c1 - (onTimeContractPct / 100) * c1}
+                        />
+                        {/* Middle Ring: Cyan (Rental Share) */}
+                        <circle
+                          cx="90"
+                          cy="90"
+                          r={r2}
+                          fill="none"
+                          stroke="#06b6d4"
+                          strokeWidth="12"
+                          strokeLinecap="round"
+                          strokeDasharray={c2}
+                          strokeDashoffset={c2 - (rentalSharePct / 100) * c2}
+                        />
+                        {/* Inner Ring: Rose/Pink (Occupancy Rate) */}
+                        <circle
+                          cx="90"
+                          cy="90"
+                          r={r3}
+                          fill="none"
+                          stroke="#f43f5e"
+                          strokeWidth="12"
+                          strokeLinecap="round"
+                          strokeDasharray={c3}
+                          strokeDashoffset={c3 - (occPct / 100) * c3}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-black text-rose-500">{occPct}%</span>
+                        <div className="flex items-center gap-1 text-[11px] font-extrabold">
+                          <span className="text-cyan-600">{rentalSharePct}%</span>
+                          <span className="text-purple-600">{onTimeContractPct}%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Legend & Progress Bars */}
+                    <div className="space-y-3 w-full sm:w-auto flex-1">
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="flex items-center gap-2 text-slate-700">
+                            <span className="w-3 h-3 rounded-full bg-rose-500" />
+                            Lấp đầy ô kho
+                          </span>
+                          <span className="text-rose-600 font-black">{occPct}%</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5 pl-5">
+                          {totalSystemOccupied}/{totalSystemUnits} ô kho đang khai thác
+                        </p>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="flex items-center gap-2 text-slate-700">
+                            <span className="w-3 h-3 rounded-full bg-cyan-500" />
+                            Tỷ trọng Tiền thuê
+                          </span>
+                          <span className="text-cyan-600 font-black">{rentalSharePct}%</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5 pl-5">
+                          {formatShortM(totalSystemRentals)} / {formatShortM(totalSystemRevenue)} tổng thu
+                        </p>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="flex items-center gap-2 text-slate-700">
+                            <span className="w-3 h-3 rounded-full bg-purple-600" />
+                            Hợp đồng chuẩn hạn
+                          </span>
+                          <span className="text-purple-600 font-black">{onTimeContractPct}%</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5 pl-5">
+                          {totalActiveContracts - totalOverdueContracts}/{totalActiveContracts} hợp đồng không trễ
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* HÀNG BENTO 2: ĐƯỜNG CONG ĐÔI UỐN LƯỢN (7 CỘT) + BỘ 3 BIỂU ĐỒ TRÒN & THANH PHÂN BỔ (5 CỘT) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Ô Trái (7 cột): Biểu đồ Đường Cong Đôi (Smooth Dual Spline Wave Chart giống góc dưới trái Hình 1 & Hình 2) */}
+            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-cyan-600" />
+                    Biểu Đồ Sóng Đôi: Xu Hướng Tiền Thuê &amp; Tiền Cọc (T5 – T10/2026)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Đường cong đối sánh tốc độ tăng trưởng dòng tiền thuê kho và tiền đặt cọc theo tháng
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] font-bold">
+                  <span className="flex items-center gap-1.5 text-cyan-700">
+                    <span className="w-3 h-1 rounded-full bg-cyan-500" /> Tiền thuê
+                  </span>
+                  <span className="flex items-center gap-1.5 text-rose-600">
+                    <span className="w-3 h-1 rounded-full bg-rose-500" /> Tiền cọc
+                  </span>
+                </div>
+              </div>
+
+              {(() => {
+                const trend = system12MonthTrend;
+                const maxWaveVal = Math.max(
+                  ...trend.map((m) => Math.max(m.rental, m.deposit, m.total * 0.7)),
+                  1000000
+                );
+                const w = 620;
+                const h = 210;
+                const padX = 44;
+                const padY = 30;
+                const stepX = trend.length > 1 ? (w - padX * 2) / (trend.length - 1) : 90;
+
+                const rentalPts = trend.map((m, idx) => ({
+                  x: padX + idx * stepX,
+                  y: h - padY - (Math.max(m.rental, maxWaveVal * 0.12) / maxWaveVal) * (h - padY * 2 - 15),
+                  val: m.rental,
+                  month: m.month,
+                }));
+
+                const depositPts = trend.map((m, idx) => ({
+                  x: padX + idx * stepX,
+                  y: h - padY - (Math.max(m.deposit, maxWaveVal * 0.08) / maxWaveVal) * (h - padY * 2 - 15),
+                  val: m.deposit,
+                  month: m.month,
+                }));
+
+                const buildSmoothPath = (pts: { x: number; y: number }[]) => {
+                  if (pts.length === 0) return '';
+                  let d = `M ${pts[0].x},${pts[0].y}`;
+                  for (let i = 0; i < pts.length - 1; i++) {
+                    const cx1 = pts[i].x + (pts[i + 1].x - pts[i].x) / 2;
+                    const cy1 = pts[i].y;
+                    const cx2 = pts[i].x + (pts[i + 1].x - pts[i].x) / 2;
+                    const cy2 = pts[i + 1].y;
+                    d += ` C ${cx1},${cy1} ${cx2},${cy2} ${pts[i + 1].x},${pts[i + 1].y}`;
+                  }
+                  return d;
+                };
+
+                const rentalPath = buildSmoothPath(rentalPts);
+                const depositPath = buildSmoothPath(depositPts);
+                const rentalArea = `${rentalPath} L ${rentalPts[rentalPts.length - 1].x},${h - padY} L ${rentalPts[0].x},${h - padY} Z`;
+
+                // Find peak points for callout bubbles (like 5,642 & 5,942 in Image 1)
+                const peakRental = rentalPts.reduce((best, p) => (p.val >= best.val ? p : best), rentalPts[0]);
+                const peakDeposit = depositPts.reduce((best, p) => (p.val >= best.val ? p : best), depositPts[0]);
+
+                return (
+                  <div className="w-full mt-4 overflow-x-auto">
+                    <div className="min-w-[520px]">
+                      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-52 select-none overflow-visible">
+                        <defs>
+                          <linearGradient id="waveAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.22" />
+                            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
+                          </linearGradient>
+                        </defs>
+
+                        {[0.25, 0.5, 0.75, 1.0].map((r) => {
+                          const y = h - padY - r * (h - padY * 2 - 15);
+                          return (
+                            <line
+                              key={r}
+                              x1={padX}
+                              y1={y}
+                              x2={w - padX}
+                              y2={y}
+                              stroke="#f1f5f9"
+                              strokeWidth="1.5"
+                            />
+                          );
+                        })}
+
+                        <path d={rentalArea} fill="url(#waveAreaGrad)" />
+                        <path d={rentalPath} fill="none" stroke="#0891b2" strokeWidth="3" strokeLinecap="round" />
+                        <path d={depositPath} fill="none" stroke="#f43f5e" strokeWidth="3" strokeLinecap="round" />
+
+                        {rentalPts.map((pt, idx) => (
+                          <g key={idx}>
+                            <circle
+                              cx={pt.x}
+                              cy={pt.y}
+                              r="4"
+                              fill="#ffffff"
+                              stroke="#0891b2"
+                              strokeWidth="2.5"
+                            />
+                            <circle
+                              cx={depositPts[idx].x}
+                              cy={depositPts[idx].y}
+                              r="4"
+                              fill="#ffffff"
+                              stroke="#f43f5e"
+                              strokeWidth="2.5"
+                            />
+                            <text
+                              x={pt.x}
+                              y={h - 8}
+                              textAnchor="middle"
+                              fontSize="10"
+                              fontWeight="700"
+                              fill="#64748b"
+                            >
+                              {pt.month}
+                            </text>
+                          </g>
+                        ))}
+
+                        {/* Callout Pill 1: Peak Rental */}
+                        {peakRental && (
+                          <g transform={`translate(${peakRental.x}, ${Math.max(24, peakRental.y - 12)})`}>
+                            <rect x="-28" y="-20" width="56" height="18" rx="9" fill="#0891b2" />
+                            <text x="0" y="-8" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#ffffff">
+                              {formatShortM(peakRental.val)}
+                            </text>
+                          </g>
+                        )}
+
+                        {/* Callout Pill 2: Peak Deposit */}
+                        {peakDeposit && (
+                          <g transform={`translate(${peakDeposit.x}, ${Math.max(24, peakDeposit.y - 12)})`}>
+                            <rect x="-28" y="-20" width="56" height="18" rx="9" fill="#f43f5e" />
+                            <text x="0" y="-8" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#ffffff">
+                              {formatShortM(peakDeposit.val)}
+                            </text>
+                          </g>
+                        )}
+                      </svg>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Ô Phải (5 cột): Bộ 3 Biểu Đồ Tròn Phân Khúc (Pie Trio giống Hình 1) + Thanh Tỷ Trọng */}
+            <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs flex flex-col justify-between">
+              <div className="pb-4 border-b border-slate-100">
+                <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-purple-600" />
+                  Bộ 3 Biểu Đồ Tròn Phân Khúc &amp; Hạng Kho
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Tỷ trọng theo Loại kho, Phương thức thanh toán và Trạng thái phòng
+                </p>
+              </div>
+
+              {/* 3 Pie Charts Row (Image 1 bottom-middle style) */}
+              <div className="grid grid-cols-3 gap-3 my-4">
+                {[
+                  {
+                    label: 'Kho Vừa & Nhỏ',
+                    pct: 69,
+                    color: '#06b6d4',
+                    bg: '#cffafe',
+                    tag: '1m² - 6m²',
+                  },
+                  {
+                    label: 'Qua VietQR',
+                    pct: 84,
+                    color: '#f43f5e',
+                    bg: '#ffe4e6',
+                    tag: 'SePay 24/7',
+                  },
+                  {
+                    label: 'Khách Dài Hạn',
+                    pct: 72,
+                    color: '#9333ea',
+                    bg: '#f3e8ff',
+                    tag: '≥ 3 Tháng',
+                  },
+                ].map((pie, idx) => {
+                  const r = 26;
+                  const c = 2 * Math.PI * r;
+                  return (
+                    <div key={idx} className="flex flex-col items-center text-center">
+                      <div className="relative w-20 h-20 flex items-center justify-center">
+                        <svg viewBox="0 0 68 68" className="w-full h-full -rotate-90">
+                          <circle cx="34" cy="34" r={r} fill="none" stroke={pie.bg} strokeWidth="14" />
+                          <circle
+                            cx="34"
+                            cy="34"
+                            r={r}
+                            fill="none"
+                            stroke={pie.color}
+                            strokeWidth="14"
+                            strokeDasharray={c}
+                            strokeDashoffset={c - (pie.pct / 100) * c}
+                          />
+                        </svg>
+                        <span className="absolute text-[11px] font-black text-slate-800">{pie.pct}%</span>
+                      </div>
+                      <span
+                        className="mt-2 px-2.5 py-0.5 rounded-md text-[10px] font-extrabold text-white"
+                        style={{ backgroundColor: pie.color }}
+                      >
+                        {pie.tag}
+                      </span>
+                      <span className="text-[11px] font-bold text-slate-600 mt-1">{pie.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Segmented Horizontal Bars for 4 Unit Tiers */}
+              <div className="space-y-2.5 pt-3 border-t border-slate-100">
+                {systemTierShare.slice(0, 3).map((tier, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold">
+                      <span className="text-slate-600 truncate pr-2">{tier.name}</span>
+                      <span className="text-slate-900 font-mono">{tier.share}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${tier.share}%`, backgroundColor: tier.color }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* HÀNG BENTO 3: SO SÁNH TỶ LỆ LẤP ĐẦY TỪNG CƠ SỞ */}
           {(analyticsFocus === 'ALL_IN_ONE' || analyticsFocus === 'USAGE_RATE') && (
             <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
                 <div>
                   <h3 className="font-black text-base sm:text-lg text-slate-900 flex items-center gap-2">
                     <Layers className="w-5 h-5 text-cyan-600" />
-                    So Sánh Tỷ Lệ Sử Dụng Kho &amp; Công Suất Khai Thác (Storage Usage Rate)
+                    So Sánh Tỷ Lệ Sử Dụng Kho &amp; Công Suất Khai Thác Từng Chi Nhánh
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Tỷ lệ phần trăm ô kho đang có khách thuê / tổng ô kho tại từng cơ sở
+                    Nhấp vào thẻ cơ sở bất kỳ để mở bảng phân tích chuyên sâu của cơ sở đó
                   </p>
                 </div>
 
@@ -1004,8 +1473,7 @@ export default function MultiBranchRevenueAnalytics() {
                 </div>
               </div>
 
-              {/* Progress bars per facility */}
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {branchData.map((branch) => {
                   const occ = branch.occupancyRate;
                   return (
@@ -1015,11 +1483,11 @@ export default function MultiBranchRevenueAnalytics() {
                       className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 hover:border-cyan-400 hover:bg-cyan-50/30 transition cursor-pointer"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="font-bold text-slate-900 text-xs sm:text-sm">{branch.name}</div>
+                        <div className="font-bold text-slate-900 text-xs sm:text-sm truncate pr-2">{branch.name}</div>
                         <span className="font-mono font-black text-sm text-cyan-700">{occ}%</span>
                       </div>
 
-                      <div className="mt-2.5 h-3 w-full bg-slate-200 rounded-full overflow-hidden">
+                      <div className="mt-2.5 h-2.5 w-full bg-slate-200 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-cyan-500 to-blue-600"
                           style={{ width: `${Math.max(occ, 2)}%` }}
@@ -1027,9 +1495,9 @@ export default function MultiBranchRevenueAnalytics() {
                       </div>
 
                       <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                        <span>Đang thuê: <strong className="text-slate-800">{branch.occupiedUnits} ô</strong></span>
-                        <span>Trống: <strong className="text-slate-800">{branch.availableUnits} ô</strong></span>
-                        <span>Tổng ô: <strong className="text-slate-800">{branch.totalUnits} ô</strong></span>
+                        <span>Thuê: <strong className="text-slate-800">{branch.occupiedUnits}</strong></span>
+                        <span>Trống: <strong className="text-slate-800">{branch.availableUnits}</strong></span>
+                        <span>Tổng: <strong className="text-slate-800">{branch.totalUnits} ô</strong></span>
                       </div>
                     </div>
                   );
