@@ -112,6 +112,11 @@ export const approvalRequestsService = {
   },
 
   attachToAppointment(apt: CheckInAppointment): CheckInAppointment {
+    // Ưu tiên dữ liệu trạng thái duyệt đã được lưu trực tiếp trong MongoDB từ Backend
+    if (apt.managerApprovalStatus) {
+      return apt;
+    }
+
     const record = this.get(apt.id);
     if (!record) return apt;
 

@@ -601,6 +601,9 @@ export default function StaffPortalPage() {
   // Action: Nhân viên (Staff) gửi yêu cầu xin mở lại đơn quá hạn tới Quản lý cơ sở
   const handleRequestApproval = async (apt: CheckInAppointment, reason: string) => {
     const staffName = currentUser?.fullName || 'Nhân viên lễ tân';
+    if (isBackendOnline && (apt.rawId || apt.id)) {
+      await handoversApi.requestManagerReopen(apt.rawId || apt.id, reason, staffName).catch(() => null);
+    }
     const record = approvalRequestsService.submitRequest(apt, staffName, reason);
 
     setAppointments((prev) =>
@@ -639,7 +642,11 @@ export default function StaffPortalPage() {
     endOfDay.setHours(23, 59, 59, 999);
     const expiryIso = endOfDay.toISOString();
 
-    // Lưu vào Service để đồng bộ
+    if (isBackendOnline && (apt.rawId || apt.id)) {
+      await handoversApi.reviewManagerReopen(apt.rawId || apt.id, 'APPROVE', reason, managerName).catch(() => null);
+    }
+
+    // Lưu vào Service để đồng bộ tức thì
     approvalRequestsService.approveRequest(apt.id, managerName, reason, expiryIso);
 
     setAppointments((prev) =>
@@ -675,6 +682,9 @@ export default function StaffPortalPage() {
   // Action: Quản lý từ chối mở lại đơn quá hạn
   const handleManagerReject = async (apt: CheckInAppointment, reason: string) => {
     const managerName = currentUser?.fullName || 'Quản lý cơ sở';
+    if (isBackendOnline && (apt.rawId || apt.id)) {
+      await handoversApi.reviewManagerReopen(apt.rawId || apt.id, 'REJECT', reason, managerName).catch(() => null);
+    }
     approvalRequestsService.rejectRequest(apt.id, managerName, reason);
 
     setAppointments((prev) =>

@@ -274,6 +274,17 @@ export function normalizeReservation(item: any): CheckInAppointment {
     contractCode: item.rentalContract?.contractCode || undefined,
     completedAt: rawStatus === 'COMPLETED' ? 'Đã hoàn tất' : undefined,
     cancelReason: item.cancelReason || item.cancellationReason || (rawStatus === 'CANCELLED' ? item.notes : undefined),
+    managerApprovalStatus: item.managerApprovalStatus || undefined,
+    managerApprovalRequestedBy: item.managerApprovalRequestedBy || undefined,
+    managerApprovalRequestedAt: item.managerApprovalRequestedAt || undefined,
+    managerApprovalRequestReason: item.managerApprovalReason || undefined,
+    managerApprovalFacilityName: item.facility?.name || undefined,
+    managerApproverName: item.managerApproverName || undefined,
+    managerApprovedAt: item.managerApprovedAt || undefined,
+    managerApprovedExpiry: item.managerApprovedExpiry || undefined,
+    managerApprovalReason: item.managerApprovalReason || undefined,
+    managerApprovalRejectReason: item.managerApprovalStatus === 'rejected' ? item.managerApprovalReason : undefined,
+    isApprovalExpired: item.managerApprovedExpiry ? new Date() > new Date(item.managerApprovedExpiry) : false,
   };
 }
 
@@ -606,6 +617,38 @@ export const handoversApi = {
       transferAmount: payload.amount,
     };
     return await api.post('/payments/sepay/webhook', webhookPayload);
+  },
+
+  /**
+   * Nhân viên gửi yêu cầu xin Quản lý cơ sở phê duyệt mở lại đơn nhận kho quá hạn (> 24h)
+   * POST /reservations/:id/request-reopen
+   */
+  async requestManagerReopen(
+    reservationId: string | number,
+    reason: string,
+    requestedBy?: string,
+  ): Promise<any> {
+    return await api.post(`/reservations/${reservationId}/request-reopen`, {
+      reason,
+      requestedBy,
+    });
+  },
+
+  /**
+   * Quản lý cơ sở phê duyệt hoặc từ chối mở lại đơn nhận kho quá hạn (> 24h)
+   * POST /reservations/:id/review-reopen
+   */
+  async reviewManagerReopen(
+    reservationId: string | number,
+    action: 'APPROVE' | 'REJECT',
+    reason: string,
+    managerName?: string,
+  ): Promise<any> {
+    return await api.post(`/reservations/${reservationId}/review-reopen`, {
+      action,
+      reason,
+      managerName,
+    });
   },
 
   // ==================== CHECK-OUT / TRẢ KHO & BÀN GIAO ====================

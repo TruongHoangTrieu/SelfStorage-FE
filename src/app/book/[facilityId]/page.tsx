@@ -1622,47 +1622,18 @@ function BookingFlowContent() {
                     </div>
                   </div>
 
-                  {/* Webhook simulation & help */}
+                  {/* Auto-polling status & cancel option */}
                   <div className="mt-8 flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-                    <p className="text-xs text-slate-500 font-medium mb-4 flex items-center gap-1.5">
+                    <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
                       <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
                       <span>Hệ thống đang tự động lắng nghe giao dịch chuyển khoản VietQR (tự động chuyển trang khi hoàn tất)...</span>
                     </p>
 
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md">
-                      <button
-                        type="button"
-                        onClick={handleManualCheckPayment}
-                        disabled={checkingPayment}
-                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-full shadow-md shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {checkingPayment ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <RefreshCw className="w-4 h-4" />
-                        )}
-                        <span>Tôi Đã Chuyển Khoản - Kiểm Tra Ngay</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleSimulatePayment}
-                        disabled={simulatingWebhook}
-                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 px-6 py-3 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase tracking-wider rounded-full border border-slate-300 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {simulatingWebhook ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <QrCode className="w-4 h-4 text-emerald-600" />
-                        )}
-                        <span>Mô Phỏng Webhook (Test)</span>
-                      </button>
-                    </div>
                     <div className="mt-4 pt-4 border-t border-slate-200/60 w-full max-w-md flex justify-center">
                       <button
                         type="button"
                         onClick={handleCancelReservation}
-                        disabled={cancellingReservation || checkingPayment}
+                        disabled={cancellingReservation}
                         className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                       >
                         {cancellingReservation ? (

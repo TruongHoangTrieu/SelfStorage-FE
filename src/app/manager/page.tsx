@@ -678,6 +678,12 @@ export default function ManagerPortalPage() {
     endOfDay.setHours(23, 59, 59, 999);
     const expiryIso = endOfDay.toISOString();
 
+    if (isBackendOnline && (apt.rawId || apt.id)) {
+      await handoversApi
+        .reviewManagerReopen(apt.rawId || apt.id, "APPROVE", reason, managerName)
+        .catch(() => null);
+    }
+
     approvalRequestsService.approveRequest(
       apt.id,
       managerName,
@@ -721,6 +727,11 @@ export default function ManagerPortalPage() {
     reason: string,
   ) => {
     const managerName = currentUser?.fullName || "Quản lý cơ sở";
+    if (isBackendOnline && (apt.rawId || apt.id)) {
+      await handoversApi
+        .reviewManagerReopen(apt.rawId || apt.id, "REJECT", reason, managerName)
+        .catch(() => null);
+    }
     approvalRequestsService.rejectRequest(apt.id, managerName, reason);
 
     setAppointments((prev) =>
