@@ -106,6 +106,11 @@ export default function HandoverProcess({
 
   // Trạng thái các bước
   const [isCustomerVerified, setIsCustomerVerified] = useState<boolean>(true);
+  const [isContractSigned, setIsContractSigned] = useState<boolean>(
+    Boolean(appointment.contractCode || appointment.status === 'completed')
+  );
+  const [signatureName, setSignatureName] = useState<string>(appointment.customerName || '');
+  const [signedAtStr, setSignedAtStr] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'cash'>('vietqr');
   const [isRentalPaidLocally, setIsRentalPaidLocally] = useState<boolean>(
     appointment.rentalStatus === 'paid'
@@ -319,13 +324,9 @@ export default function HandoverProcess({
     } else if (currentStep === 2) {
       setCurrentStep(3);
     } else if (currentStep === 3) {
-      if (!isRentalPaidLocally && remainingAmount > 0) {
-        const confirmProceed = window.confirm(
-          `Khách hàng chưa thanh toán số tiền thuê còn lại (${formatVND(remainingAmount)}).\n\nNhấn 'OK' để tiếp tục cấp mã PIN (ghi nợ thu sau), hoặc 'Cancel' để quay lại xác nhận thu tiền.`
-        );
-        if (!confirmProceed) {
-          return;
-        }
+      if (!isContractSigned) {
+        alert('Vui lòng khách hàng ký xác nhận Hợp đồng thuê kho tại Bước 3 trước khi chuyển sang bước Thanh toán!');
+        return;
       }
       setCurrentStep(4);
     }
@@ -343,6 +344,15 @@ export default function HandoverProcess({
     if (!isCustomerVerified) {
       alert('Vui lòng xác nhận thông tin khách hàng!');
       setCurrentStep(1);
+      return;
+    }
+    if (!isContractSigned) {
+      alert('Vui lòng ký Hợp đồng thuê kho tại Bước 3 trước khi hoàn tất bàn giao!');
+      setCurrentStep(3);
+      return;
+    }
+    if (!isRentalPaidLocally && remainingAmount > 0) {
+      alert(`Vui lòng xác nhận đã thu đủ tiền thuê kho (${formatVND(remainingAmount)}) trước khi cấp mã PIN và hoàn tất bàn giao!`);
       return;
     }
     if (!customPin || customPin.trim().length < 4) {
@@ -369,10 +379,10 @@ export default function HandoverProcess({
   )}&accountName=${encodeURIComponent('TRUONG DINH LONG')}`;
 
   const steps = [
-    { number: 1, label: 'Khách & Ô kho', desc: 'Xác nhận khách & chọn ô' },
+    { number: 1, label: 'CCCD & Ô kho', desc: 'Xác thực khách & gán ô' },
     { number: 2, label: 'Hiện trạng kho', desc: 'Kiểm tra ổ khóa & chụp ảnh' },
-    { number: 3, label: 'Thu tiền thuê', desc: 'Mã VietQR & Tiền mặt' },
-    { number: 4, label: 'Cấp mã PIN', desc: 'Mã mở cửa 24/7 & kích hoạt' },
+    { number: 3, label: 'Ký hợp đồng', desc: 'Ký hợp đồng trước khi thu tiền' },
+    { number: 4, label: 'Thu tiền & Cấp PIN', desc: 'Thanh toán & mở khóa 24/7' },
   ];
 
   return (
@@ -979,289 +989,508 @@ export default function HandoverProcess({
           </div>
         )}
 
-        {/* ================= BƯỚC 3: THU TIỀN THUÊ KHO (CÓ QR TO RÕ NÉT) ================= */}
+        {/* ================= BƯỚC 3: KÝ HỢP ĐỒNG THUÊ KHO ĐIỆN TỬ (TRƯỚC KHI THANH TOÁN) ================= */}
         {currentStep === 3 && (
           <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                  <Banknote className="w-5 h-5 text-blue-600" />
-                  Bước 3: Quyết Toán Tiền Thuê Kho
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  Bước 3: Ký Hợp Đồng Thuê Kho Điện Tử
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Đưa mã VietQR cho khách quét chuyển khoản hoặc thu tiền mặt trực tiếp tại quầy.
+                  Khách hàng kiểm tra các điều khoản và ký xác nhận hợp đồng trước khi thực hiện thanh toán tiền thuê.
                 </p>
               </div>
 
-              {isRentalPaidLocally ? (
-                <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" /> Đã thu tiền
-                </span>
-              ) : (
-                <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
-                  Chưa thu tiền
-                </span>
-              )}
-            </div>
-
-            {/* Bảng số tiền cần thu */}
-            <div className="grid grid-cols-3 gap-3 text-center text-xs">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-slate-400 block mb-0.5">Tổng tiền thuê ({durationMonths}T):</span>
-                <span className="font-bold text-slate-800 text-sm sm:text-base">{formatVND(totalRent)}</span>
-              </div>
-              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
-                <span className="text-emerald-700 block mb-0.5">Đã nộp cọc:</span>
-                <span className="font-bold text-emerald-800 text-sm sm:text-base">
-                  {appointment.depositAmount || formatVND(depositNum)}
-                </span>
-              </div>
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300">
-                <span className="text-amber-800 font-bold block mb-0.5">TIỀN THUÊ CẦN THU:</span>
-                <span className="font-black text-amber-950 text-base sm:text-lg tabular-nums">
-                  {formatVND(remainingAmount)}
-                </span>
+              <div className="flex items-center gap-2">
+                {isContractSigned ? (
+                  <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1 border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Đã ký hợp đồng
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200">
+                    Chờ khách ký hợp đồng
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Lựa chọn phương thức thu */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('vietqr')}
-                className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${paymentMethod === 'vietqr'
-                    ? 'bg-blue-50 border-blue-600 text-blue-900 ring-2 ring-blue-600/20'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-              >
-                <QrCode className="w-4 h-4 text-blue-600" />
-                <span>Chuyển khoản VietQR SePay</span>
-              </button>
+            {/* Tóm tắt nội dung Hợp đồng thuê kho */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block">
+                    Cộng Hòa Xã Hội Chủ Nghĩa Việt Nam • Độc lập - Tự do - Hạnh phúc
+                  </span>
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 mt-0.5">
+                    HỢP ĐỒNG THUÊ Ô KHO TỰ QUẢN #{appointment.contractCode || `CON-${appointment.id}`}
+                  </h4>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onOpenContractModal}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-white hover:bg-blue-50 border border-blue-200 rounded-lg transition cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Xem bản đầy đủ</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenPrintModal}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-slate-600" />
+                    <span>In hợp đồng giấy</span>
+                  </button>
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('cash')}
-                className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${paymentMethod === 'cash'
-                    ? 'bg-emerald-50 border-emerald-600 text-emerald-900 ring-2 ring-emerald-600/20'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-              >
-                <Banknote className="w-4 h-4 text-emerald-600" />
-                <span>Tiền mặt tại quầy</span>
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase block">Bên Thuê Kho (Bên B)</span>
+                  <p className="text-slate-800">Họ và tên: <strong className="text-slate-950">{appointment.customerName}</strong></p>
+                  <p className="text-slate-800">Số điện thoại: <strong>{appointment.phone}</strong></p>
+                  <p className="text-slate-800">
+                    Số {appointment.identityType || manualIdType}:{' '}
+                    <strong className="font-mono">
+                      {isUnmasked ? unmaskedNumber : (appointment.idCard || manualIdInput || 'Đã đối chiếu')}
+                    </strong>
+                  </p>
+                  <p className="text-slate-800">
+                    Địa chỉ: <strong>{manualIdAddress || appointment.identityAddress || 'Theo hồ sơ CCCD'}</strong>
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase block">Thông Tin Ô Kho &amp; Tài Chính</span>
+                  <p className="text-slate-800">
+                    Ô kho bàn giao: <strong className="text-blue-700">Ô #{activeUnit}</strong> ({appointment.unitType} • {appointment.unitSize})
+                  </p>
+                  <p className="text-slate-800">
+                    Thời hạn thuê: <strong>{durationMonths} tháng</strong> (Bắt đầu từ {appointment.startDate || appointment.dateDisplay})
+                  </p>
+                  <p className="text-slate-800">
+                    Tổng giá trị hợp đồng: <strong>{formatVND(totalRent)}</strong> (Đã cọc: <strong className="text-emerald-700">{appointment.depositAmount || formatVND(depositNum)}</strong>)
+                  </p>
+                  <p className="text-slate-800">
+                    Số tiền cần thanh toán sau khi ký: <strong className="text-amber-700 text-sm">{formatVND(remainingAmount)}</strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* Tóm tắt điều khoản chính */}
+              <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5 text-slate-600 leading-relaxed">
+                <strong className="text-slate-900 block">Cam kết và Điều khoản chính:</strong>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Bên B cam kết không lưu trữ hàng quốc cấm, chất dễ cháy nổ, hóa chất độc hại hoặc động thực vật sống trong ô kho #{activeUnit}.</li>
+                  <li>Bên B đã kiểm tra và đồng ý với biên bản hiện trạng ô kho tại Bước 2 ({photos.length} ảnh đính kèm: <em>{condition}</em>).</li>
+                  <li>Hợp đồng có hiệu lực ngay sau khi Bên B hoàn tất ký xác nhận và thanh toán số tiền thuê kỳ đầu ({formatVND(remainingAmount)}).</li>
+                </ul>
+              </div>
             </div>
 
-            {/* KHUNG HIỂN THỊ MÃ VIETQR TRỰC TIẾP */}
-            {paymentMethod === 'vietqr' && (
-              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center gap-6">
-                {/* Ảnh QR Code */}
-                <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0 text-center">
-                  <img
-                    src={qrUrl}
-                    alt="VietQR Code"
-                    className="w-52 h-52 object-contain mx-auto rounded-lg"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
-                        `THANH TOAN ${appointment.id} - ${formatVND(remainingAmount)}`
-                      )}`;
-                      if (target.src !== fallback) {
-                        target.src = fallback;
+            {/* Khung Ký Hợp Đồng Điện Tử */}
+            <div className={`p-5 rounded-2xl border-2 transition ${
+              isContractSigned
+                ? 'bg-emerald-50/50 border-emerald-300'
+                : 'bg-indigo-50/40 border-indigo-200'
+            } space-y-4`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <ShieldCheck className={`w-4 h-4 ${isContractSigned ? 'text-emerald-600' : 'text-indigo-600'}`} />
+                    Xác Nhận Chữ Ký Điện Tử Của Khách Hàng
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Bắt buộc hoàn tất ký hợp đồng trước khi hệ thống mở khóa bước Quyết toán thanh toán &amp; Cấp mã PIN.
+                  </p>
+                </div>
+                {isContractSigned && signedAtStr && (
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-200">
+                    Đã ký lúc: {signedAtStr}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Họ tên chữ ký xác nhận của Khách hàng (Bên B):
+                  </label>
+                  <input
+                    type="text"
+                    value={signatureName}
+                    onChange={(e) => setSignatureName(e.target.value)}
+                    placeholder="Nhập họ tên xác nhận chữ ký..."
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div className="p-4 rounded-xl bg-white border border-dashed border-slate-300 text-center flex flex-col items-center justify-center min-h-[88px]">
+                  {isContractSigned ? (
+                    <div className="space-y-0.5">
+                      <div className="font-serif italic text-xl font-bold text-blue-900 tracking-wide">
+                        {signatureName || appointment.customerName}
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                        ✓ Đã ký điện tử xác nhận hợp đồng
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400">
+                      Chưa có chữ ký điện tử • Nhấn nút xác nhận ký bên dưới
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={isContractSigned}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsContractSigned(checked);
+                      if (checked) {
+                        setSignedAtStr(new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
                       }
                     }}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                   />
-                  <span className="text-[10px] text-slate-400 block mt-2 font-medium">
-                    Quét bằng mọi ứng dụng Ngân hàng
+                  <span>
+                    Tôi ({signatureName || appointment.customerName}) đã đọc, đồng ý toàn bộ điều khoản và ký xác nhận Hợp đồng thuê kho
                   </span>
-                </div>
+                </label>
 
-                {/* Thông tin chuyển khoản */}
-                <div className="space-y-3 text-xs flex-1 w-full">
-                  <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Ngân hàng thụ hưởng:</span>
-                      <strong className="text-slate-800 font-bold">MBBank (Quân Đội)</strong>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Số tài khoản:</span>
-                      <strong className="text-blue-900 font-mono text-sm font-black">0838500046</strong>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy('0838500046', 'STK')}
-                      className="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition cursor-pointer"
-                    >
-                      {copiedField === 'STK' ? 'Đã chép!' : 'Sao chép'}
-                    </button>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Chủ tài khoản:</span>
-                      <strong className="text-slate-800 font-bold">TRUONG DINH LONG</strong>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-amber-800 text-[10px] font-bold block">Nội dung chuyển khoản:</span>
-                      <strong className="text-amber-950 font-mono text-xs font-black">{paymentContent}</strong>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(paymentContent, 'Nội dung')}
-                      className="px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-lg transition cursor-pointer"
-                    >
-                      {copiedField === 'Nội dung' ? 'Đã chép!' : 'Sao chép'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB TIỀN MẶT */}
-            {paymentMethod === 'cash' && (
-              <div className="p-8 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center space-y-3">
-                <div className="w-14 h-14 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-sm">
-                  <Banknote className="w-7 h-7" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-emerald-950 text-base">Thu Tiền Mặt Trực Tiếp Tại Quầy</h4>
-                  <p className="text-xs text-emerald-700 mt-1">
-                    Số tiền cần nhận từ khách hàng {appointment.customerName}:
-                  </p>
-                  <div className="text-3xl font-black text-emerald-900 mt-2">
-                    {formatVND(remainingAmount)}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Nút xác nhận đã thu tiền */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setIsRentalPaidLocally(!isRentalPaidLocally)}
-                className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer ${isRentalPaidLocally
-                    ? 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm'
-                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/20'
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextState = !isContractSigned;
+                    setIsContractSigned(nextState);
+                    if (nextState) {
+                      setSignedAtStr(new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                    }
+                  }}
+                  className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+                    isContractSigned
+                      ? 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/20'
                   }`}
-              >
-                {isRentalPaidLocally ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Đã Thu Đủ {formatVND(remainingAmount)} (Nhấn nếu muốn đổi lại)</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Xác Nhận Đã Thu Đủ {formatVND(remainingAmount)}</span>
-                  </>
-                )}
-              </button>
+                >
+                  {isContractSigned ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Đã Ký Hợp Đồng (Nhấn nếu muốn ký lại)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Xác Nhận Ký Hợp Đồng Điện Tử</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* ================= BƯỚC 4: CẤP MÃ PIN & KÍCH HOẠT KHO ================= */}
+        {/* ================= BƯỚC 4: THU TIỀN THUÊ KHO & CẤP MÃ PIN KÍCH HOẠT ================= */}
         {currentStep === 4 && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-blue-600" />
-                  Bước 4: Cấp Mã PIN Smart Lock &amp; Hoàn Tất Bàn Giao
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Thiết lập mã PIN mở cửa Smart Lock và kích hoạt ô kho #{activeUnit} cho khách hàng.
-                </p>
-              </div>
-              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200">
-                Ô #{activeUnit}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
-              {/* Nhập mã PIN */}
-              <div className="space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-800">Mã PIN Smart Lock (6 số):</label>
-                  <button
-                    type="button"
-                    onClick={handleGenerateRandomPin}
-                    className="text-[11px] text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <Key className="w-3 h-3" />
-                    <span>Sinh mã ngẫu nhiên</span>
-                  </button>
+          <div className="space-y-7 animate-fade-in">
+            {/* Phần 4A: Quyết toán tiền thuê kho (Sau khi đã ký hợp đồng) */}
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                      <Banknote className="w-5 h-5 text-blue-600" />
+                      Bước 4.1: Quyết Toán Tiền Thuê Kho (Sau Khi Ký Hợp Đồng)
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">
+                      ✓ Hợp đồng đã ký
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Đưa mã VietQR cho khách quét chuyển khoản hoặc thu tiền mặt trực tiếp tại quầy để mở khóa cấp mã PIN.
+                  </p>
                 </div>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={customPin}
-                  onChange={(e) => onChangeCustomPin(e.target.value)}
-                  placeholder="VD: 891234"
-                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-black text-2xl tracking-widest text-center rounded-xl py-3.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-                />
-                <span className="text-[10px] text-slate-500 block text-center">
-                  Mã này dùng để mở khóa điện tử 24/7 và đồng bộ vào App khách hàng
-                </span>
+
+                {isRentalPaidLocally ? (
+                  <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1 self-start sm:self-auto">
+                    <Check className="w-3.5 h-3.5" /> Đã thu tiền thuê
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold self-start sm:self-auto">
+                    Chờ thanh toán
+                  </span>
+                )}
               </div>
 
-              {/* Mã RFID phụ */}
-              <div className="space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
-                <label className="font-bold text-slate-800 block">
-                  Mã thẻ từ RFID phụ (Nếu cấp thẻ vật lý):
-                </label>
-                <input
-                  type="text"
-                  value={customRfid}
-                  onChange={(e) => onChangeCustomRfid(e.target.value)}
-                  placeholder="Quẹt thẻ hoặc nhập mã RFID..."
-                  className="w-full bg-white border border-slate-300 text-slate-900 font-mono text-sm rounded-xl py-3.5 px-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-                />
-                <span className="text-[10px] text-slate-500 block">
-                  Không bắt buộc nếu khách chỉ sử dụng mã PIN bàn phím số
-                </span>
-              </div>
-
-              {/* Ghi chú dặn dò */}
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="font-bold text-slate-800 block">
-                  Ghi chú dặn dò khi bàn giao:
-                </label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => onChangeNotes?.(e.target.value)}
-                  placeholder="VD: Đã hướng dẫn khách mở khóa qua mã PIN và ứng dụng Mobile..."
-                  className="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-                />
-              </div>
-            </div>
-
-            {/* Tóm tắt tình trạng trước khi bấm hoàn tất */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                  <Check className="w-4 h-4" /> Khách hàng đã xác nhận
+              {/* Bảng số tiền cần thu */}
+              <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-slate-400 block mb-0.5">Tổng tiền thuê ({durationMonths}T):</span>
+                  <span className="font-bold text-slate-800 text-sm sm:text-base">{formatVND(totalRent)}</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
-                  <Check className="w-4 h-4" /> Hiện trạng đã kiểm tra
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                  <span className="text-emerald-700 block mb-0.5">Đã nộp cọc:</span>
+                  <span className="font-bold text-emerald-800 text-sm sm:text-base">
+                    {appointment.depositAmount || formatVND(depositNum)}
+                  </span>
                 </div>
-                <div
-                  className={`flex items-center gap-1.5 font-bold ${isRentalPaidLocally ? 'text-emerald-700' : 'text-amber-700'
+                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300">
+                  <span className="text-amber-800 font-bold block mb-0.5">TIỀN THUÊ CẦN THU:</span>
+                  <span className="font-black text-amber-950 text-base sm:text-lg tabular-nums">
+                    {formatVND(remainingAmount)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Lựa chọn phương thức thu */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('vietqr')}
+                  className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${paymentMethod === 'vietqr'
+                      ? 'bg-blue-50 border-blue-600 text-blue-900 ring-2 ring-blue-600/20'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                     }`}
                 >
-                  {isRentalPaidLocally ? <Check className="w-4 h-4" /> : '•'}
-                  {isRentalPaidLocally ? 'Đã thu tiền thuê' : 'Thu tiền thuê sau'}
+                  <QrCode className="w-4 h-4 text-blue-600" />
+                  <span>Chuyển khoản VietQR SePay</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('cash')}
+                  className={`p-3.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${paymentMethod === 'cash'
+                      ? 'bg-emerald-50 border-emerald-600 text-emerald-900 ring-2 ring-emerald-600/20'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                >
+                  <Banknote className="w-4 h-4 text-emerald-600" />
+                  <span>Tiền mặt tại quầy</span>
+                </button>
+              </div>
+
+              {/* KHUNG HIỂN THỊ MÃ VIETQR TRỰC TIẾP */}
+              {paymentMethod === 'vietqr' && (
+                <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center gap-6">
+                  {/* Ảnh QR Code */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0 text-center">
+                    <img
+                      src={qrUrl}
+                      alt="VietQR Code"
+                      className="w-52 h-52 object-contain mx-auto rounded-lg"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const fallback = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                          `THANH TOAN ${appointment.id} - ${formatVND(remainingAmount)}`
+                        )}`;
+                        if (target.src !== fallback) {
+                          target.src = fallback;
+                        }
+                      }}
+                    />
+                    <span className="text-[10px] text-slate-400 block mt-2 font-medium">
+                      Quét bằng mọi ứng dụng Ngân hàng
+                    </span>
+                  </div>
+
+                  {/* Thông tin chuyển khoản */}
+                  <div className="space-y-3 text-xs flex-1 w-full">
+                    <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-400 text-[10px] block">Ngân hàng thụ hưởng:</span>
+                        <strong className="text-slate-800 font-bold">MBBank (Quân Đội)</strong>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-400 text-[10px] block">Số tài khoản:</span>
+                        <strong className="text-blue-900 font-mono text-sm font-black">0838500046</strong>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy('0838500046', 'STK')}
+                        className="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition cursor-pointer"
+                      >
+                        {copiedField === 'STK' ? 'Đã chép!' : 'Sao chép'}
+                      </button>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-400 text-[10px] block">Chủ tài khoản:</span>
+                        <strong className="text-slate-800 font-bold">TRUONG DINH LONG</strong>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-amber-800 text-[10px] font-bold block">Nội dung chuyển khoản:</span>
+                        <strong className="text-amber-950 font-mono text-xs font-black">{paymentContent}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(paymentContent, 'Nội dung')}
+                        className="px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-lg transition cursor-pointer"
+                      >
+                        {copiedField === 'Nội dung' ? 'Đã chép!' : 'Sao chép'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB TIỀN MẶT */}
+              {paymentMethod === 'cash' && (
+                <div className="p-8 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center space-y-3">
+                  <div className="w-14 h-14 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-sm">
+                    <Banknote className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-emerald-950 text-base">Thu Tiền Mặt Trực Tiếp Tại Quầy</h4>
+                    <p className="text-xs text-emerald-700 mt-1">
+                      Số tiền cần nhận từ khách hàng {appointment.customerName}:
+                    </p>
+                    <div className="text-3xl font-black text-emerald-900 mt-2">
+                      {formatVND(remainingAmount)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Nút xác nhận đã thu tiền */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsRentalPaidLocally(!isRentalPaidLocally)}
+                  className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer ${isRentalPaidLocally
+                      ? 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/20'
+                    }`}
+                >
+                  {isRentalPaidLocally ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Đã Thu Đủ {formatVND(remainingAmount)} — Đã Mở Khóa Cấp Mã PIN Bên Dưới</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Xác Nhận Đã Thu Đủ {formatVND(remainingAmount)} Để Cấp Mã PIN</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Phần 4B: Cấp Mã PIN Smart Lock & Kích hoạt kho (Mở khóa sau khi thanh toán) */}
+            <div className={`pt-6 border-t border-slate-200 space-y-5 transition ${
+              !isRentalPaidLocally && remainingAmount > 0 ? 'opacity-60 pointer-events-none select-none' : ''
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-blue-600" />
+                    Bước 4.2: Cấp Mã PIN Smart Lock &amp; Hoàn Tất Bàn Giao
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Thiết lập mã PIN mở cửa Smart Lock và kích hoạt ô kho #{activeUnit} cho khách hàng.
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200">
+                  Ô #{activeUnit}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
+                {/* Nhập mã PIN */}
+                <div className="space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-800">Mã PIN Smart Lock (6 số):</label>
+                    <button
+                      type="button"
+                      onClick={handleGenerateRandomPin}
+                      className="text-[11px] text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Key className="w-3 h-3" />
+                      <span>Sinh mã ngẫu nhiên</span>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={customPin}
+                    onChange={(e) => onChangeCustomPin(e.target.value)}
+                    placeholder="VD: 891234"
+                    className="w-full bg-white border border-slate-300 text-slate-900 font-mono font-black text-2xl tracking-widest text-center rounded-xl py-3.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
+                  <span className="text-[10px] text-slate-500 block text-center">
+                    Mã này dùng để mở khóa điện tử 24/7 và đồng bộ vào App khách hàng
+                  </span>
+                </div>
+
+                {/* Mã RFID phụ */}
+                <div className="space-y-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <label className="font-bold text-slate-800 block">
+                    Mã thẻ từ RFID phụ (Nếu cấp thẻ vật lý):
+                  </label>
+                  <input
+                    type="text"
+                    value={customRfid}
+                    onChange={(e) => onChangeCustomRfid(e.target.value)}
+                    placeholder="Quẹt thẻ hoặc nhập mã RFID..."
+                    className="w-full bg-white border border-slate-300 text-slate-900 font-mono text-sm rounded-xl py-3.5 px-3 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
+                  <span className="text-[10px] text-slate-500 block">
+                    Không bắt buộc nếu khách chỉ sử dụng mã PIN bàn phím số
+                  </span>
+                </div>
+
+                {/* Ghi chú dặn dò */}
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="font-bold text-slate-800 block">
+                    Ghi chú dặn dò khi bàn giao:
+                  </label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => onChangeNotes?.(e.target.value)}
+                    placeholder="VD: Đã hướng dẫn khách mở khóa qua mã PIN và ứng dụng Mobile..."
+                    className="w-full bg-slate-50 border border-slate-300 text-slate-800 text-xs rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+                  />
                 </div>
               </div>
-              <div className="text-slate-500">
-                Nhân viên bàn giao: <strong>{staffName}</strong>
+
+              {/* Tóm tắt tình trạng trước khi bấm hoàn tất */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
+                    <Check className="w-4 h-4" /> Đã xác thực CCCD
+                  </div>
+                  <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
+                    <Check className="w-4 h-4" /> Đã kiểm tra hiện trạng
+                  </div>
+                  <div className="flex items-center gap-1.5 text-emerald-700 font-bold">
+                    <Check className="w-4 h-4" /> Đã ký hợp đồng
+                  </div>
+                  <div
+                    className={`flex items-center gap-1.5 font-bold ${isRentalPaidLocally ? 'text-emerald-700' : 'text-amber-700'
+                      }`}
+                  >
+                    {isRentalPaidLocally ? <Check className="w-4 h-4" /> : '•'}
+                    {isRentalPaidLocally ? 'Đã thu tiền thuê' : 'Chờ thu tiền thuê'}
+                  </div>
+                </div>
+                <div className="text-slate-500">
+                  Nhân viên bàn giao: <strong>{staffName}</strong>
+                </div>
               </div>
             </div>
           </div>
