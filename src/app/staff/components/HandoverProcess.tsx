@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { CheckInAppointment, AvailableUnit } from '../types';
 import { handoversApi } from '@/lib/api/handovers';
+import ContractModal from './ContractModal';
 
 interface HandoverProcessProps {
   appointment: CheckInAppointment;
@@ -111,6 +112,7 @@ export default function HandoverProcess({
   );
   const [signatureName, setSignatureName] = useState<string>(appointment.customerName || '');
   const [signedAtStr, setSignedAtStr] = useState<string>('');
+  const [isLocalContractOpen, setIsLocalContractOpen] = useState<boolean>(false);
   const [paymentMethod, setPaymentMethod] = useState<'vietqr' | 'cash'>('vietqr');
   const [isRentalPaidLocally, setIsRentalPaidLocally] = useState<boolean>(
     appointment.rentalStatus === 'paid'
@@ -416,7 +418,7 @@ export default function HandoverProcess({
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             type="button"
-            onClick={onOpenContractModal}
+            onClick={() => setIsLocalContractOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition cursor-pointer"
           >
             <FileText className="w-4 h-4 text-blue-600" />
@@ -1030,11 +1032,11 @@ export default function HandoverProcess({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={onOpenContractModal}
+                    onClick={() => setIsLocalContractOpen(true)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-white hover:bg-blue-50 border border-blue-200 rounded-lg transition cursor-pointer"
                   >
                     <Eye className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Xem bản đầy đủ</span>
+                    <span>{isContractSigned ? 'Xem bản đã ký (Read-Only)' : 'Xem & sửa bản dự thảo'}</span>
                   </button>
                   <button
                     type="button"
@@ -1545,6 +1547,15 @@ export default function HandoverProcess({
           </button>
         )}
       </div>
+
+      {/* ─── Modal Xem / Chỉnh Sửa Dự Thảo Hợp Đồng (Khóa Read-Only ngay sau khi ký) ─── */}
+      <ContractModal
+        isOpen={isLocalContractOpen}
+        onClose={() => setIsLocalContractOpen(false)}
+        appointment={appointment}
+        assignedUnit={activeUnit}
+        readOnly={isContractSigned}
+      />
 
       {/* ─── Lightbox Xem Ảnh Phóng To ─── */}
       {selectedPhoto && (

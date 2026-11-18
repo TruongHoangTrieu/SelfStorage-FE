@@ -35,6 +35,7 @@ import {
   Key,
   AlertTriangle,
   UserX,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -49,6 +50,8 @@ import {
 import MultiBranchRevenueAnalytics from "../admin/components/MultiBranchRevenueAnalytics";
 import FacilityLayoutView from "../staff/components/FacilityLayoutView";
 import UnitTypesPricingManager from "../staff/components/UnitTypesPricingManager";
+import ContractModal from "../staff/components/ContractModal";
+import { CheckInAppointment } from "../staff/types";
 
 type OpsTab =
   | "performance"
@@ -125,6 +128,51 @@ export default function BusinessOperationsPage() {
   const [reportFacilityFilter, setReportFacilityFilter] = useState("ALL");
   const [reportStatusFilter, setReportStatusFilter] = useState("ALL");
   const [reportSearch, setReportSearch] = useState("");
+  const [selectedOpsContract, setSelectedOpsContract] = useState<CheckInAppointment | null>(null);
+
+  const mapOpsContractToAppointment = (c: any): CheckInAppointment => {
+    const start = c.startDate ? new Date(c.startDate) : new Date();
+    const end = c.endDate ? new Date(c.endDate) : new Date();
+    const diffMonths = Math.max(1, Math.round((end.getTime() - start.getTime()) / (30 * 24 * 3600 * 1000)));
+    const fmt = (v?: number | string) => new Intl.NumberFormat("vi-VN").format(Number(v) || 0) + " đ";
+
+    return {
+      id: c.reservation?.reservationCode || c.contractCode || c.id,
+      rawId: c.reservationId || c.reservation?.id || c.id,
+      reservationCode: c.reservation?.reservationCode || c.contractCode,
+      contractCode: c.contractCode || c.contractNumber,
+      facilityId: c.facilityId || c.facility?.id,
+      facilityName: c.facility?.name || c.facilityName || "Cơ sở SelfStorage",
+      facilityAddress: c.facility?.address || "",
+      customerName: c.customer?.fullName || c.customerName || "Khách hàng",
+      phone: c.customer?.phone || c.customerPhone || "",
+      email: c.customer?.email || c.customerEmail || "",
+      idCard: c.maskedIdentityNumber || c.customerIdentityNumber || "079******345",
+      identityType: c.customerIdentityType || "CCCD",
+      identityAddress: c.customerAddress || "",
+      identityFrontUrl: c.customerIdentityFrontUrl || "",
+      identityBackUrl: c.customerIdentityBackUrl || "",
+      isIdentityVerified: true,
+      slotTime: "Đã bàn giao",
+      dateDisplay: start.toLocaleDateString("vi-VN"),
+      timeCategory: "morning",
+      unitType: c.unitTypeName || "Kho Tiêu chuẩn",
+      unitSize: c.unitSize || "3m²",
+      assignedUnit: c.storageUnit?.unitNumber || c.unitNumber || "A-101",
+      preferredFloor: c.storageUnit?.floor ? `Tầng ${c.storageUnit.floor}` : "Tầng 1",
+      status: "completed",
+      depositStatus: "paid",
+      rentalStatus: "paid",
+      depositAmount: fmt(c.depositAmount || 500000),
+      monthlyRent: fmt(c.monthlyRent || c.rentalFee || 1500000),
+      startDate: start.toLocaleDateString("vi-VN"),
+      durationMonths: diffMonths,
+      purpose: "Lưu trữ tài sản cá nhân / doanh nghiệp",
+      accessPin: c.accessPin || "******",
+      condition: c.handoverCondition || "Kho sạch sẽ, khóa thông minh hoạt động tốt",
+      photos: Array.isArray(c.handoverPhotos) ? c.handoverPhotos : [],
+    };
+  };
 
   // Branch Personnel Management State (Scoped to FACILITY_STAFF & FACILITY_MANAGER only)
   const [allUsers, setAllUsers] = useState<UserItem[]>([]);
@@ -1577,12 +1625,13 @@ export default function BusinessOperationsPage() {
                           <th className="px-4 py-3">Thời Hạn</th>
                           <th className="px-4 py-3 text-right">Tiền Thuê / Tháng</th>
                           <th className="px-4 py-3 text-center">Trạng Thái</th>
+                          <th className="px-4 py-3 text-right">Kiểm Toán Hồ Sơ</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {filteredReportContracts.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                            <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
                               Không có dữ liệu hợp đồng nào thỏa mãn bộ lọc
                             </td>
                           </tr>
@@ -1621,6 +1670,17 @@ export default function BusinessOperationsPage() {
                                 >
                                   {c.status || "ACTIVE"}
                                 </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedOpsContract(mapOpsContractToAppointment(c))}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition cursor-pointer"
+                                  title="Xem văn bản Hợp đồng điện tử & chữ ký"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>Xem Hồ Sơ HĐ</span>
+                                </button>
                               </td>
                             </tr>
                           ))
@@ -2393,6 +2453,16 @@ export default function BusinessOperationsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {selectedOpsContract && (
+        <ContractModal
+          isOpen={Boolean(selectedOpsContract)}
+          onClose={() => setSelectedOpsContract(null)}
+          appointment={selectedOpsContract}
+          assignedUnit={selectedOpsContract.assignedUnit}
+          readOnly={true}
+        />
       )}
 
           </div>

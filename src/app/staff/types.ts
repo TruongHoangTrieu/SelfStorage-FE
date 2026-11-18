@@ -34,6 +34,7 @@ export interface CheckInAppointment {
   durationMonths: number;
   purpose: string;
   specialNotes?: string;
+  condition?: string;
   accessPin?: string;
   rfidCard?: string;
   contractCode?: string; // Mã hợp đồng sinh ra từ Backend (CON-...)

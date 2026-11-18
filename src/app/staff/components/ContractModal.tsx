@@ -4,7 +4,6 @@ import React, { useRef, useState } from 'react';
 import {
   Printer,
   CheckCircle2,
-  Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CheckInAppointment } from '../types';
@@ -17,6 +16,7 @@ interface ContractModalProps {
   appointment: CheckInAppointment;
   assignedUnit: string;
   onPrint?: () => void;
+  readOnly?: boolean;
 }
 
 export default function ContractModal({
@@ -24,10 +24,13 @@ export default function ContractModal({
   onClose,
   appointment,
   assignedUnit,
+  readOnly = false,
 }: ContractModalProps) {
   const printContentRef = useRef<HTMLDivElement>(null);
+  const isSignedContract = readOnly || appointment?.status === 'completed' || Boolean(appointment?.contractCode);
   const [isEditable, setIsEditable] = useState(false);
-  const [isAgreed, setIsAgreed] = useState(false);
+  const [isAgreed, setIsAgreed] = useState(isSignedContract);
+  const canEditDraft = !isSignedContract && isEditable;
 
   if (!isOpen || !appointment) return null;
 
@@ -150,17 +153,20 @@ export default function ContractModal({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsEditable(!isEditable)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
-                isEditable
-                  ? 'bg-amber-100 text-amber-900 border-amber-300'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
-              }`}
-              title="Bật/tắt chế độ sửa trực tiếp nội dung hợp đồng"
-            >
-              <span>{isEditable ? 'Đang sửa (Bấm để xong)' : 'Sửa trực tiếp'}</span>
-            </button>
+            {!isSignedContract && (
+              <button
+                type="button"
+                onClick={() => setIsEditable(!isEditable)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
+                  isEditable
+                    ? 'bg-amber-100 text-amber-900 border-amber-300'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+                }`}
+                title="Bật/tắt chế độ sửa bản dự thảo hợp đồng trước khi ký"
+              >
+                <span>{isEditable ? 'Đang sửa dự thảo (Bấm để xong)' : 'Sửa bản dự thảo (Trước khi ký)'}</span>
+              </button>
+            )}
             <button
               onClick={onClose}
               className="text-slate-400 hover:text-slate-700 p-2 rounded-xl text-lg leading-none hover:bg-slate-100 transition-colors cursor-pointer"
@@ -171,10 +177,13 @@ export default function ContractModal({
           </div>
         </div>
 
-        {isEditable && (
+        {canEditDraft && (
           <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-xs text-amber-800 flex items-center justify-between">
-            <span><strong>Chế độ sửa trực tiếp đang bật:</strong> Bạn có thể nhấp chuột trực tiếp vào bất kỳ dòng chữ nào bên dưới để sửa hoặc bổ sung thông tin trước khi in.</span>
+            <span>
+              <strong>Chế độ sửa bản dự thảo (Trước khi ký):</strong> Bạn có thể nhấp vào văn bản bên dưới để bổ sung/điều chỉnh thông tin thỏa thuận với khách trước khi khách ký xác nhận.
+            </span>
             <button
+              type="button"
               onClick={() => setIsEditable(false)}
               className="text-[11px] font-bold text-amber-900 underline ml-2 cursor-pointer"
             >
@@ -188,10 +197,10 @@ export default function ContractModal({
           {/* Paper Sheet Container (Mô phỏng tài liệu pháp lý A4 trang trọng) */}
           <div
             ref={printContentRef}
-            contentEditable={isEditable}
+            contentEditable={canEditDraft}
             suppressContentEditableWarning={true}
-            className={`bg-white max-w-3xl mx-auto p-8 sm:p-14 rounded-2xl shadow-md border space-y-7 text-xs sm:text-sm text-slate-800 transition-all ${
-              isEditable ? 'border-amber-400 ring-2 ring-amber-200/60 focus:outline-none' : 'border-slate-200'
+            className={`bg-white max-w-3xl mx-auto p-8 sm:p-14 rounded-2xl shadow-md border space-y-7 text-xs sm:text-sm text-slate-800 select-text transition-all ${
+              canEditDraft ? 'border-amber-400 ring-2 ring-amber-200/60 focus:outline-none' : 'border-slate-200'
             }`}
           >
             {/* 1. Quốc hiệu & Tiêu ngữ */}
@@ -413,26 +422,35 @@ export default function ContractModal({
               </div>
             </div>
 
-            {/* Khối Checkbox Đồng Ý Điều Khoản (Bắt buộc tích chọn trước khi ký/in) */}
+            {/* Khối Xác Nhận Đồng Ý Điều Khoản */}
             <div className={`mt-8 p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 select-none ${
-              isAgreed 
-                ? 'bg-blue-50/70 border-blue-400 shadow-xs' 
+              isSignedContract || isAgreed
+                ? 'bg-emerald-50/70 border-emerald-400 shadow-xs'
                 : 'bg-slate-50 border-slate-200 hover:border-slate-300'
             }`}>
-              <label className="flex items-start gap-3.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="contract-agreement-checkbox"
-                  checked={isAgreed}
-                  onChange={(e) => setIsAgreed(e.target.checked)}
-                  className="mt-0.5 w-5 h-5 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
-                />
-                <span className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
-                  <strong className="text-slate-900 font-bold block sm:inline">
-                    Tôi xác nhận đã đọc, hiểu rõ và đồng ý với toàn bộ điều khoản Hợp đồng
-                  </strong>  
-                </span>
-              </label>
+              {isSignedContract ? (
+                <div className="flex items-center gap-3 text-emerald-800 text-xs sm:text-sm font-bold">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>
+                    Hợp đồng điện tử đã được hai bên ký xác nhận
+                  </span>
+                </div>
+              ) : (
+                <label className="flex items-start gap-3.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="contract-agreement-checkbox"
+                    checked={isAgreed}
+                    onChange={(e) => setIsAgreed(e.target.checked)}
+                    className="mt-0.5 w-5 h-5 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
+                  />
+                  <span className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+                    <strong className="text-slate-900 font-bold block sm:inline">
+                      Tôi xác nhận đã đọc, hiểu rõ và đồng ý với toàn bộ điều khoản Hợp đồng
+                    </strong>
+                  </span>
+                </label>
+              )}
             </div>
 
             {/* 6. Chữ ký 2 bên (Format chuẩn văn bản) */}
@@ -445,7 +463,11 @@ export default function ContractModal({
                   <div className="text-[11px] text-slate-500 italic">
                     (Ký, đóng dấu hoặc Chữ ký số)
                   </div>
-                  <div className="h-20" />
+                  <div className="h-20 flex items-center justify-center">
+                    <span className="px-3 py-1 rounded border-2 border-rose-600/80 text-rose-700 font-extrabold text-[11px] uppercase tracking-wider -rotate-6">
+                      ✓ Đã Ký Số SelfStorage VN
+                    </span>
+                  </div>
                   <div className="text-xs font-bold text-slate-800">
                     CÔNG TY CP SELFSTORAGE VN
                   </div>
@@ -461,7 +483,18 @@ export default function ContractModal({
                   <div className="text-[11px] text-slate-500 italic">
                     (Ký và ghi rõ họ tên)
                   </div>
-                  <div className="h-20" />
+                  <div className="h-20 flex flex-col items-center justify-center">
+                    {(isSignedContract || isAgreed) && (
+                      <>
+                        <span className="font-serif italic text-lg font-bold text-blue-900">
+                          {appointment.customerName}
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase">
+                          ✓ Đã ký xác nhận điện tử
+                        </span>
+                      </>
+                    )}
+                  </div>
                   <div className="text-xs font-bold text-slate-900">
                     {appointment.customerName}
                   </div>
@@ -477,11 +510,13 @@ export default function ContractModal({
         {/* Modal Footer Controls */}
         <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
           <div className="text-xs text-slate-500 flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${isAgreed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            <span className={`w-2 h-2 rounded-full shrink-0 ${isSignedContract || isAgreed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
             <span>
-              {isAgreed
-                ? 'Đã xác nhận đồng ý điều khoản. Hợp đồng sẵn sàng ký và in.'
-                : 'Vui lòng tích chọn ô "Tôi đồng ý điều khoản" ở trên để kích hoạt ký & in hợp đồng.'}
+              {isSignedContract
+                ? 'Chế độ Kiểm toán & Tra cứu Hợp đồng (Read-Only) — Không cho phép chỉnh sửa văn bản pháp lý.'
+                : isAgreed
+                  ? 'Đã xác nhận đồng ý điều khoản. Hợp đồng sẵn sàng ký và in.'
+                  : 'Vui lòng tích chọn ô "Tôi đồng ý điều khoản" ở trên để kích hoạt ký & in hợp đồng.'}
             </span>
           </div>
 
@@ -494,15 +529,15 @@ export default function ContractModal({
             </button>
             <button
               onClick={() => {
-                if (!isAgreed) {
+                if (!isSignedContract && !isAgreed) {
                   toast.error('Vui lòng tích chọn vào ô xác nhận đồng ý với tất cả điều khoản hợp đồng trước khi in/ký.');
                   return;
                 }
                 handlePrintPdf(false);
               }}
-              disabled={!isAgreed}
+              disabled={!isSignedContract && !isAgreed}
               className={`inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold rounded-xl shadow-xs transition-all ${
-                isAgreed
+                isSignedContract || isAgreed
                   ? 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95 cursor-pointer shadow-blue-600/20'
                   : 'bg-slate-300 text-slate-500 opacity-70 cursor-not-allowed'
               }`}

@@ -47,6 +47,7 @@ import { useNotifications } from "@/lib/useNotifications";
 // Import Sub-Components
 import ManagerSidebar from "./components/ManagerSidebar";
 import ManagerOverviewDashboard from "./components/ManagerOverviewDashboard";
+import BranchContractsView from "./components/BranchContractsView";
 import CheckInQueue, {
   checkAppointmentEligibility,
 } from "../staff/components/CheckInQueue";
@@ -781,6 +782,7 @@ export default function ManagerPortalPage() {
     facility: "Sơ Đồ Cơ Sở & Phân Công Nhân Sự",
     facility_photos: "Quản Lý Hình Ảnh Cơ Sở",
     unit_types: "Quản Lý Loại Kho & Bảng Giá",
+    contracts: "Quản Lý Hợp Đồng Chi Nhánh",
     fee_types: "Cấu Hình Phí Phạt",
     checkout: "Thủ Tục Trả Kho & Phê Duyệt Gia Hạn",
     queue: "Giám Sát Quầy Nhận Kho",
@@ -1028,7 +1030,17 @@ export default function ManagerPortalPage() {
               />
             )}
 
-
+            {/* TAB 3.5: QUẢN LÝ HỢP ĐỒNG CHI NHÁNH */}
+            {activeTab === "contracts" && (
+              <BranchContractsView
+                facilityId={
+                  currentUser?.facilityId ||
+                  currentUser?.assignedFacility?.id ||
+                  ""
+                }
+                facilityName={rawFacilityName}
+              />
+            )}
 
             {/* TAB 4: PHÊ DUYỆT GIA HẠN & XỬ LÝ QUÁ HẠN (CRON SCAN & MIỄN GIẢM PHẠT) */}
             {activeTab === "checkout" && (

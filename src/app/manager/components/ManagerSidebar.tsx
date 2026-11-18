@@ -95,7 +95,11 @@ export default function ManagerSidebar({
       label: "Loại kho & Bảng giá",
       icon: Boxes,
     },
-
+    {
+      id: "contracts" as ManagerTab,
+      label: "Hợp đồng chi nhánh",
+      icon: Receipt,
+    },
     {
       id: "checkout" as ManagerTab,
       label: "Thủ tục trả kho & Gia hạn",

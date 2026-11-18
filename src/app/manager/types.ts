@@ -5,6 +5,7 @@ export type ManagerTab =
   | 'facility'
   | 'facility_photos'
   | 'unit_types'
+  | 'contracts'
   | 'checkout'
   | 'queue'
   | 'support'
