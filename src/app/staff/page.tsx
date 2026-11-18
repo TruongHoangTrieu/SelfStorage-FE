@@ -228,22 +228,16 @@ export default function StaffPortalPage() {
       const storedUser = handoversApi.getStoredUser();
       const staffFacilityId = facilityIdOverride !== undefined ? facilityIdOverride : storedUser?.facilityId;
       const facName = storedUser?.assignedFacility?.name || storedUser?.facilityName || 'Cơ sở Landmark 81';
-      const todaySamples = getTodayAfternoonSampleAppointments(staffFacilityId, facName);
 
       if (isOnline) {
-        // Lấy queue đơn đặt chỗ từ Backend API theo cơ sở được phân công của nhân viên
+        // Lấy queue đơn đặt chỗ thật 100% từ Backend API theo cơ sở được phân công của nhân viên
         const queueRes = await handoversApi.fetchCheckInQueue({
           facilityId: staffFacilityId,
         });
         const liveItems = queueRes.items || [];
-        const existingIds = new Set(liveItems.map((i) => i.id));
-        const mergedRaw = [
-          ...todaySamples.filter((s) => !existingIds.has(s.id)),
-          ...liveItems,
-        ];
 
-        if (mergedRaw.length > 0) {
-          const enhanced = mergedRaw.map((item) => approvalRequestsService.attachToAppointment(item));
+        if (liveItems.length > 0) {
+          const enhanced = liveItems.map((item) => approvalRequestsService.attachToAppointment(item));
           setAppointments(enhanced);
           setSelectedAppointmentId((prev) => prev || enhanced[0].id);
           setUsingLiveApi(true);
@@ -255,15 +249,9 @@ export default function StaffPortalPage() {
           if (showToast) toast.info('Cơ sở hiện chưa có đơn nhận kho mới.');
         }
 
-        // Lấy danh sách ô kho trống khả dụng của đúng cơ sở này
+        // Lấy danh sách ô kho trống khả dụng thật của đúng cơ sở này
         const unitsRes = await handoversApi.fetchAvailableUnits(staffFacilityId);
-        const liveUnits = unitsRes || [];
-        const unitCodes = new Set(liveUnits.map((u) => u.code));
-        const mergedUnits = [
-          ...liveUnits,
-          ...getSampleAvailableUnits().filter((u) => !unitCodes.has(u.code)),
-        ];
-        setAvailableUnits(mergedUnits);
+        setAvailableUnits(unitsRes || []);
 
         // Lấy số lượng yêu cầu gia hạn & trả kho đang chờ duyệt
         try {
@@ -291,24 +279,16 @@ export default function StaffPortalPage() {
         }
       } else {
         setUsingLiveApi(false);
-        const enhanced = todaySamples.map((item) => approvalRequestsService.attachToAppointment(item));
-        setAppointments(enhanced);
-        setSelectedAppointmentId((prev) => prev || (enhanced[0]?.id ?? ''));
-        setAvailableUnits(getSampleAvailableUnits());
-        if (showToast) toast.info(`Đã tải ${enhanced.length} lịch hẹn nhận kho mẫu hôm nay (13:00 - 14:30).`);
+        setAppointments([]);
+        setSelectedAppointmentId('');
+        setAvailableUnits([]);
       }
     } catch {
-      const storedUser = handoversApi.getStoredUser();
-      const staffFacilityId = facilityIdOverride !== undefined ? facilityIdOverride : storedUser?.facilityId;
-      const facName = storedUser?.assignedFacility?.name || storedUser?.facilityName || 'Cơ sở Landmark 81';
-      const todaySamples = getTodayAfternoonSampleAppointments(staffFacilityId, facName).map((item) =>
-        approvalRequestsService.attachToAppointment(item)
-      );
       setIsBackendOnline(false);
       setUsingLiveApi(false);
-      setAppointments(todaySamples);
-      setSelectedAppointmentId((prev) => prev || (todaySamples[0]?.id ?? ''));
-      setAvailableUnits(getSampleAvailableUnits());
+      setAppointments([]);
+      setSelectedAppointmentId('');
+      setAvailableUnits([]);
     } finally {
       setIsLoadingQueue(false);
       setIsRefreshing(false);
@@ -437,15 +417,29 @@ export default function StaffPortalPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    const SOCKET_URL =
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      (typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'
+        ? 'https://selfstorage-be-1.onrender.com'
+        : 'http://localhost:5000');
     const token =
       typeof window !== 'undefined'
         ? localStorage.getItem('token') || localStorage.getItem('access_token')
         : null;
     const socket = io(`${SOCKET_URL}/notifications`, {
-      auth: { token },
+      auth: {
+        token,
+        userId: currentUser?.id,
+        role: currentUser?.role,
+        facilityId: currentUser?.facilityId,
+      },
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      timeout: 45000,
       autoConnect: true,
     });
 

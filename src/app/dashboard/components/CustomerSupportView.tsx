@@ -203,7 +203,13 @@ export default function CustomerSupportView({
     window.addEventListener('popstate', handleUrlTicketChange);
     window.addEventListener('custom-tab-change', handleUrlTicketChange);
 
-    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    const SOCKET_URL =
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      (typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'
+        ? 'https://selfstorage-be-1.onrender.com'
+        : 'http://localhost:5000');
     const token =
       typeof window !== 'undefined'
         ? localStorage.getItem('token') || localStorage.getItem('access_token')
@@ -222,12 +228,16 @@ export default function CustomerSupportView({
         role: storedUser?.role,
       },
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      timeout: 45000,
       autoConnect: true,
     });
 
     socket.on('connect', () => {
       console.log('Realtime socket connected in CustomerSupportView');
+      loadTickets();
     });
 
     const handleCreated = (newTicket: SupportTicketItem) => {
@@ -320,13 +330,29 @@ export default function CustomerSupportView({
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subject.trim() || !description.trim()) {
-      toast.error('Vui lòng nhập đầy đủ tiêu đề và mô tả sự cố');
+    if (!description.trim()) {
+      toast.error('Vui lòng nhập mô tả chi tiết sự cố');
       return;
     }
 
-    const targetUnit = units.find((u) => u.id === selectedUnitId) || units[0];
-    const facId = String(targetUnit?.facilityId || '1');
+    const targetUnit =
+      selectedUnitId === 'GENERAL'
+        ? undefined
+        : units.find((u) => u.id === selectedUnitId) || units[0];
+    const facId = String(targetUnit?.facilityId || '6ac4ea732f3017f8106ae7a6');
+    const CATEGORY_SUBJECT_MAP: Record<string, string> = {
+      LOCK: 'Sự cố khóa thông minh Smart Lock / Kẹt chốt hoặc không mở được cửa kho',
+      ACCESS_CODE: 'Quên mã PIN mở cửa',
+      LOST_KEY: 'Mất thẻ từ ra vào cơ sở hoặc yêu cầu khóa / cấp thẻ thay thế',
+      DAMAGE: 'Thấm dột nước, rò rỉ, ẩm mốc hoặc hư hại kết cấu vách / sàn kho',
+      UNIT: 'Hư hỏng thiết bị buồng kho (đèn chiếu sáng, điều hòa, nhiệt độ, độ ẩm)',
+      STORED_ITEMS: 'Hỗ trợ kiểm tra danh mục đồ đạc lưu trữ trong kho',
+      OTHER: 'Yêu cầu hỗ trợ khác',
+    };
+    const baseSubject = CATEGORY_SUBJECT_MAP[category] || 'Yêu cầu hỗ trợ sự cố kho';
+    const autoSubject = targetUnit?.unitNumber
+      ? `${baseSubject} (Ô #${targetUnit.unitNumber})`
+      : baseSubject;
     const allPhotos = [
       ...uploadedPhotos,
       ...(photoUrl.trim() ? [photoUrl.trim()] : []),
@@ -338,7 +364,7 @@ export default function CustomerSupportView({
         facilityId: facId,
         contractItemId: targetUnit?.rawContractItemId ? String(targetUnit.rawContractItemId) : undefined,
         category,
-        subject,
+        subject: autoSubject,
         description,
         priority,
         photos: allPhotos.length > 0 ? allPhotos : undefined,
@@ -367,7 +393,7 @@ export default function CustomerSupportView({
         customerId: 'cust-me',
         facilityId: facId,
         category,
-        subject,
+        subject: autoSubject,
         description,
         priority,
         status: 'OPEN',
@@ -807,78 +833,44 @@ export default function CustomerSupportView({
             </div>
 
             <form onSubmit={handleCreateTicket} className="p-5 space-y-4">
-              {/* Select Unit */}
-              {units.length > 0 && (
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Ngăn kho liên quan:
-                  </label>
-                  <select
-                    value={selectedUnitId}
-                    onChange={(e) => setSelectedUnitId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  >
-                    {units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.unitNumber} - {u.facilityName} ({u.dimensions})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Category & Priority */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Danh mục sự cố:
-                  </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as SupportCategory)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  >
-                    <option value="LOCK">Khóa thông minh (Smart Lock)</option>
-                    <option value="ACCESS_CODE">Mã truy cập / Bàn phím PIN</option>
-                    <option value="LOST_KEY">Mất thẻ từ / Chìa khóa</option>
-                    <option value="DAMAGE">Hư hỏng thiết bị / Cửa kho</option>
-                    <option value="UNIT">Nhiệt độ / Độ ẩm / Cơ sở</option>
-                    <option value="PAYMENT">Thanh toán & Hóa đơn</option>
-                    <option value="STORED_ITEMS">Danh mục đồ đạc</option>
-                    <option value="OTHER">Vấn đề khác</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Mức độ ưu tiên:
-                  </label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as SupportPriority)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  >
-                    <option value="LOW">Thấp (Trong 24h)</option>
-                    <option value="MEDIUM">Trung bình (Trong 4h)</option>
-                    <option value="HIGH">Ưu tiên cao (Trong 1h)</option>
-                    <option value="URGENT">Khẩn cấp (Ngay lập tức)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Subject */}
+              {/* Select Unit / General Support (Đồng bộ Mobile) */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Tiêu đề tóm tắt:
+                  Chọn ô kho hoặc hỗ trợ chung:
                 </label>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Ví dụ: Khóa ngăn kho A-104 không mở được sau khi nhập PIN"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  required
-                />
+                <select
+                  value={selectedUnitId}
+                  onChange={(e) => setSelectedUnitId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                >
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      Ô kho #{u.unitNumber} - {u.facilityName} ({u.dimensions})
+                    </option>
+                  ))}
+                  <option value="GENERAL">Hỗ trợ chung (Thủ tục, tài khoản, thanh toán)</option>
+                </select>
+              </div>
+
+              {/* Category Dropdown (Full-width & Chi tiết đồng bộ Mobile) */}
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Loại sự cố:
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as SupportCategory)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                >
+                  <option value="LOCK">Sự cố khóa thông minh Smart Lock / Kẹt chốt hoặc không mở được cửa kho</option>
+                  <option value="ACCESS_CODE">Quên mã PIN mở cửa, lỗi bàn phím hoặc cần cấp lại mã truy cập</option>
+                  <option value="UNIT">Hư hỏng thiết bị buồng kho (đèn chiếu sáng, điều hòa, nhiệt độ, độ ẩm)</option>
+                  <option value="DAMAGE">Thấm dột nước, rò rỉ, ẩm mốc hoặc hư hại kết cấu vách / sàn kho</option>
+                  <option value="PAYMENT">Thắc mắc thanh toán, hóa đơn, gia hạn hợp đồng hoặc hoàn tiền cọc</option>
+                  <option value="LOST_KEY">Mất thẻ từ ra vào cơ sở hoặc yêu cầu khóa / cấp thẻ thay thế</option>
+                  <option value="STORED_ITEMS">Hỗ trợ kiểm tra danh mục đồ đạc lưu trữ trong kho</option>
+                  <option value="OTHER">Yêu cầu hỗ trợ khác (thủ tục nhận trả kho, tài khoản, phản ánh dịch vụ)</option>
+                </select>
               </div>
 
               {/* Description */}

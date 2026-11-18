@@ -28,9 +28,12 @@ import {
   Sparkles,
   ShieldCheck,
   Check,
+  KeyRound,
+  Banknote,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { operationsApi } from '@/lib/api/operations';
 import {
   renewalsApi,
   RenewalRecord,
@@ -89,6 +92,73 @@ export default function StaffRenewalsOverdueView({
   const [loadingPendingCheckouts, setLoadingPendingCheckouts] = useState<boolean>(false);
   const [selectedCheckoutRequest, setSelectedCheckoutRequest] = useState<any | null>(null);
   const [staffInspectionLightbox, setStaffInspectionLightbox] = useState<string | null>(null);
+
+  // Synced Mobile Return Inspection States (Đổi PIN, Checklist phụ phí động, Hoàn cọc tiền mặt)
+  const [surchargeItems, setSurchargeItems] = useState<Array<{ id: string; label: string; price: number }>>([
+    { id: 'CLEANING', label: 'Vệ sinh / dọn rác trong kho', price: 50000 },
+    { id: 'SCRATCHES', label: 'Trầy xước vách hoặc sàn kho', price: 100000 },
+    { id: 'DOOR_LOCK', label: 'Hỏng tay nắm / chốt khóa', price: 200000 },
+    { id: 'custom', label: 'Phụ thu phát sinh khác', price: 0 },
+  ]);
+  const [selectedSurcharges, setSelectedSurcharges] = useState<string[]>([]);
+  const [customSurchargeAmount, setCustomSurchargeAmount] = useState<number>(0);
+  const [newSmartPin, setNewSmartPin] = useState<string>('');
+  const [refundMethod, setRefundMethod] = useState<'CASH' | 'BANK_TRANSFER'>('CASH');
+  const [isRefundConfirmed, setIsRefundConfirmed] = useState<boolean>(false);
+  const [isExtraSurchargePaid, setIsExtraSurchargePaid] = useState<boolean>(false);
+
+  useEffect(() => {
+    operationsApi
+      .getFeeTypes()
+      .then((types) => {
+        if (Array.isArray(types) && types.length > 0) {
+          const activeTypes = types.filter(
+            (t: any) =>
+              t.status !== 'INACTIVE' &&
+              t.code !== 'LATE_FEE' &&
+              t.code !== 'LATE_RETURN' &&
+              t.code !== 'LATE_RETURN_FEE' &&
+              t.code !== 'CUSTOM',
+          );
+          if (activeTypes.length > 0) {
+            const mapped = activeTypes.map((t: any) => ({
+              id: t.code || String(t.id),
+              label: t.name,
+              price: Number(t.defaultAmount) || 0,
+            }));
+            mapped.push({ id: 'custom', label: 'Phụ thu phát sinh khác', price: 0 });
+            setSurchargeItems(mapped);
+          }
+        }
+      })
+      .catch(() => null);
+  }, []);
+
+  const resetInspectionForm = () => {
+    setSelectedSurcharges([]);
+    setCustomSurchargeAmount(0);
+    setDamageFee(0);
+    setCleaningFee(0);
+    setNewSmartPin('');
+    setRefundMethod('CASH');
+    setIsRefundConfirmed(false);
+    setIsExtraSurchargePaid(false);
+  };
+
+  const handleGenerateNewPin = (oldPin?: string) => {
+    let candidate = '';
+    for (let i = 0; i < 10; i++) {
+      candidate = String(100000 + Math.floor(Math.random() * 900000));
+      if (candidate !== String(oldPin || '').trim()) break;
+    }
+    setNewSmartPin(candidate);
+  };
+
+  const toggleSurcharge = (id: string) => {
+    setSelectedSurcharges((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
 
   // Helper format ngày
   const formatDateDisplay = (dateStr?: string) => {
@@ -257,15 +327,33 @@ export default function StaffRenewalsOverdueView({
         list.forEach((c: any) => {
           const cId = String(c.id || c._id);
           const cCode = c.contractCode;
+          const cFacilityId = String(
+            c.contractItems?.[0]?.unit?.facility?.id ||
+              c.contractItems?.[0]?.unit?.facilityId ||
+              c.reservation?.facilityId ||
+              '',
+          );
+          if (facilityId && cFacilityId && cFacilityId !== String(facilityId)) {
+            return;
+          }
+          if (c.status === 'COMPLETED' || c.status === 'TERMINATED') {
+            return;
+          }
+
           const uNum = c.contractItems?.[0]?.unit?.unitNumber || 'VNG-101';
           const facName =
             c.contractItems?.[0]?.unit?.facility?.name ||
             c.facility?.name ||
-            'Kho Tự Quản Trụ Sở Chính Võ Nguyên Giáp';
-          const custName = c.customer?.fullName || 'Nguyễn Văn Khách Hàng';
+            c.reservation?.facility?.name ||
+            'Kho Tự Quản';
+          const custName = c.customer?.fullName || 'Khách hàng';
           const custPhone = c.customer?.phone || '0909123456';
           const custEmail = c.customer?.email || 'customer@selfstorage.vn';
-          const deposit = Number(c.depositAmount || c.totalDeposit || 10000);
+          const deposit = Number(c.contractItems?.[0]?.depositAmount || c.depositAmount || c.totalDeposit || 1000000);
+          const endOfToday = new Date();
+          endOfToday.setHours(23, 59, 59, 999);
+          const isEndTodayOrPast = c.endDate && new Date(c.endDate).getTime() <= endOfToday.getTime();
+          const hasReturnReq = Boolean(c.returnRequestedAt || c.returnDate);
 
           // Nếu trong localStorage đã có request cho hợp đồng này, bổ sung thông tin chuẩn từ DB
           if (uniqueMap.has(cId) || (cCode && uniqueMap.has(cCode))) {
@@ -279,10 +367,15 @@ export default function StaffRenewalsOverdueView({
               customerName: existing.customerName || custName,
               customerPhone: existing.customerPhone || custPhone,
               customerEmail: existing.customerEmail || custEmail,
-              depositAmount: existing.depositAmount || deposit,
-              estimatedRefund: existing.estimatedRefund || deposit,
+              requestedMoveOutDate: c.returnDate || existing.requestedMoveOutDate,
+              returnTimeSlot: c.returnTimeSlot || existing.returnTimeSlot,
+              depositAmount: deposit || existing.depositAmount,
+              estimatedRefund: deposit || existing.estimatedRefund,
             });
           } else if (
+            hasReturnReq ||
+            c.status === 'OVERDUE' ||
+            isEndTodayOrPast ||
             c.status === 'CHECKOUT_REQUESTED' ||
             c.status === 'TERMINATING' ||
             cCode?.includes('TODAY') ||
@@ -290,19 +383,17 @@ export default function StaffRenewalsOverdueView({
             cCode?.includes('OVERDUE') ||
             cCode?.includes('CHECKOUT')
           ) {
-            const isEarly = cCode?.includes('EARLY');
-            const isOverdue = cCode?.includes('OVERDUE') || c.status === 'OVERDUE';
-            const isToday = cCode?.includes('TODAY') || cCode?.includes('CHECKOUT');
+            const isOverdue = cCode?.includes('OVERDUE') || c.status === 'OVERDUE' || (c.endDate && new Date(c.endDate).getTime() < Date.now());
+            const isEarly = cCode?.includes('EARLY') || (hasReturnReq && !isOverdue && c.endDate && new Date(c.endDate).getTime() > endOfToday.getTime());
+            const isToday = cCode?.includes('TODAY') || cCode?.includes('CHECKOUT') || (!isOverdue && !isEarly);
 
-            const reasonText = isToday
-              ? 'Đã hoàn thành đúng hạn 1 tháng, yêu cầu trả kho ngày hôm nay 28/10/2026'
+            const reasonText = isOverdue
+              ? 'Trả kho trễ hẹn (Áp dụng kiểm tra chính sách ân hạn & phạt trễ hạn)'
               : isEarly
-              ? 'Hoàn thành dự án sớm, xin thanh lý và trả kho sớm trước hạn (Hạn gốc: 01/04/2027)'
-              : isOverdue
-              ? 'Trả kho trễ hẹn (Quá hạn 8 ngày - Phát sinh tiền phạt trễ hạn)'
-              : 'Đã hoàn thành nhu cầu lưu trữ (dự án/chuyển đồ xong)';
+              ? 'Khách đăng ký trả kho trước hạn hợp đồng'
+              : 'Khách đăng ký lịch bàn giao trả kho hôm nay';
 
-            const checkoutType = isToday ? 'TODAY' : isEarly ? 'EARLY' : isOverdue ? 'OVERDUE' : 'STANDARD';
+            const checkoutType = isOverdue ? 'OVERDUE' : isEarly ? 'EARLY' : isToday ? 'TODAY' : 'STANDARD';
             uniqueMap.set(cId, {
               contractId: cId,
               contractCode: cCode,
@@ -311,32 +402,30 @@ export default function StaffRenewalsOverdueView({
               customerName: custName,
               customerPhone: custPhone,
               customerEmail: custEmail,
-              requestedMoveOutDate: new Date().toISOString().split('T')[0],
+              requestedMoveOutDate: c.returnDate || new Date().toISOString().split('T')[0],
+              returnTimeSlot: c.returnTimeSlot || undefined,
               reason: reasonText,
               checkoutType,
-              feedbackNotes: 'Khách hàng hoàn tất thủ tục bàn giao ô kho, đã dọn sạch đồ đạc và gửi ảnh xác nhận.',
+              feedbackNotes: 'Chờ nhân viên nghiệm thu bàn giao trả kho và hoàn trả tiền cọc (chủ yếu tiền mặt).',
               unitClearanceConfirmed: true,
               lockIntactConfirmed: true,
               bankInfo: {
-                bankName: 'Techcombank (Kỹ Thương Việt Nam)',
-                accountNumber: '19034567890123',
+                bankName: 'Tiền mặt tại quầy cơ sở',
+                accountNumber: 'CASH',
                 accountHolder: custName.toUpperCase(),
               },
               depositAmount: deposit,
               estimatedRefund: deposit,
               status: 'PENDING',
-              statusLabel: isToday
-                ? 'Trả kho hôm nay (Đúng hạn)'
+              statusLabel: isOverdue
+                ? 'Trễ hẹn (Quá hạn)'
                 : isEarly
-                ? 'Trả kho sớm trước hạn'
-                : isOverdue
-                ? 'Trả kho trễ hẹn (Quá hạn)'
-                : 'Chờ nhân viên nghiệm thu ô kho',
-              createdAt: new Date().toISOString(),
-              photos: [
-                'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
-                'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&w=1200&q=80',
-              ],
+                ? 'Trả sớm trước hạn'
+                : 'Trả kho hôm nay',
+              createdAt: c.returnRequestedAt || new Date().toISOString(),
+              photos: Array.isArray(c.contractItems?.[0]?.handoverRecords?.[0]?.photos)
+                ? c.contractItems[0].handoverRecords[0].photos
+                : [],
             });
           }
         });
@@ -502,15 +591,14 @@ export default function StaffRenewalsOverdueView({
     const targetId = String(req.contractId || req.rawContractId || req.contractCode || '');
     setSearchContractId(targetId);
     setCheckOutResult(null);
+    resetInspectionForm();
 
     // Prefill condition & notes based on customer request and empty-unit photos
     setCheckOutCondition('Kho đã dọn sạch, tường và sàn nguyên vẹn không trầy xước, khóa thông minh hoạt động tốt (Đã đối soát ảnh chụp kho trống của khách)');
-    const bankStr = req.bankInfo ? `${req.bankInfo.bankName} - STK: ${req.bankInfo.accountNumber} (${req.bankInfo.accountHolder})` : 'Chưa cung cấp';
-    const noteContent = `Lý do: ${req.reason}. Nhận hoàn cọc: ${bankStr}. ${req.feedbackNotes ? 'Góp ý: ' + req.feedbackNotes : ''}`.trim();
+    const bankStr = req.bankInfo ? `${req.bankInfo.bankName} - STK: ${req.bankInfo.accountNumber} (${req.bankInfo.accountHolder})` : 'Tiền mặt tại quầy';
+    const slotText = req.returnTimeSlot ? ` (Khung giờ: ${req.returnTimeSlot})` : '';
+    const noteContent = `Lý do: ${req.reason || 'Kết thúc hợp đồng'}${slotText}. Nhận hoàn cọc: ${bankStr}. ${req.feedbackNotes ? 'Góp ý: ' + req.feedbackNotes : ''}`.trim();
     setCheckOutNotes(noteContent);
-    setDamageFee(0);
-    setCleaningFee(0);
-    setRefundDeposit(true);
 
     setIsSearchingContract(true);
     try {
@@ -577,6 +665,7 @@ export default function StaffRenewalsOverdueView({
     }
     setIsSearchingContract(true);
     setCheckOutResult(null);
+    resetInspectionForm();
     try {
       const data = await handoversApi.getContractForCheckOut(searchContractId.trim());
       setContractCheckoutData(data);
@@ -603,6 +692,42 @@ export default function StaffRenewalsOverdueView({
     }
   };
 
+  // Helper compute live check-out settlement (synced with Mobile & BE OverduePolicy)
+  const computeCheckoutSettlement = () => {
+    const fin = contractCheckoutData?.financialSummary;
+    const overdueInfo = fin?.overdueInfo;
+    const totalDeposit = Number(fin?.totalDepositAmount || 0);
+    const unpaidExtraCharges = Number(fin?.unpaidExtraChargesAmount || 0);
+    const overdueFineAmount = Number(
+      fin?.overdueFineAmount ?? overdueInfo?.calculatedOverdueFine ?? 0
+    );
+    const checklistTotal = selectedSurcharges.reduce((sum, id) => {
+      const found = surchargeItems.find((s) => s.id === id);
+      return sum + (found ? Number(found.price) : 0);
+    }, 0);
+    const totalCustomSurcharge = Math.max(0, Number(customSurchargeAmount) || 0) + checklistTotal;
+    const totalSurcharges =
+      Math.max(0, Number(damageFee) || 0) +
+      Math.max(0, Number(cleaningFee) || 0) +
+      totalCustomSurcharge +
+      unpaidExtraCharges +
+      overdueFineAmount;
+    const netRefundAmount = refundDeposit ? Math.max(0, totalDeposit - totalSurcharges) : 0;
+    const extraToCollect = totalSurcharges > totalDeposit ? totalSurcharges - totalDeposit : 0;
+
+    return {
+      overdueInfo,
+      totalDeposit,
+      unpaidExtraCharges,
+      overdueFineAmount,
+      checklistTotal,
+      totalCustomSurcharge,
+      totalSurcharges,
+      netRefundAmount,
+      extraToCollect,
+    };
+  };
+
   // Handler: Thực hiện Check-out & Hoàn cọc (POST /handovers/check-out)
   const handleSubmitCheckOut = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -610,6 +735,58 @@ export default function StaffRenewalsOverdueView({
       toast.error('Vui lòng tra cứu hợp đồng trước khi thực hiện trả kho');
       return;
     }
+
+    const oldPin = contractCheckoutData.units?.find((u) => u.accessCode)?.accessCode || '';
+    const trimmedPin = newSmartPin.trim();
+    if (!/^\d{6}$/.test(trimmedPin)) {
+      toast.error('Vui lòng nhập hoặc tạo mã PIN Smart Lock mới gồm đúng 6 chữ số để thu hồi quyền truy cập của khách.');
+      return;
+    }
+    if (oldPin && trimmedPin === oldPin.trim()) {
+      toast.error(`Mã PIN mới không được trùng với mã PIN cũ (${oldPin}).`);
+      return;
+    }
+
+    const settlement = computeCheckoutSettlement();
+
+    if (refundDeposit && settlement.netRefundAmount > 0 && !isRefundConfirmed) {
+      toast.error(
+        refundMethod === 'CASH'
+          ? 'Vui lòng tick xác nhận đã giao đủ tiền mặt hoàn cọc cho khách hàng.'
+          : 'Vui lòng tick xác nhận đã chuyển khoản hoàn cọc cho khách hàng.'
+      );
+      return;
+    }
+
+    if (settlement.extraToCollect > 0 && !isExtraSurchargePaid) {
+      toast.error(
+        `Phụ phí vượt quá tiền cọc ${new Intl.NumberFormat('vi-VN').format(settlement.extraToCollect)} đ. Vui lòng tick xác nhận khách đã thanh toán phần chênh lệch.`
+      );
+      return;
+    }
+
+    const selectedSurchargeLabels = selectedSurcharges
+      .map((id) => surchargeItems.find((s) => s.id === id))
+      .filter(Boolean)
+      .map((s) => `${s!.label} (${new Intl.NumberFormat('vi-VN').format(s!.price)}đ)`);
+
+    const detailedNotes = [
+      checkOutNotes.trim(),
+      `Đổi PIN Smart Lock: ${oldPin || 'N/A'} -> ${trimmedPin}`,
+      settlement.overdueFineAmount > 0 && settlement.overdueInfo
+        ? `Trễ hạn ${settlement.overdueInfo.rawOverdueDays} ngày (giới hạn trước thanh lý ${settlement.overdueInfo.liquidationThresholdDays ?? settlement.overdueInfo.gracePeriodDays} ngày): Phạt ${new Intl.NumberFormat('vi-VN').format(settlement.overdueFineAmount)}đ`
+        : '',
+      selectedSurchargeLabels.length > 0 ? `Phụ phí nghiệm thu: ${selectedSurchargeLabels.join(', ')}` : '',
+      customSurchargeAmount > 0 ? `Phụ phí phát sinh khác: ${new Intl.NumberFormat('vi-VN').format(customSurchargeAmount)}đ` : '',
+      refundDeposit && settlement.netRefundAmount > 0
+        ? `Hoàn cọc (${refundMethod === 'CASH' ? 'Tiền mặt tại quầy' : 'Chuyển khoản ngân hàng'}): ${new Intl.NumberFormat('vi-VN').format(settlement.netRefundAmount)}đ`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    const effectiveDamageFee = Math.max(0, Number(damageFee) || 0) + settlement.totalCustomSurcharge;
+
     setIsSubmittingCheckOut(true);
     try {
       let res: CheckOutResponse;
@@ -617,11 +794,16 @@ export default function StaffRenewalsOverdueView({
         res = await handoversApi.checkOut({
           contractId: contractCheckoutData.contract.id,
           condition: checkOutCondition,
-          notes: checkOutNotes,
-          damageFee,
-          cleaningFee,
+          notes: detailedNotes,
+          damageFee: effectiveDamageFee,
+          cleaningFee: Math.max(0, Number(cleaningFee) || 0),
           refundDeposit,
+          refundAmount: settlement.netRefundAmount,
           unitCondition,
+          actualOverdueDays: settlement.overdueInfo?.rawOverdueDays ?? 0,
+          actualOverdueFine: settlement.overdueFineAmount,
+          paymentMethod: refundMethod,
+          newAccessCode: trimmedPin,
         });
       } catch (eBe) {
         console.warn('API checkOut returned error or role restriction, using synthesized result:', eBe);
@@ -635,29 +817,21 @@ export default function StaffRenewalsOverdueView({
             contractItemId: u.contractItemId,
             unitId: u.unitId,
             unitNumber: u.unitNumber,
-            unitStatus: 'AVAILABLE',
+            unitStatus: unitCondition,
             itemStatus: 'RETURNED',
             accessCodeStatus: 'REVOKED',
           })),
           financialSettlement: {
-            totalDeposit: contractCheckoutData.financialSummary?.totalDepositAmount || 0,
-            damageFee,
-            cleaningFee,
-            unpaidExtraCharges: contractCheckoutData.financialSummary?.unpaidExtraChargesAmount || 0,
-            refundDepositAmount: Math.max(
-              0,
-              (contractCheckoutData.financialSummary?.totalDepositAmount || 0) -
-                damageFee -
-                cleaningFee -
-                (contractCheckoutData.financialSummary?.unpaidExtraChargesAmount || 0)
-            ),
+            totalDeposit: settlement.totalDeposit,
+            damageFee: effectiveDamageFee,
+            cleaningFee: Math.max(0, Number(cleaningFee) || 0),
+            unpaidExtraCharges: settlement.unpaidExtraCharges,
+            overdueFineAmount: settlement.overdueFineAmount,
+            refundDepositAmount: settlement.netRefundAmount,
             refundPayment: {
               id: 'ref-1',
               paymentCode: 'REF-' + Date.now().toString().slice(-6),
-              amount: Math.max(
-                0,
-                (contractCheckoutData.financialSummary?.totalDepositAmount || 0) - damageFee - cleaningFee
-              ),
+              amount: settlement.netRefundAmount,
               status: 'COMPLETED',
             },
           },
@@ -1139,7 +1313,10 @@ export default function StaffRenewalsOverdueView({
                             <span className="text-slate-400 text-[11px] flex items-center gap-1">
                               <Calendar className="w-3 h-3" /> Hẹn trả kho:
                             </span>
-                            <strong className="text-emerald-700">{formatDateDisplay(req.requestedMoveOutDate)}</strong>
+                            <strong className="text-emerald-700">
+                              {formatDateDisplay(req.requestedMoveOutDate)}
+                              {req.returnTimeSlot ? ` · ${req.returnTimeSlot}` : ''}
+                            </strong>
                           </div>
                         </div>
 
@@ -1560,131 +1737,306 @@ export default function StaffRenewalsOverdueView({
                 </div>
               )}
 
-              {/* Form thực hiện Check-out */}
-              <form onSubmit={handleSubmitCheckOut} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <DoorClosed className="w-4 h-4 text-emerald-600" />
-                  Biên Bản Nghiệm Thu Trả Kho &amp; Quyết Toán Cọc
-                </h4>
+              {/* Form thực hiện Check-out (Đồng bộ quy trình Mobile: Đổi PIN Smart Lock + Ân hạn/Quá hạn + Checklist phụ phí + Hoàn cọc tiền mặt) */}
+              {(() => {
+                const settlement = computeCheckoutSettlement();
+                const oldPin = contractCheckoutData.units?.find((u) => u.accessCode)?.accessCode || '';
+                return (
+                  <form onSubmit={handleSubmitCheckOut} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <DoorClosed className="w-4 h-4 text-emerald-600" />
+                      Biên Bản Nghiệm Thu Trả Kho &amp; Quyết Toán Cọc
+                    </h4>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-800 block mb-1">
-                    Hiện trạng kho lúc hoàn trả:
-                  </label>
-                  <input
-                    type="text"
-                    value={checkOutCondition}
-                    onChange={(e) => setCheckOutCondition(e.target.value)}
-                    placeholder="Ví dụ: Kho đã dọn sạch, tường và sàn nguyên vẹn không trầy xước..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-800 block mb-1">
-                    Ghi chú bàn giao:
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={checkOutNotes}
-                    onChange={(e) => setCheckOutNotes(e.target.value)}
-                    placeholder="Ghi chú thêm về thủ tục bàn giao, xác nhận của khách hàng..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-800 block mb-1">
-                      Phí bồi thường hư hại (VND):
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={damageFee}
-                      onChange={(e) => setDamageFee(Number(e.target.value))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-800 block mb-1">
-                      Phí vệ sinh rác thừa (VND):
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={cleaningFee}
-                      onChange={(e) => setCleaningFee(Number(e.target.value))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-800 block mb-1">
-                      Trạng thái kho sau khi trả:
-                    </label>
-                    <select
-                      value={unitCondition}
-                      onChange={(e) => setUnitCondition(e.target.value as any)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    >
-                      <option value="AVAILABLE">AVAILABLE (Sẵn sàng cho thuê tiếp)</option>
-                      <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE (Cần bảo trì / sửa chữa)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Box Tính toán cọc thực tế hoàn trả */}
-                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between text-xs">
-                  <div>
-                    <div className="font-bold text-emerald-950">Số tiền cọc thực tế hoàn trả cho khách:</div>
-                    <div className="text-[11px] text-emerald-800">
-                      = Tiền cọc ({contractCheckoutData.financialSummary?.totalDepositAmount || 0} đ) - Phí phạt ({damageFee} đ) - Phí vệ sinh ({cleaningFee} đ) - Phụ phí nợ ({contractCheckoutData.financialSummary?.unpaidExtraChargesAmount || 0} đ)
-                    </div>
-                  </div>
-                  <div className="text-base font-black text-emerald-600 shrink-0">
-                    {new Intl.NumberFormat('vi-VN').format(
-                      Math.max(
-                        0,
-                        (contractCheckoutData.financialSummary?.totalDepositAmount || 0) -
-                          damageFee -
-                          cleaningFee -
-                          (contractCheckoutData.financialSummary?.unpaidExtraChargesAmount || 0)
-                      )
-                    )} đ
-                  </div>
-                </div>
-
-                <div className="pt-2 flex items-center justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setContractCheckoutData(null)}
-                    className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 transition cursor-pointer"
-                  >
-                    Hủy Bỏ
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmittingCheckOut}
-                    className="px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 rounded-xl transition cursor-pointer shadow-sm flex items-center gap-2"
-                  >
-                    {isSubmittingCheckOut ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Đang xử lý Check-out...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Xác Nhận Check-out &amp; Thu Hồi Khóa</span>
-                      </>
+                    {/* 1. Tình trạng quá hạn & Chính sách trước thanh lý từ Operation Manager */}
+                    {settlement.overdueInfo && settlement.overdueInfo.rawOverdueDays > 0 && (
+                      <div
+                        className={`rounded-2xl border p-4 text-xs space-y-1.5 ${
+                          settlement.overdueInfo.isLiquidationEligible
+                            ? 'bg-rose-50/80 border-rose-200 text-rose-900'
+                            : 'bg-amber-50/80 border-amber-200 text-amber-900'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 font-bold">
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 shrink-0" />
+                            {settlement.overdueInfo.isLiquidationEligible
+                              ? `Quá hạn ${settlement.overdueInfo.rawOverdueDays} ngày (Vượt mốc ${settlement.overdueInfo.liquidationThresholdDays ?? settlement.overdueInfo.gracePeriodDays} ngày chờ trước thanh lý)`
+                              : `Trả kho trễ ${settlement.overdueInfo.rawOverdueDays} ngày (Trong ngưỡng ${settlement.overdueInfo.liquidationThresholdDays ?? settlement.overdueInfo.gracePeriodDays} ngày trước thanh lý)`}
+                          </span>
+                          <span className="font-black">
+                            {new Intl.NumberFormat('vi-VN').format(settlement.overdueFineAmount)} đ
+                          </span>
+                        </div>
+                        <div className="text-[11px] opacity-85">
+                          Chính sách Ops Manager: Phạt {settlement.overdueInfo.dailyFinePercent}% tiền thuê/ngày × {settlement.overdueInfo.rawOverdueDays} ngày ({new Intl.NumberFormat('vi-VN').format(settlement.overdueInfo.dailyFineAmount)} đ/ngày) · Sau {settlement.overdueInfo.liquidationThresholdDays ?? settlement.overdueInfo.gracePeriodDays} ngày chưa xử lý sẽ thanh lý kho.
+                        </div>
+                      </div>
                     )}
-                  </button>
-                </div>
-              </form>
+
+                    {/* 2. Đổi mã PIN Smart Lock (Bắt buộc thu hồi quyền truy cập cũ) */}
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                          <KeyRound className="w-4 h-4 text-emerald-600" />
+                          <span>Thu Hồi &amp; Cấp Lại Mã PIN Smart Lock Mới (6 chữ số) *</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500">
+                          PIN hiện tại của khách:{' '}
+                          <strong className="font-mono text-slate-800">{oldPin || 'Chưa gắn PIN'}</strong>
+                        </span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          required
+                          placeholder="Nhập mã PIN mới 6 chữ số (khác PIN cũ)..."
+                          value={newSmartPin}
+                          onChange={(e) => setNewSmartPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono font-bold tracking-widest text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateNewPin(oldPin)}
+                          className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          Tạo PIN Ngẫu Nhiên
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 block mb-1">
+                        Hiện trạng kho lúc hoàn trả:
+                      </label>
+                      <input
+                        type="text"
+                        value={checkOutCondition}
+                        onChange={(e) => setCheckOutCondition(e.target.value)}
+                        placeholder="Ví dụ: Kho đã dọn sạch, tường và sàn nguyên vẹn không trầy xước..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 block mb-1">
+                        Ghi chú bàn giao:
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={checkOutNotes}
+                        onChange={(e) => setCheckOutNotes(e.target.value)}
+                        placeholder="Ghi chú thêm về thủ tục bàn giao, xác nhận của khách hàng..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      />
+                    </div>
+
+                    {/* 3. Checklist phụ phí nghiệm thu đồng bộ từ cấu hình FeeType */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-800 block">
+                        Checklist phụ phí phát sinh khi nghiệm thu (chọn nếu vi phạm):
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {surchargeItems.map((item) => {
+                          const checked = selectedSurcharges.includes(item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => toggleSurcharge(item.id)}
+                              className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left text-xs transition cursor-pointer ${
+                                checked
+                                  ? 'bg-amber-50 border-amber-300 text-amber-900 font-bold'
+                                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <span className="truncate">{item.label}</span>
+                              <span className="font-mono shrink-0">
+                                +{new Intl.NumberFormat('vi-VN').format(item.price)}đ
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-slate-800 block mb-1">
+                          Phí bồi thường hư hại (VND):
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={damageFee}
+                          onChange={(e) => setDamageFee(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-800 block mb-1">
+                          Phí vệ sinh rác thừa (VND):
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={cleaningFee}
+                          onChange={(e) => setCleaningFee(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-800 block mb-1">
+                          Phụ phí phát sinh khác (VND):
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={customSurchargeAmount}
+                          onChange={(e) => setCustomSurchargeAmount(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-800 block mb-1">
+                          Trạng thái kho sau khi trả:
+                        </label>
+                        <select
+                          value={unitCondition}
+                          onChange={(e) => setUnitCondition(e.target.value as any)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        >
+                          <option value="AVAILABLE">AVAILABLE (Sẵn sàng cho thuê tiếp)</option>
+                          <option value="UNDER_MAINTENANCE">UNDER_MAINTENANCE (Cần bảo trì / sửa chữa)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* 4. Quyết toán hoàn trả tiền cọc (Mặc định Tiền mặt tại quầy) */}
+                    <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3 text-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-emerald-950 flex items-center gap-1.5">
+                            <Banknote className="w-4 h-4 text-emerald-700" />
+                            <span>Số tiền cọc thực tế hoàn trả cho khách:</span>
+                          </div>
+                          <div className="text-[11px] text-emerald-800 mt-0.5">
+                            = Tiền cọc ({new Intl.NumberFormat('vi-VN').format(settlement.totalDeposit)} đ) - Phí hư hại ({new Intl.NumberFormat('vi-VN').format(damageFee)} đ) - Vệ sinh ({new Intl.NumberFormat('vi-VN').format(cleaningFee)} đ) - Checklist &amp; Khác ({new Intl.NumberFormat('vi-VN').format(settlement.totalCustomSurcharge)} đ) - Phạt quá hạn ({new Intl.NumberFormat('vi-VN').format(settlement.overdueFineAmount)} đ) - Nợ cũ ({new Intl.NumberFormat('vi-VN').format(settlement.unpaidExtraCharges)} đ)
+                          </div>
+                        </div>
+                        <div className="text-lg font-black text-emerald-700 shrink-0">
+                          {new Intl.NumberFormat('vi-VN').format(settlement.netRefundAmount)} đ
+                        </div>
+                      </div>
+
+                      {settlement.netRefundAmount > 0 && (
+                        <div className="pt-2 border-t border-emerald-200/80 space-y-2.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-emerald-950">Phương thức hoàn cọc:</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRefundMethod('CASH');
+                                setIsRefundConfirmed(false);
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                                refundMethod === 'CASH'
+                                  ? 'bg-emerald-600 text-white border-emerald-600'
+                                  : 'bg-white text-slate-700 border-slate-200'
+                              }`}
+                            >
+                              Tiền mặt tại quầy (Mặc định)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRefundMethod('BANK_TRANSFER');
+                                setIsRefundConfirmed(false);
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                                refundMethod === 'BANK_TRANSFER'
+                                  ? 'bg-emerald-600 text-white border-emerald-600'
+                                  : 'bg-white text-slate-700 border-slate-200'
+                              }`}
+                            >
+                              Chuyển khoản ngân hàng
+                            </button>
+                          </div>
+
+                          <label className="flex items-center gap-2 cursor-pointer font-bold text-emerald-950">
+                            <input
+                              type="checkbox"
+                              checked={isRefundConfirmed}
+                              onChange={(e) => setIsRefundConfirmed(e.target.checked)}
+                              className="w-4 h-4 rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span>
+                              {refundMethod === 'CASH'
+                                ? `Xác nhận đã giao đủ ${new Intl.NumberFormat('vi-VN').format(settlement.netRefundAmount)} đ tiền mặt hoàn cọc trực tiếp cho khách`
+                                : `Xác nhận đã chuyển khoản hoàn cọc ${new Intl.NumberFormat('vi-VN').format(settlement.netRefundAmount)} đ cho khách`}
+                            </span>
+                          </label>
+                        </div>
+                      )}
+
+                      {settlement.extraToCollect > 0 && (
+                        <div className="pt-2 border-t border-rose-200 bg-rose-50/80 rounded-xl p-3 space-y-2 text-rose-900">
+                          <div className="font-bold">
+                            Tổng phụ phí vượt quá tiền cọc. Cần thu thêm từ khách:{' '}
+                            <span className="font-black">
+                              {new Intl.NumberFormat('vi-VN').format(settlement.extraToCollect)} đ
+                            </span>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer font-bold">
+                            <input
+                              type="checkbox"
+                              checked={isExtraSurchargePaid}
+                              onChange={(e) => setIsExtraSurchargePaid(e.target.checked)}
+                              className="w-4 h-4 rounded border-rose-400 text-rose-600 focus:ring-rose-500"
+                            />
+                            <span>Xác nhận khách hàng đã thanh toán phần chênh lệch này tại quầy</span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setContractCheckoutData(null)}
+                        className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 transition cursor-pointer"
+                      >
+                        Hủy Bỏ
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmittingCheckOut}
+                        className="px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 rounded-xl transition cursor-pointer shadow-sm flex items-center gap-2"
+                      >
+                        {isSubmittingCheckOut ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Đang xử lý Check-out...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Xác Nhận Check-out &amp; Thu Hồi Khóa</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                );
+              })()}
             </div>
           )}
         </div>

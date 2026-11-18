@@ -105,7 +105,6 @@ export default function BusinessOperationsPage() {
   const [depositPercent, setDepositPercent] = useState(25);
   const [cancellationDays100, setCancellationDays100] = useState(3);
   const [cancellationDays50, setCancellationDays50] = useState(1);
-  const [autoLockoutDays, setAutoLockoutDays] = useState(14);
   const [isSavingPolicy, setIsSavingPolicy] = useState(false);
 
   // Pricing & Fees State
@@ -248,8 +247,13 @@ export default function BusinessOperationsPage() {
         setPolicies(polRes.value);
         const overduePol = polRes.value.find((p) => p.policyType === "OVERDUE");
         if (overduePol?.value) {
-          if (overduePol.value.gracePeriodDays) setGracePeriodDays(overduePol.value.gracePeriodDays);
-          if (overduePol.value.dailyFinePercent) setDailyFinePercent(overduePol.value.dailyFinePercent);
+          const gp =
+            overduePol.value.liquidationThresholdDays ??
+            overduePol.value.gracePeriodDays ??
+            overduePol.value.grace_period_days;
+          const df = overduePol.value.dailyFinePercent ?? overduePol.value.daily_fine_rate;
+          if (gp !== undefined && gp !== null) setGracePeriodDays(Number(gp));
+          if (df !== undefined && df !== null) setDailyFinePercent(Number(df));
         }
         const depositPol = polRes.value.find((p) => p.policyType === "DEPOSIT");
         if (depositPol?.value) {
@@ -281,12 +285,12 @@ export default function BusinessOperationsPage() {
       await Promise.all([
         operationsApi.createPolicy({
           policyType: "OVERDUE",
-          name: "Chính Sách Quá Hạn & Phạt Trễ Toàn Chuỗi",
-          description: "Ân hạn 7 ngày, sau đó phạt theo tỷ lệ % mỗi ngày và khóa ô kho",
+          name: "Chính Sách Quá Hạn & Thời Gian Chờ Trước Thanh Lý Kho",
+          description: `Chờ tối đa ${gracePeriodDays} ngày trước khi thanh lý kho; mỗi ngày trễ phạt ${dailyFinePercent}% tiền thuê tháng`,
           value: {
+            liquidationThresholdDays: gracePeriodDays,
             gracePeriodDays,
             dailyFinePercent,
-            autoLockoutDays,
           },
           valueType: "JSON",
           effectiveFrom: new Date().toISOString(),
@@ -1150,34 +1154,6 @@ export default function BusinessOperationsPage() {
                             </div>
                           )}
                         </div>
-
-                        {/* Diện tích mặt bằng cơ sở & tỷ lệ sử dụng */}
-                        {(() => {
-                          const totalArea = Number(fac.totalArea) || 300;
-                          const usedArea = Number(fac.usedArea) || 0;
-                          const remainingArea = Math.max(0, Number((totalArea - usedArea).toFixed(2)));
-                          const areaPct = Math.min(100, Math.round((usedArea / totalArea) * 100));
-                          return (
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
-                              <div className="flex items-center justify-between text-[11px]">
-                                <span className="font-bold text-slate-600">Diện tích cơ sở:</span>
-                                <span className="font-black text-blue-700">{totalArea} m²</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all ${
-                                    areaPct >= 90 ? "bg-rose-500" : areaPct >= 70 ? "bg-amber-500" : "bg-emerald-500"
-                                  }`}
-                                  style={{ width: `${areaPct}%` }}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium">
-                                <span>Đã bố trí: <strong className="text-slate-700">{usedArea} m²</strong> ({fac.totalUnits || 0} ô)</span>
-                                <span>Còn trống: <strong className="text-emerald-600">{remainingArea} m²</strong></span>
-                              </div>
-                            </div>
-                          );
-                        })()}
                       </div>
 
                       <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
@@ -1374,7 +1350,7 @@ export default function BusinessOperationsPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Thời Gian Ân Hạn Trễ Hạn (Grace Period)
+                        Số Ngày Chờ Trước Khi Thanh Lý Kho
                       </label>
                       <div className="flex items-center gap-3">
                         <input
@@ -1386,7 +1362,7 @@ export default function BusinessOperationsPage() {
                           className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 w-28 bg-slate-50"
                         />
                         <span className="text-xs text-slate-500 font-medium">
-                          ngày (Chưa áp dụng chế tài cưỡng chế khóa ô kho)
+                          ngày (Số ngày giữ kho chờ khách xử lý trước khi chuyển sang Thanh lý kho)
                         </span>
                       </div>
                     </div>
@@ -1411,27 +1387,8 @@ export default function BusinessOperationsPage() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Ngưỡng Kích Hoạt Khóa Điện Tử Cưỡng Chế (Overlock)
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="number"
-                          min="1"
-                          max="60"
-                          value={autoLockoutDays}
-                          onChange={(e) => setAutoLockoutDays(Number(e.target.value))}
-                          className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 w-28 bg-slate-50"
-                        />
-                        <span className="text-xs text-slate-500 font-medium">
-                          ngày quá hạn (Tự động vô hiệu hóa mã PIN &amp; thẻ vào kho)
-                        </span>
-                      </div>
-                    </div>
-
                     <div className="p-3 bg-blue-50/70 border border-blue-200/60 rounded-xl text-xs text-blue-900 leading-relaxed font-medium">
-                      <strong>Lưu ý vận hành:</strong> Khi vượt ngưỡng {autoLockoutDays} ngày trễ hạn, hệ thống tự động gán trạng thái <em>OVERLOCKED</em> để chi nhánh bắt đầu quy trình xử lý theo điều khoản hợp đồng.
+                      <strong>Lưu ý vận hành:</strong> Ngay từ ngày trễ đầu tiên, <strong>mỗi ngày trễ đều bị tính phạt {dailyFinePercent}% tiền thuê tháng</strong>. Trong {gracePeriodDays} ngày đầu, kho <strong>chưa bị thanh lý</strong> để khách quay lại nhận/trả kho; nếu vượt quá {gracePeriodDays} ngày mà chưa xử lý, hợp đồng sẽ đủ điều kiện <strong>Thanh lý kho</strong> (chấm dứt hợp đồng, thu hồi mã PIN, giải phóng ô kho).
                     </div>
                   </div>
                 </div>

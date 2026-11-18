@@ -85,7 +85,7 @@ export interface CreateSupportTicketDto {
 
 export interface UpdateTicketProgressDto {
   status: SupportStatus;
-  note: string;
+  note?: string;
   photos?: string[];
 }
 

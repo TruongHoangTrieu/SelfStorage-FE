@@ -20,6 +20,7 @@ import {
   Receipt,
   RotateCcw,
 } from 'lucide-react';
+import { api } from '@/lib/api';
 import { CustomerUnit, CheckoutRequest } from '../types';
 
 interface ReturnUnitModalProps {
@@ -73,6 +74,14 @@ const REASON_OPTIONS = [
   'Lý do khác',
 ];
 
+const RETURN_TIME_SLOTS = [
+  '08:00 - 09:00',
+  '09:30 - 10:30',
+  '11:00 - 12:00',
+  '13:30 - 14:30',
+  '15:00 - 16:00',
+];
+
 const DEMO_EMPTY_STORAGE_PHOTOS = [
   'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
   'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&w=1200&q=80',
@@ -96,6 +105,7 @@ export default function ReturnUnitModal({
   // Form State
   const todayStr = new Date().toISOString().split('T')[0];
   const [moveOutDate, setMoveOutDate] = useState<string>(existingReq?.requestedMoveOutDate || todayStr);
+  const [returnTimeSlot, setReturnTimeSlot] = useState<string>('09:30 - 10:30');
   const [selectedReason, setSelectedReason] = useState<string>(existingReq?.reason || REASON_OPTIONS[0]);
   const [customReason, setCustomReason] = useState<string>('');
   const [feedback, setFeedback] = useState<string>(existingReq?.feedbackNotes || '');
@@ -111,9 +121,10 @@ export default function ReturnUnitModal({
   );
   const [previewZoomPhoto, setPreviewZoomPhoto] = useState<string | null>(null);
 
-  // Step 3: Financial & Bank
+  // Step 3: Financial & Refund Method (Mặc định hoàn tiền mặt tại quầy giống Mobile)
   const depositNum = unit.depositAmount || unit.monthlyRentNum || 1800000;
   const estimatedRefund = depositNum; // Full deposit returned if conditions met
+  const [refundMethod, setRefundMethod] = useState<'cash' | 'transfer'>('cash');
   const [bankName, setBankName] = useState<string>(existingReq?.bankInfo?.bankName || COMMON_BANKS[0].name);
   const [accountNumber, setAccountNumber] = useState<string>(existingReq?.bankInfo?.accountNumber || '');
   const [accountHolder, setAccountHolder] = useState<string>(existingReq?.bankInfo?.accountHolder || '');
@@ -164,17 +175,19 @@ export default function ReturnUnitModal({
       return true;
     }
     if (currentStep === 3) {
-      if (!bankName) {
-        setErrorMsg('Vui lòng chọn ngân hàng thụ hưởng');
-        return false;
-      }
-      if (!accountNumber.trim() || accountNumber.length < 6) {
-        setErrorMsg('Vui lòng nhập số tài khoản ngân hàng hợp lệ');
-        return false;
-      }
-      if (!accountHolder.trim()) {
-        setErrorMsg('Vui lòng nhập tên chủ tài khoản (in hoa không dấu)');
-        return false;
+      if (refundMethod === 'transfer') {
+        if (!bankName) {
+          setErrorMsg('Vui lòng chọn ngân hàng thụ hưởng');
+          return false;
+        }
+        if (!accountNumber.trim() || accountNumber.length < 6) {
+          setErrorMsg('Vui lòng nhập số tài khoản ngân hàng hợp lệ');
+          return false;
+        }
+        if (!accountHolder.trim()) {
+          setErrorMsg('Vui lòng nhập tên chủ tài khoản (in hoa không dấu)');
+          return false;
+        }
       }
       return true;
     }
@@ -213,6 +226,19 @@ export default function ReturnUnitModal({
 
       const custName = storedCustomer?.fullName || (unit as any).customerName || 'Nguyễn Văn Khách Hàng';
       const custPhone = storedCustomer?.phone || (unit as any).customerPhone || '0909123456';
+      const targetContractId = String(unit.rawContractId || unit.contractId || '');
+
+      // Gửi lịch hẹn trả kho lên Backend giống Mobile để Staff nhận được trên cả Web và Mobile
+      if (/^[0-9a-fA-F]{24}$/.test(targetContractId)) {
+        await api
+          .post(`/contracts/${targetContractId}/return-request`, {
+            returnDate: moveOutDate,
+            returnTimeSlot,
+          })
+          .catch((err) => {
+            console.warn('Return request backend sync warning:', err);
+          });
+      }
 
       await onConfirmCheckout({
         contractId: unit.rawContractId || unit.contractId,
@@ -227,11 +253,18 @@ export default function ReturnUnitModal({
         feedbackNotes: feedback.trim() || undefined,
         unitClearanceConfirmed: itemsCleared,
         lockIntactConfirmed: lockIntact,
-        bankInfo: {
-          bankName,
-          accountNumber: accountNumber.trim(),
-          accountHolder: accountHolder.trim().toUpperCase(),
-        },
+        bankInfo:
+          refundMethod === 'cash'
+            ? {
+                bankName: 'Tiền mặt tại quầy cơ sở',
+                accountNumber: 'CASH',
+                accountHolder: custName.toUpperCase(),
+              }
+            : {
+                bankName,
+                accountNumber: accountNumber.trim(),
+                accountHolder: accountHolder.trim().toUpperCase(),
+              },
         depositAmount: depositNum,
         estimatedRefund,
         photos: photos.length > 0 ? photos : undefined,
@@ -546,6 +579,29 @@ export default function ReturnUnitModal({
                     </div>
                   </div>
 
+                  {/* Khung giờ đến trả kho (giống Mobile - định dạng 24h) */}
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block mb-1.5">
+                      Khung giờ bạn đến cơ sở bàn giao kho (24h):
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {RETURN_TIME_SLOTS.map((slot) => (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => setReturnTimeSlot(slot)}
+                          className={`px-3 py-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                            returnTimeSlot === slot
+                              ? 'border-rose-500 bg-rose-50 text-rose-800 shadow-2xs'
+                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div>
                     <span className="text-xs font-bold text-slate-800 block mb-1.5">
                       Lý do trả kho:
@@ -779,61 +835,97 @@ export default function ReturnUnitModal({
                     </div>
                   </div>
 
-                  {/* Form thông tin ngân hàng nhận hoàn cọc */}
+                  {/* Chọn hình thức hoàn tiền cọc (Mặc định tiền mặt tại quầy giống Mobile) */}
                   <div className="space-y-3 bg-white rounded-2xl p-4 border border-slate-200">
                     <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
                       <Receipt className="w-4 h-4 text-blue-600" />
-                      Tài khoản ngân hàng nhận tiền hoàn cọc
+                      Phương thức nhận hoàn trả tiền cọc
                     </h4>
 
-                    <div>
-                      <label htmlFor={bankNameId} className="text-[11px] font-bold text-slate-700 block mb-1">
-                        Ngân hàng thụ hưởng:
-                      </label>
-                      <select
-                        id={bankNameId}
-                        value={bankName}
-                        onChange={(e) => setBankName(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 bg-white focus:border-blue-500"
-                        required
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setRefundMethod('cash')}
+                        className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                          refundMethod === 'cash'
+                            ? 'border-emerald-500 bg-emerald-50/70 text-emerald-950'
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                        }`}
                       >
-                        {COMMON_BANKS.map((b) => (
-                          <option key={b.code} value={b.name}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
+                        <div className="text-xs font-black">Tiền mặt tại quầy</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">Ưu tiên • Nhận ngay khi nghiệm thu</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setRefundMethod('transfer')}
+                        className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                          refundMethod === 'transfer'
+                            ? 'border-blue-500 bg-blue-50/70 text-blue-950'
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div className="text-xs font-black">Chuyển khoản</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">Nhận qua tài khoản ngân hàng</div>
+                      </button>
                     </div>
 
-                    <div>
-                      <label htmlFor={accountNumberId} className="text-[11px] font-bold text-slate-700 block mb-1">
-                        Số tài khoản ngân hàng:
-                      </label>
-                      <input
-                        type="text"
-                        id={accountNumberId}
-                        placeholder="Ví dụ: 19036829140019"
-                        value={accountNumber}
-                        onChange={(e) => setAccountNumber(e.target.value.replace(/\s+/g, ''))}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-500"
-                        required
-                      />
-                    </div>
+                    {refundMethod === 'cash' ? (
+                      <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 leading-relaxed">
+                        <strong>Hoàn cọc trực tiếp bằng tiền mặt:</strong> Nhân viên sẽ có mặt đúng lịch hẹn để nghiệm thu ô kho và hoàn trả trực tiếp tiền cọc bảo đảm cho bạn tại quầy cơ sở (sau khi trừ phụ phí phát sinh hoặc phạt quá hạn nếu có).
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label htmlFor={bankNameId} className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Ngân hàng thụ hưởng:
+                          </label>
+                          <select
+                            id={bankNameId}
+                            value={bankName}
+                            onChange={(e) => setBankName(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 bg-white focus:border-blue-500"
+                            required
+                          >
+                            {COMMON_BANKS.map((b) => (
+                              <option key={b.code} value={b.name}>
+                                {b.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                    <div>
-                      <label htmlFor={accountHolderId} className="text-[11px] font-bold text-slate-700 block mb-1">
-                        Tên chủ tài khoản (In hoa không dấu):
-                      </label>
-                      <input
-                        type="text"
-                        id={accountHolderId}
-                        placeholder="Ví dụ: NGUYEN VAN A"
-                        value={accountHolder}
-                        onChange={(e) => setAccountHolder(e.target.value.toUpperCase())}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 bg-white uppercase focus:border-blue-500"
-                        required
-                      />
-                    </div>
+                        <div>
+                          <label htmlFor={accountNumberId} className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Số tài khoản ngân hàng:
+                          </label>
+                          <input
+                            type="text"
+                            id={accountNumberId}
+                            placeholder="Ví dụ: 19036829140019"
+                            value={accountNumber}
+                            onChange={(e) => setAccountNumber(e.target.value.replace(/\s+/g, ''))}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-900 bg-white focus:border-blue-500"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor={accountHolderId} className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Tên chủ tài khoản (In hoa không dấu):
+                          </label>
+                          <input
+                            type="text"
+                            id={accountHolderId}
+                            placeholder="Ví dụ: NGUYEN VAN A"
+                            value={accountHolder}
+                            onChange={(e) => setAccountHolder(e.target.value.toUpperCase())}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 bg-white uppercase focus:border-blue-500"
+                            required
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -853,18 +945,22 @@ export default function ReturnUnitModal({
                         <span className="font-bold text-slate-800">{unit.unitNumber}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block">Ngày dự kiến trả:</span>
-                        <span className="font-bold text-rose-600">{moveOutDate}</span>
+                        <span className="text-slate-400 block">Ngày &amp; giờ hẹn trả:</span>
+                        <span className="font-bold text-rose-600">{moveOutDate} ({returnTimeSlot})</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block">Số tiền hoàn cọc:</span>
+                        <span className="text-slate-400 block">Số tiền hoàn cọc dự kiến:</span>
                         <span className="font-extrabold text-emerald-600">
                           {new Intl.NumberFormat('vi-VN').format(estimatedRefund)} đ
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block">Tài khoản nhận:</span>
-                        <span className="font-bold text-slate-800">{accountNumber} ({bankName.split(' ')[0]})</span>
+                        <span className="text-slate-400 block">Hình thức hoàn cọc:</span>
+                        <span className="font-bold text-slate-800">
+                          {refundMethod === 'cash'
+                            ? 'Tiền mặt tại quầy cơ sở'
+                            : `${accountNumber} (${bankName.split(' ')[0]})`}
+                        </span>
                       </div>
                     </div>
                   </div>

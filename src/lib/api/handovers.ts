@@ -680,11 +680,30 @@ export const handoversApi = {
       cleaningFee: payload.cleaningFee ?? 0,
       refundDeposit: payload.refundDeposit ?? true,
       refundAmount: payload.refundAmount,
+      actualOverdueDays: payload.actualOverdueDays,
+      actualOverdueFine: payload.actualOverdueFine,
+      paymentMethod: payload.paymentMethod || 'CASH',
+      newAccessCode: payload.newAccessCode || undefined,
       unitCondition: payload.unitCondition || 'AVAILABLE',
     };
     return await api.post<CheckOutResponse>('/handovers/check-out', body);
   },
 };
+
+export interface HandoverOverdueInfo {
+  rawOverdueDays: number;
+  liquidationThresholdDays?: number;
+  gracePeriodDays: number;
+  dailyFinePercent: number;
+  isWithinPreLiquidationWindow?: boolean;
+  isInGracePeriod: boolean;
+  isLiquidationEligible?: boolean;
+  billableOverdueDays: number;
+  monthlyRent: number;
+  dailyFineAmount: number;
+  calculatedOverdueFine: number;
+  overdueStatus: string;
+}
 
 export interface HandoverCheckOutContract {
   contract: {
@@ -694,6 +713,9 @@ export interface HandoverCheckOutContract {
     startDate: string;
     endDate: string;
     signedAt?: string;
+    returnDate?: string;
+    returnTimeSlot?: string;
+    returnRequestedAt?: string;
   };
   facility: {
     id: string;
@@ -711,7 +733,9 @@ export interface HandoverCheckOutContract {
   financialSummary: {
     totalDepositAmount: number;
     unpaidExtraChargesAmount: number;
+    overdueFineAmount?: number;
     estimatedRefundAmount: number;
+    overdueInfo?: HandoverOverdueInfo;
     pendingExtraCharges: any[];
   };
   units: Array<{
@@ -720,6 +744,8 @@ export interface HandoverCheckOutContract {
     unitNumber: string;
     floor?: string;
     unitStatus: string;
+    accessCode?: string;
+    accessCodeStatus?: string;
     storedItemsCount: number;
     checkInInspection?: {
       condition: string;
@@ -739,6 +765,10 @@ export interface CheckOutPayload {
   cleaningFee?: number;
   refundDeposit?: boolean;
   refundAmount?: number;
+  actualOverdueDays?: number;
+  actualOverdueFine?: number;
+  paymentMethod?: 'CASH' | 'BANK_TRANSFER';
+  newAccessCode?: string;
   unitCondition?: 'AVAILABLE' | 'UNDER_MAINTENANCE';
 }
 
@@ -780,6 +810,7 @@ export interface CheckOutResponse {
     damageFee: number;
     cleaningFee: number;
     unpaidExtraCharges: number;
+    overdueFineAmount?: number;
     refundDepositAmount: number;
     refundPayment?: {
       id: string;

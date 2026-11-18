@@ -76,7 +76,7 @@ export function useNotifications(userId?: string | number | null) {
         facilityId: storedUser?.facilityId,
       },
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
     });
 

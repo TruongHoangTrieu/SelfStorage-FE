@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   LifeBuoy,
   Clock,
@@ -87,7 +87,7 @@ export default function StaffSupportTicketsView({
     }
   };
 
-  const loadTickets = async (silent?: any) => {
+  const loadTickets = useCallback(async (silent?: any) => {
     const isSilent = silent === true;
     if (!isSilent) setLoading(true);
     try {
@@ -112,6 +112,7 @@ export default function StaffSupportTicketsView({
       });
     } catch (e) {
       console.warn('Could not load staff support tickets:', e);
+      if (isSilent) return;
       // Realistic fallback
       const mockTickets: SupportTicketItem[] = [
         {
@@ -186,12 +187,18 @@ export default function StaffSupportTicketsView({
     } finally {
       if (!isSilent) setLoading(false);
     }
-  };
+  }, [facilityId]);
 
   useEffect(() => {
     loadTickets();
 
-    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+    const SOCKET_URL =
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      (typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'
+        ? 'https://selfstorage-be-1.onrender.com'
+        : 'http://localhost:5000');
     const token =
       typeof window !== 'undefined'
         ? localStorage.getItem('token') || localStorage.getItem('access_token')
@@ -211,7 +218,10 @@ export default function StaffSupportTicketsView({
         facilityId: facilityId || storedUser?.facilityId,
       },
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      timeout: 45000,
       autoConnect: true,
     });
 
@@ -220,6 +230,7 @@ export default function StaffSupportTicketsView({
       if (facilityId) {
         socket.emit('join_facility', String(facilityId));
       }
+      loadTickets(true);
     });
 
     const handleCreated = (newTicket: SupportTicketItem) => {
@@ -291,11 +302,16 @@ export default function StaffSupportTicketsView({
         handleNoteAdded({ ticketId: ev.ticketId, log: ev.log });
     });
 
+    const syncInterval = setInterval(() => {
+      loadTickets(true);
+    }, 5000);
+
     return () => {
+      clearInterval(syncInterval);
       unsubRealtime();
       socket.disconnect();
     };
-  }, [facilityId]);
+  }, [facilityId, loadTickets]);
 
   useEffect(() => {
     const handleTicketUrlSync = () => {
@@ -324,10 +340,13 @@ export default function StaffSupportTicketsView({
 
   const handleUpdateProgressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTicket || !progressNote.trim()) {
-      toast.error('Vui lòng nhập ghi chú tiến độ / phương án giải quyết');
+    if (!selectedTicket) {
+      toast.error('Không tìm thấy thông tin phiếu hỗ trợ');
       return;
     }
+
+    const effectiveNote =
+      progressNote.trim() || `Cập nhật trạng thái sang ${progressStatus}`;
 
     setIsSubmittingProgress(true);
     const mergedPhotos = [
@@ -337,7 +356,7 @@ export default function StaffSupportTicketsView({
     try {
       await supportApi.updateProgress(selectedTicket.id, {
         status: progressStatus,
-        note: progressNote.trim(),
+        note: effectiveNote,
         photos: progressPhotos.length > 0 ? mergedPhotos : undefined,
       });
       toast.success('Cập nhật tiến độ xử lý sự cố thành công!');
@@ -350,7 +369,7 @@ export default function StaffSupportTicketsView({
       const updated: SupportTicketItem = {
         ...selectedTicket,
         status: progressStatus,
-        resolutionNotes: progressNote.trim(),
+        resolutionNotes: effectiveNote,
         photos: mergedPhotos.length > 0 ? mergedPhotos : selectedTicket.photos,
         logs: [
           ...(selectedTicket.logs || []),
@@ -358,7 +377,7 @@ export default function StaffSupportTicketsView({
             id: `loc-${Date.now()}`,
             supportRequestId: selectedTicket.id,
             userId: 'staff-me',
-            note: progressNote.trim(),
+            note: effectiveNote,
             newStatus: progressStatus,
             createdAt: new Date().toISOString(),
             user: { id: 'staff-me', fullName: 'Nhân viên trực ban', role: 'FACILITY_STAFF' },
@@ -698,15 +717,14 @@ export default function StaffSupportTicketsView({
 
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Ghi chú kết quả / Phương án khắc phục:
+                  Ghi chú kết quả / Phương án khắc phục (Tùy chọn):
                 </label>
                 <textarea
                   value={progressNote}
                   onChange={(e) => setProgressNote(e.target.value)}
                   rows={3}
-                  placeholder="Ghi nhận các bước kỹ thuật đã thực hiện (thay pin khóa, reset PIN, cấp thẻ mới,...)"
+                  placeholder="Ghi nhận các bước kỹ thuật đã thực hiện (không bắt buộc)..."
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
-                  required
                 />
               </div>
 

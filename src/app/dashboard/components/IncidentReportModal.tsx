@@ -14,16 +14,16 @@ import { CustomerUnit, SupportTicket } from '../types';
 import { customerUnitsApi } from '../../../lib/api/customerUnits';
 import { supportApi, emitSupportRealtimeEvent } from '../../../lib/api/support';
 
-// Map frontend categories to backend enum values
-const CATEGORY_MAP: Record<string, string> = {
-  'Lỗi ổ khóa / Mã PIN không mở được': 'LOCK',
-  'Hư hỏng thiết bị / Cơ sở vật chất': 'DAMAGE',
-  'Vấn đề thanh toán / Hóa đơn': 'PAYMENT',
-  'Hỗ trợ thiết bị vận chuyển': 'UNIT',
-  'Cấp lại mã PIN / Thẻ RFID': 'ACCESS_CODE',
-  'Kỹ thuật vận hành': 'UNIT',
-  'Khác': 'OTHER',
-};
+// Map frontend categories to backend enum values & long labels (đồng bộ Mobile)
+const CATEGORY_OPTIONS = [
+  { id: 'LOCK', label: 'Sự cố khóa thông minh Smart Lock / Kẹt chốt hoặc không mở được cửa kho' },
+  { id: 'ACCESS_CODE', label: 'Quên mã PIN mở cửa, lỗi bàn phím hoặc cần cấp lại mã truy cập' },
+  { id: 'UNIT', label: 'Hư hỏng thiết bị buồng kho (đèn chiếu sáng, điều hòa, nhiệt độ, độ ẩm)' },
+  { id: 'DAMAGE', label: 'Thấm dột nước, rò rỉ, ẩm mốc hoặc hư hại kết cấu vách / sàn kho' },
+  { id: 'PAYMENT', label: 'Thắc mắc thanh toán, hóa đơn, gia hạn hợp đồng hoặc hoàn tiền cọc' },
+  { id: 'LOST_KEY', label: 'Mất thẻ từ ra vào cơ sở hoặc yêu cầu khóa / cấp thẻ thay thế' },
+  { id: 'OTHER', label: 'Yêu cầu hỗ trợ khác (thủ tục nhận trả kho, tài khoản, phản ánh dịch vụ)' },
+] as const;
 
 const URGENCY_MAP: Record<string, string> = {
   'normal': 'LOW',
@@ -44,8 +44,7 @@ export default function IncidentReportModal({
   unit,
   onSubmitTicket,
 }: IncidentReportModalProps) {
-  const [ticketTitle, setTicketTitle] = useState(`Sự cố với ${unit.unitNumber}`);
-  const [category, setCategory] = useState('Lỗi ổ khóa / Mã PIN không mở được');
+  const [category, setCategory] = useState<string>('LOCK');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<'normal' | 'high' | 'urgent'>('high');
   const [photos, setPhotos] = useState<string[]>([]);
@@ -86,13 +85,16 @@ export default function IncidentReportModal({
     e.preventDefault();
     if (!description.trim() || isSubmitting) return;
     setIsSubmitting(true);
+    const catLabel =
+      CATEGORY_OPTIONS.find((c) => c.id === category)?.label || 'Yêu cầu hỗ trợ kỹ thuật';
+    const autoSubject = unit.unitNumber ? `${catLabel} (Ô #${unit.unitNumber})` : catLabel;
 
     try {
       const createdTicket = await customerUnitsApi.createSupportRequest({
         facilityId: unit.facilityId ? String(unit.facilityId) : '',
         contractItemId: unit.rawContractItemId ? String(unit.rawContractItemId) : (unit.rawContractId ? String(unit.id) : undefined),
-        category: CATEGORY_MAP[category] || 'OTHER',
-        subject: ticketTitle,
+        category: category || 'OTHER',
+        subject: autoSubject,
         description: description.trim(),
         priority: URGENCY_MAP[urgency] || 'HIGH',
         photos: photos.length > 0 ? photos : undefined,
@@ -106,9 +108,9 @@ export default function IncidentReportModal({
       const mockCode = `TK-${Math.floor(1000 + Math.random() * 9000)}`;
       const newTicket: SupportTicket = {
         id: mockCode,
-        title: ticketTitle,
+        title: autoSubject,
         unitCode: unit.unitNumber,
-        category: category,
+        category: catLabel,
         createdAt: new Date().toLocaleDateString('vi-VN'),
         status: 'open',
         lastReply: 'Đã tiếp nhận yêu cầu. Kỹ thuật viên cơ sở đang chuẩn bị xử lý.',
@@ -120,8 +122,8 @@ export default function IncidentReportModal({
           requestCode: mockCode,
           customerId: 'cust-local',
           facilityId: String(unit.facilityId || '1'),
-          category: (CATEGORY_MAP[category] || 'OTHER') as any,
-          subject: ticketTitle,
+          category: (category || 'OTHER') as any,
+          subject: autoSubject,
           description: description.trim(),
           priority: (URGENCY_MAP[urgency] || 'HIGH') as any,
           status: 'OPEN',
@@ -180,49 +182,34 @@ export default function IncidentReportModal({
 
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Tiêu đề phiếu hỗ trợ (Tự động điền sẵn):
+              Loại sự cố:
             </label>
-            <input
-              type="text"
-              required
-              value={ticketTitle}
-              onChange={(e) => setTicketTitle(e.target.value)}
-              className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-            />
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+            >
+              {CATEGORY_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">
-                Phân loại sự cố:
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-              >
-                <option value="Lỗi ổ khóa / Mã PIN không mở được">Kẹt khóa / Mã PIN không ăn</option>
-                <option value="Đèn chiếu sáng hoặc quạt thông gió hỏng">Đèn chiếu sáng hỏng</option>
-                <option value="Nhiệt độ hoặc độ ẩm bất thường">Nhiệt độ / Độ ẩm bất thường</option>
-                <option value="Cửa cuốn kẹt, khó kéo">Cửa cuốn kẹt, khó kéo</option>
-                <option value="Khác">Sự cố kỹ thuật khác</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">
-                Mức độ khẩn cấp:
-              </label>
-              <select
-                value={urgency}
-                onChange={(e) => setUrgency(e.target.value as any)}
-                className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
-              >
-                <option value="normal">Bình thường (Trong ngày)</option>
-                <option value="high">Cao (Cần hỗ trợ trong 30p)</option>
-                <option value="urgent">Khẩn cấp (Ngay lập tức tại quầy)</option>
-              </select>
-            </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1">
+              Mức độ khẩn cấp:
+            </label>
+            <select
+              value={urgency}
+              onChange={(e) => setUrgency(e.target.value as any)}
+              className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-600 focus:outline-hidden"
+            >
+              <option value="normal">Bình thường (Trong ngày)</option>
+              <option value="high">Cao (Cần hỗ trợ trong 30p)</option>
+              <option value="urgent">Khẩn cấp (Ngay lập tức tại quầy)</option>
+            </select>
           </div>
 
           <div>
