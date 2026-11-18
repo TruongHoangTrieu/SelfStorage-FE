@@ -482,7 +482,7 @@ export const handoversApi = {
   },
 
   /**
-   * Tải ảnh CCCD bảo mật (Private Authenticated Storage + Watermark chống lạm dụng)
+   * Tải ảnh CCCD bảo mật (Private Signed URL + Watermark chống lạm dụng)
    */
   async uploadCccdPhoto(
     file: File,
@@ -494,27 +494,7 @@ export const handoversApi = {
     formData.append('side', side);
     if (reservationCode) formData.append('reservationCode', reservationCode);
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const res = await fetch('/api/handovers/upload-cccd', {
-      method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: formData,
-    });
-
-    if (!res.ok) {
-      // Fallback nếu route upload-cccd chưa được proxy thì dùng upload-photo
-      const fallback = await this.uploadHandoverPhoto(file);
-      return {
-        url: fallback.url,
-        signedUrl: fallback.url,
-        public_id: fallback.public_id,
-        expiresAt: Math.floor(Date.now() / 1000) + 300,
-      };
-    }
-
-    return await res.json();
+    return await api.post('/handovers/upload-cccd', formData, { timeoutMs: 30000 });
   },
 
   /**
@@ -561,12 +541,8 @@ export const handoversApi = {
     identityFrontUrl?: string;
     identityBackUrl?: string;
   }> {
-    const rawId = typeof reservationId === 'string' && reservationId.startsWith('RSV-')
-      ? reservationId.replace('RSV-', '')
-      : reservationId;
-
     return await api.post('/handovers/log-cccd-access', {
-      reservationId: String(rawId),
+      reservationId: String(reservationId),
       action: 'VIEW_UNMASKED_CCCD',
       customerName,
     });

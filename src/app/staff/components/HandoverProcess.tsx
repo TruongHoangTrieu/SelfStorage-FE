@@ -350,7 +350,8 @@ export default function HandoverProcess({
       return;
     }
 
-    const finalIdNumber = unmaskedNumber || manualIdInput.trim() || appointment.idCard;
+    const candidateCard = appointment.idCard && !appointment.idCard.includes('*') ? appointment.idCard : '';
+    const finalIdNumber = unmaskedNumber || manualIdInput.trim() || candidateCard;
     onCompleteHandover(photos.map((p) => p.url), {
       identityNumber: finalIdNumber || undefined,
       identityType: manualIdType,
