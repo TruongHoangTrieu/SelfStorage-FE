@@ -17,6 +17,7 @@ import {
   LogIn,
   Clock,
   DoorClosed,
+  ShieldAlert,
 } from 'lucide-react';
 import { StaffTab, StaffUser } from '../types';
 
@@ -84,6 +85,7 @@ export default function Sidebar({
       icon: DoorClosed,
       badge: pendingRenewalsCount && pendingRenewalsCount > 0 ? pendingRenewalsCount : undefined,
     },
+    { id: 'liquidation' as StaffTab, label: 'Thanh lý kho', icon: ShieldAlert },
     { id: 'facility' as StaffTab, label: 'Sơ đồ & Ô kho 24/7', icon: MapPin },
     { id: 'support' as StaffTab, label: 'Tiếp nhận sự cố', icon: LifeBuoy, dot: true },
   ];

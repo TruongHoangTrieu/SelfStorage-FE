@@ -102,7 +102,7 @@ export default function ManagerSidebar({
     },
     {
       id: "checkout" as ManagerTab,
-      label: "Thủ tục trả kho & Gia hạn",
+      label: "Quản lí kho thuê",
       icon: DoorClosed,
       badge:
         pendingRenewalsCount && pendingRenewalsCount > 0

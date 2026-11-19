@@ -665,22 +665,31 @@ export default function UnitDetailsView({
                 </p>
 
                 <div className="pt-2 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="text-xs text-slate-600 font-medium">
-                      Mã PIN cá nhân: <span className="tabular-nums text-lg font-bold text-blue-600 ml-1 tracking-wider">{fetchedPin}</span>
+                  {unit.status === 'terminated' ||
+                  unit.smartLockStatus === 'REVOKED' ||
+                  unit.liquidationStatus === 'REQUESTED' ||
+                  unit.liquidationStatus === 'COMPLETED' ? (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700">
+                      Mã PIN Smart Lock đã bị thu hồi và khóa quyền truy cập do kho đang xử lý thanh lý hoặc đã thanh lý.
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowPinChange(!showPinChange)}
-                      className="px-2.5 py-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-100/70 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
-                    >
-                      <KeyRound className="w-3 h-3" />
-                      <span>{showPinChange ? 'Hủy' : 'Đổi mã PIN'}</span>
-                    </button>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <div className="text-xs text-slate-600 font-medium">
+                          Mã PIN cá nhân: <span className="tabular-nums text-lg font-bold text-blue-600 ml-1 tracking-wider">{fetchedPin}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowPinChange(!showPinChange)}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-100/70 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <KeyRound className="w-3 h-3" />
+                          <span>{showPinChange ? 'Hủy' : 'Đổi mã PIN'}</span>
+                        </button>
+                      </div>
 
-                  {/* Inline Change PIN Form */}
-                  {showPinChange && (
+                      {/* Inline Change PIN Form */}
+                      {showPinChange && (
                     <form onSubmit={handleChangePin} className="p-3.5 bg-white border border-slate-200 rounded-2xl space-y-2.5 animate-slide-up-fade shadow-xs">
                       <div className="text-xs font-semibold text-slate-700">
                         Nhập mã PIN mới (4 - 8 chữ số):
@@ -721,6 +730,8 @@ export default function UnitDetailsView({
                       )}
                     </form>
                   )}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -728,7 +739,13 @@ export default function UnitDetailsView({
               <div className="flex flex-col items-center justify-center">
                 <button
                   onClick={handleRemoteUnlock}
-                  disabled={unlockStatus === 'unlocking'}
+                  disabled={
+                    unlockStatus === 'unlocking' ||
+                    unit.status === 'terminated' ||
+                    unit.smartLockStatus === 'REVOKED' ||
+                    unit.liquidationStatus === 'REQUESTED' ||
+                    unit.liquidationStatus === 'COMPLETED'
+                  }
                   className={`w-36 h-36 rounded-full flex flex-col items-center justify-center gap-2 border-4 transition-all duration-300 shadow-2xl active:scale-95 ${
                     unlockStatus === 'unlocked'
                       ? 'bg-emerald-600 border-emerald-400 text-white scale-105'

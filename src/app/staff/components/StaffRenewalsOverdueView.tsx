@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { supportApi } from '@/lib/api/support';
 import { operationsApi } from '@/lib/api/operations';
 import {
   renewalsApi,
@@ -46,7 +47,7 @@ import {
   CheckOutResponse,
 } from '@/lib/api/handovers';
 
-type SubTab = 'checkout' | 'renewals' | 'overdue';
+type SubTab = 'checkout' | 'renewals' | 'overdue' | 'liquidation';
 
 interface StaffRenewalsOverdueViewProps {
   facilityId?: string | number;
@@ -58,6 +59,23 @@ export default function StaffRenewalsOverdueView({
   initialTab = 'checkout',
 }: StaffRenewalsOverdueViewProps) {
   const [activeTab, setActiveTab] = useState<SubTab>(initialTab || 'checkout');
+  const [isManagerRole, setIsManagerRole] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        const r = String(u?.role?.name || u?.role || '').toUpperCase();
+        setIsManagerRole(
+          r.includes('MANAGER') || r.includes('ADMIN') || r.includes('OPERATIONS'),
+        );
+      } catch {}
+    }
+  }, []);
 
   // Renewals State
   const [renewals, setRenewals] = useState<RenewalRecord[]>([]);
@@ -69,6 +87,19 @@ export default function StaffRenewalsOverdueView({
   const [loadingOverdue, setLoadingOverdue] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [requestingLiqId, setRequestingLiqId] = useState<string | null>(null);
+
+  // Liquidation State (Mục riêng: Thanh lý kho quá hạn)
+  const [liquidations, setLiquidations] = useState<OverdueRecord[]>([]);
+  const [loadingLiquidations, setLoadingLiquidations] = useState(false);
+  const [selectedLiq, setSelectedLiq] = useState<OverdueRecord | null>(null);
+  const [liqCondition, setLiqCondition] = useState('Đã kiểm kê, đóng gói đồ đạc tồn kho và niêm phong thu hồi ngăn kho');
+  const [liqNotes, setLiqNotes] = useState('');
+  const [liqPhotos, setLiqPhotos] = useState<string[]>([]);
+  const [liqUploadingPhoto, setLiqUploadingPhoto] = useState(false);
+  const [liqNewPin, setLiqNewPin] = useState('');
+  const [liqUnitCondition, setLiqUnitCondition] = useState<'AVAILABLE' | 'UNDER_MAINTENANCE'>('AVAILABLE');
+  const [isSubmittingLiq, setIsSubmittingLiq] = useState(false);
 
   // Reject modal state
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -374,14 +405,8 @@ export default function StaffRenewalsOverdueView({
             });
           } else if (
             hasReturnReq ||
-            c.status === 'OVERDUE' ||
-            isEndTodayOrPast ||
             c.status === 'CHECKOUT_REQUESTED' ||
-            c.status === 'TERMINATING' ||
-            cCode?.includes('TODAY') ||
-            cCode?.includes('EARLY') ||
-            cCode?.includes('OVERDUE') ||
-            cCode?.includes('CHECKOUT')
+            c.status === 'TERMINATING'
           ) {
             const isOverdue = cCode?.includes('OVERDUE') || c.status === 'OVERDUE' || (c.endDate && new Date(c.endDate).getTime() < Date.now());
             const isEarly = cCode?.includes('EARLY') || (hasReturnReq && !isOverdue && c.endDate && new Date(c.endDate).getTime() > endOfToday.getTime());
@@ -429,57 +454,6 @@ export default function StaffRenewalsOverdueView({
             });
           }
         });
-
-        // 3. Nếu chưa có request nào trong cache, kết nối hợp đồng thực tế từ DB để Staff & Manager nghiệm thu chuẩn:
-        // Hợp đồng VNG-101 (CON-20261021-LD9KAM - ID 6ad8dfcb02aee0d8dbd47a5d) của Nguyễn Văn Khách Hàng
-        if (uniqueMap.size === 0 && list.length > 0) {
-          const primaryContract = list.find((c: any) => c.contractCode === 'CON-20261021-LD9KAM') || list[0];
-          const pId = String(primaryContract.id || primaryContract._id);
-          const pCode = primaryContract.contractCode;
-          const pUnit = primaryContract.contractItems?.[0]?.unit?.unitNumber || 'VNG-101';
-          const pFac = primaryContract.contractItems?.[0]?.unit?.facility?.name || 'Kho Tự Quản Trụ Sở Chính Võ Nguyên Giáp';
-          const pCust = primaryContract.customer?.fullName || 'Nguyễn Văn Khách Hàng';
-          const pPhone = primaryContract.customer?.phone || '0909123456';
-          const pEmail = primaryContract.customer?.email || 'customer@selfstorage.vn';
-          const pDep = Number(primaryContract.depositAmount || 10000);
-
-          const defaultReq = {
-            contractId: pId,
-            contractCode: pCode,
-            unitNumber: pUnit,
-            facilityName: pFac,
-            customerName: pCust,
-            customerPhone: pPhone,
-            customerEmail: pEmail,
-            requestedMoveOutDate: new Date().toISOString().split('T')[0],
-            reason: 'Đã hoàn thành nhu cầu lưu trữ (dự án/chuyển đồ xong)',
-            feedbackNotes: 'Dịch vụ kho rất sạch sẽ, bảo quản tốt. Tôi đã dọn dẹp sạch toàn bộ đồ đạc và kiểm tra khóa cửa hoạt động tốt.',
-            unitClearanceConfirmed: true,
-            lockIntactConfirmed: true,
-            bankInfo: {
-              bankName: 'Techcombank (Kỹ Thương Việt Nam)',
-              accountNumber: '19034567890123',
-              accountHolder: pCust.toUpperCase(),
-            },
-            depositAmount: pDep,
-            estimatedRefund: pDep,
-            status: 'PENDING',
-            statusLabel: 'Chờ nhân viên nghiệm thu ô kho',
-            createdAt: new Date().toISOString(),
-            photos: [
-              'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80',
-              'https://images.unsplash.com/photo-1595246140625-573b715d11dc?auto=format&fit=crop&w=1200&q=80',
-            ],
-          };
-          uniqueMap.set(pId, defaultReq);
-
-          if (typeof window !== 'undefined') {
-            try {
-              const cache = { [pId]: defaultReq, [pCode]: defaultReq };
-              localStorage.setItem('customer_checkout_requests', JSON.stringify(cache));
-            } catch {}
-          }
-        }
       } catch (errDb) {
         console.warn('Could not query contracts from DB for pending checkouts:', errDb);
       }
@@ -490,11 +464,106 @@ export default function StaffRenewalsOverdueView({
     }
   };
 
+  const loadLiquidations = async () => {
+    setLoadingLiquidations(true);
+    try {
+      const res = await renewalsApi.getLiquidations({
+        facilityId: facilityId ? String(facilityId) : undefined,
+      });
+      const list = Array.isArray(res) ? res : [];
+      setLiquidations(list);
+      if (selectedLiq) {
+        const updated = list.find((l) => l.id === selectedLiq.id);
+        if (updated) setSelectedLiq(updated);
+      }
+    } catch (e) {
+      console.warn('Could not load liquidations:', e);
+      setLiquidations([]);
+    } finally {
+      setLoadingLiquidations(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'renewals') loadRenewals();
     else if (activeTab === 'overdue') loadOverdue();
     else if (activeTab === 'checkout') loadPendingCheckouts();
+    else if (activeTab === 'liquidation') loadLiquidations();
   }, [activeTab, facilityId]);
+
+  const handleRequestLiquidation = async (o: OverdueRecord) => {
+    setRequestingLiqId(o.id);
+    try {
+      const res = await renewalsApi.requestLiquidation(o.id);
+      toast.success(res?.message || 'Đã khóa PIN khách và gửi lệnh thanh lý cho nhân viên chi nhánh!');
+      await Promise.all([loadOverdue(), loadLiquidations()]);
+    } catch (err: any) {
+      toast.error(err?.message || 'Không thể gửi yêu cầu thanh lý kho');
+    } finally {
+      setRequestingLiqId(null);
+    }
+  };
+
+  const handleUploadLiqPhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setLiqUploadingPhoto(true);
+    try {
+      const urls: string[] = [];
+      for (const file of files) {
+        const res = await supportApi.uploadPhoto(file);
+        if (res?.url) urls.push(res.url);
+      }
+      if (urls.length > 0) {
+        setLiqPhotos((prev) => [...prev, ...urls]);
+        toast.success(`Đã tải lên ${urls.length} ảnh đồ đạc tồn kho`);
+      }
+    } catch {
+      toast.error('Không thể tải ảnh kiểm kê.');
+    } finally {
+      setLiqUploadingPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleCompleteLiquidation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLiq) return;
+    const cleanPin = liqNewPin.trim();
+    if (!/^\d{6}$/.test(cleanPin)) {
+      toast.error('Vui lòng nhập hoặc tạo mã PIN Smart Lock mới gồm đúng 6 chữ số.');
+      return;
+    }
+    const oldPin = selectedLiq.contract?.contractItems?.[0]?.accessCode;
+    if (oldPin && cleanPin === oldPin) {
+      toast.error(`Mã PIN mới không được trùng với mã PIN cũ (${oldPin}).`);
+      return;
+    }
+    if (!liqCondition.trim()) {
+      toast.error('Vui lòng nhập hiện trạng kiểm kê đồ đạc tồn kho.');
+      return;
+    }
+
+    setIsSubmittingLiq(true);
+    try {
+      const res = await renewalsApi.completeLiquidation(selectedLiq.id, {
+        condition: liqCondition.trim(),
+        notes: liqNotes.trim() || undefined,
+        photos: liqPhotos,
+        newAccessCode: cleanPin,
+        unitCondition: liqUnitCondition,
+      });
+      toast.success(res?.message || 'Đã hoàn tất thanh lý kho quá hạn!');
+      setLiqNotes('');
+      setLiqPhotos([]);
+      setLiqNewPin('');
+      await Promise.all([loadLiquidations(), loadOverdue()]);
+    } catch (err: any) {
+      toast.error(err?.message || 'Không thể hoàn tất thanh lý kho.');
+    } finally {
+      setIsSubmittingLiq(false);
+    }
+  };
 
   // Handler: Approve Renewal
   const handleApproveRenewal = async (id: string) => {
@@ -941,6 +1010,24 @@ export default function StaffRenewalsOverdueView({
               </span>
             )}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('liquidation')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'liquidation'
+                ? 'bg-white text-slate-900 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+            <span>Thanh Lý Kho</span>
+            {liquidations.filter((l) => l.liquidationStatus === 'REQUESTED').length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-red-100 text-red-800 border border-red-200">
+                {liquidations.filter((l) => l.liquidationStatus === 'REQUESTED').length}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -1127,6 +1214,12 @@ export default function StaffRenewalsOverdueView({
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {overdueRecords.map((o) => {
                       const unitNumber = o.contract?.contractItems?.[0]?.unit?.unitNumber || 'A-107';
+                      const overdueDaysNum = o.overdueDays ?? o.daysOverdue ?? 0;
+                      const thresholdDays = o.liquidationThresholdDays ?? 7;
+                      const isEligibleForLiq = overdueDaysNum > thresholdDays;
+                      const pinRevoked =
+                        o.liquidationStatus === 'REQUESTED' ||
+                        o.contract?.contractItems?.[0]?.accessCodeStatus === 'REVOKED';
                       return (
                         <tr key={o.id} className="hover:bg-slate-50/70 transition">
                           <td className="px-5 py-3.5">
@@ -1137,13 +1230,20 @@ export default function StaffRenewalsOverdueView({
                           </td>
 
                           <td className="px-5 py-3.5 font-mono text-[11px]">
-                            {o.contract?.endDate || '2026-10-04'}
+                            {o.contract?.endDate ? new Date(o.contract.endDate).toLocaleDateString('vi-VN') : '2026-10-04'}
                           </td>
 
                           <td className="px-5 py-3.5">
-                            <span className="font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full text-[11px]">
-                              Quá {o.daysOverdue} ngày
-                            </span>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full text-[11px]">
+                                Quá {overdueDaysNum} ngày
+                              </span>
+                              {o.status === 'OPEN' && isEligibleForLiq && (
+                                <span className="text-[10px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded">
+                                  Đủ điều kiện thanh lý (&gt; {thresholdDays} ngày)
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           <td className="px-5 py-3.5 text-right font-bold text-rose-700 font-mono">
@@ -1152,19 +1252,40 @@ export default function StaffRenewalsOverdueView({
 
                           <td className="px-5 py-3.5 text-center">
                             {o.status === 'OPEN' ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">
-                                <Lock className="w-3 h-3" /> Đã khóa PIN
-                              </span>
+                              pinRevoked ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800">
+                                  <Lock className="w-3 h-3" /> Đã khóa PIN
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
+                                  <Unlock className="w-3 h-3" /> Chờ xử lý
+                                </span>
+                              )
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
-                                <Unlock className="w-3 h-3" /> Đã mở khóa
+                                <Unlock className="w-3 h-3" /> Đã xử lý
                               </span>
                             )}
                           </td>
 
                           <td className="px-5 py-3.5 text-right">
                             {o.status === 'OPEN' ? (
-                              <div className="flex items-center justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                {isManagerRole && !o.liquidationStatus && isEligibleForLiq && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRequestLiquidation(o)}
+                                    disabled={requestingLiqId === o.id}
+                                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-xs transition cursor-pointer"
+                                  >
+                                    {requestingLiqId === o.id ? 'Đang gửi...' : 'Yêu cầu thanh lý'}
+                                  </button>
+                                )}
+                                {o.liquidationStatus === 'REQUESTED' && (
+                                  <span className="px-2.5 py-1 bg-amber-100 text-amber-800 font-bold rounded-lg text-[11px]">
+                                    Đã gửi Staff thanh lý
+                                  </span>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => handleResolveOverdue(o.id)}
@@ -1183,7 +1304,11 @@ export default function StaffRenewalsOverdueView({
                               </div>
                             ) : (
                               <span className="text-[11px] text-slate-400">
-                                {o.status === 'RESOLVED' ? 'Đã thanh toán' : 'Đã miễn giảm'}
+                                {o.liquidationStatus === 'COMPLETED'
+                                  ? 'Đã thanh lý kho'
+                                  : o.status === 'RESOLVED'
+                                  ? 'Đã thanh toán'
+                                  : 'Đã miễn giảm'}
                               </span>
                             )}
                           </td>
@@ -1193,6 +1318,251 @@ export default function StaffRenewalsOverdueView({
                   </tbody>
                 </table>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================= TAB 4: THANH LÝ KHO QUÁ HẠN (NHẬN LỆNH TỪ MANAGER) ================= */}
+      {activeTab === 'liquidation' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-700">
+                Danh Sách Đơn Thanh Lý Kho ({liquidations.length})
+              </h3>
+              <button
+                type="button"
+                onClick={loadLiquidations}
+                className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Làm mới</span>
+              </button>
+            </div>
+
+            {loadingLiquidations ? (
+              <div className="p-10 text-center text-slate-400 text-xs">Đang tải danh sách thanh lý...</div>
+            ) : liquidations.length === 0 ? (
+              <div className="p-10 text-center text-slate-400 text-xs">
+                Hiện chưa có lệnh thanh lý kho nào từ Quản lý.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {liquidations.map((liq) => {
+                  const unitNum = liq.contract?.contractItems?.[0]?.unit?.unitNumber || 'KHO';
+                  const isDone = liq.liquidationStatus === 'COMPLETED';
+                  const isSelected = selectedLiq?.id === liq.id;
+                  return (
+                    <button
+                      key={liq.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedLiq(liq);
+                        setLiqCondition(
+                          liq.liquidationCondition ||
+                            'Đã kiểm kê, đóng gói đồ đạc tồn kho và niêm phong thu hồi ngăn kho',
+                        );
+                        setLiqNotes(liq.liquidationNotes || '');
+                        setLiqPhotos(Array.isArray(liq.liquidationPhotos) ? liq.liquidationPhotos : []);
+                        setLiqNewPin(liq.liquidationNewPin || '');
+                      }}
+                      className={`w-full text-left p-4 transition cursor-pointer ${
+                        isSelected ? 'bg-red-50/70 border-l-4 border-l-red-600' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-900">
+                          Ô #{unitNum} · {liq.contract?.contractCode}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isDone ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {isDone ? 'Đã thanh lý' : 'Chờ xử lý'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-700 mt-1 font-semibold">
+                        {liq.contract?.customer?.fullName || 'Khách hàng'} · {liq.contract?.customer?.phone || ''}
+                      </p>
+                      <p className="text-[11px] text-rose-700 mt-1 font-medium">
+                        Quá {liq.overdueDays ?? liq.daysOverdue ?? 0} ngày · Phạt:{' '}
+                        {new Intl.NumberFormat('vi-VN').format(liq.overdueFee)} đ
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6">
+            {!selectedLiq ? (
+              <div className="py-16 text-center text-slate-400 text-xs">
+                Chọn 1 đơn thanh lý ở danh sách bên trái để kiểm kê tài sản tồn kho, đổi mã PIN mới và thu hồi kho.
+              </div>
+            ) : (
+              <form onSubmit={handleCompleteLiquidation} className="space-y-5">
+                {(() => {
+                  const unitItem = selectedLiq.contract?.contractItems?.[0];
+                  const deposit = Number(unitItem?.depositAmount || 0);
+                  const fine = Number(selectedLiq.overdueFee || 0);
+                  const debt = Math.max(0, fine - deposit);
+                  const isDone = selectedLiq.liquidationStatus === 'COMPLETED';
+                  return (
+                    <>
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div>
+                          <h3 className="text-base font-extrabold text-slate-900">
+                            Biên Bản Thanh Lý Kho #{unitItem?.unit?.unitNumber}
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            HĐ: {selectedLiq.contract?.contractCode} · Khách: {selectedLiq.contract?.customer?.fullName}
+                          </p>
+                        </div>
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800">
+                          Đã khóa PIN khách
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 bg-rose-50/70 border border-rose-200 rounded-xl p-4 text-xs">
+                        <div>
+                          <p className="text-slate-500">Tiền cọc tịch thu</p>
+                          <p className="font-extrabold text-slate-900 mt-0.5">
+                            {new Intl.NumberFormat('vi-VN').format(deposit)} đ
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-slate-500">Phạt trễ ({selectedLiq.overdueDays ?? 0} ngày)</p>
+                          <p className="font-extrabold text-rose-700 mt-0.5">
+                            {new Intl.NumberFormat('vi-VN').format(fine)} đ
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-slate-500">Hoàn cọc / Dư nợ</p>
+                          <p className="font-extrabold text-red-700 mt-0.5">
+                            0 đ hoàn · Nợ {new Intl.NumberFormat('vi-VN').format(debt)} đ
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Ảnh kiểm kê đồ đạc tồn kho &amp; hiện trạng ({liqPhotos.length})
+                        </label>
+                        {!isDone && (
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            disabled={liqUploadingPhoto}
+                            onChange={handleUploadLiqPhotos}
+                            className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-800 file:font-semibold hover:file:bg-slate-200"
+                          />
+                        )}
+                        {liqPhotos.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {liqPhotos.map((url, idx) => (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt="Thanh lý"
+                                className="w-20 h-20 object-cover rounded-lg border border-slate-200"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Đổi mã PIN Smart Lock mới (6 chữ số)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            disabled={isDone}
+                            value={liqNewPin}
+                            onChange={(e) => setLiqNewPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                            placeholder="Nhập 6 số mới"
+                            className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono font-bold"
+                          />
+                          {!isDone && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const oldPin = unitItem?.accessCode;
+                                let pin = '';
+                                do {
+                                  pin = Math.floor(100000 + Math.random() * 900000).toString();
+                                } while (pin === oldPin);
+                                setLiqNewPin(pin);
+                              }}
+                              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl cursor-pointer"
+                            >
+                              Tạo ngẫu nhiên
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Hiện trạng &amp; xử lý tài sản tồn kho
+                        </label>
+                        <textarea
+                          rows={2}
+                          disabled={isDone}
+                          value={liqCondition}
+                          onChange={(e) => setLiqCondition(e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          Trạng thái ô kho sau thanh lý
+                        </label>
+                        <div className="flex gap-2">
+                          {(['AVAILABLE', 'UNDER_MAINTENANCE'] as const).map((st) => (
+                            <button
+                              key={st}
+                              type="button"
+                              disabled={isDone}
+                              onClick={() => setLiqUnitCondition(st)}
+                              className={`px-3 py-2 rounded-xl text-xs font-bold border cursor-pointer ${
+                                liqUnitCondition === st
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'bg-white text-slate-700 border-slate-200'
+                              }`}
+                            >
+                              {st === 'AVAILABLE' ? 'Sẵn sàng cho thuê (AVAILABLE)' : 'Cần bảo trì / dọn dẹp'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {!isDone ? (
+                        <button
+                          type="submit"
+                          disabled={isSubmittingLiq}
+                          className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-extrabold rounded-xl shadow-xs cursor-pointer"
+                        >
+                          {isSubmittingLiq
+                            ? 'Đang hoàn tất thanh lý...'
+                            : 'Hoàn tất Thanh Lý Kho (Tịch thu cọc & Giải phóng kho)'}
+                        </button>
+                      ) : (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-700 text-center">
+                          Đơn thanh lý này đã hoàn tất. Ô kho đã được thu hồi.
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </form>
             )}
           </div>
         </div>

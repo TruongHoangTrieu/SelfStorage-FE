@@ -41,9 +41,20 @@ export interface RenewalRecord {
 export interface OverdueRecord {
   id: string;
   contractId: string;
-  customerId: string;
-  daysOverdue: number;
+  customerId?: string;
+  daysOverdue?: number;
+  overdueDays?: number;
   overdueFee: number;
+  liquidationThresholdDays?: number;
+  dailyFinePercent?: number;
+  liquidationStatus?: 'REQUESTED' | 'COMPLETED' | null;
+  liquidationRequestedAt?: string;
+  liquidationNotes?: string;
+  liquidationCondition?: string;
+  liquidationPhotos?: string[];
+  liquidationNewPin?: string;
+  liquidationForfeitedDeposit?: number;
+  liquidationRemainingDebt?: number;
   status: 'OPEN' | 'RESOLVED' | 'WAIVED';
   notes?: string;
   resolvedAt?: string;
@@ -62,10 +73,20 @@ export interface OverdueRecord {
       phone?: string;
     };
     contractItems?: Array<{
+      id?: string;
+      accessCode?: string;
+      accessCodeStatus?: string;
+      depositAmount?: number;
+      rentalPrice?: number;
       unit?: {
         id: string;
         unitNumber: string;
         status: string;
+        unitType?: {
+          id: string;
+          name: string;
+          size?: number;
+        };
         facility?: {
           id: string;
           name: string;
@@ -147,5 +168,41 @@ export const renewalsApi = {
   // Miễn giảm phí phạt quá hạn (Manager / Admin)
   waiveOverdue: async (id: string, notes?: string) => {
     return api.patch<OverdueRecord>(`/renewals/overdue/records/${id}/waive`, { notes });
+  },
+
+  // Manager yêu cầu Staff chi nhánh thanh lý kho quá hạn (khóa PIN khách ngay)
+  requestLiquidation: async (id: string, notes?: string) => {
+    return api.post<{ message: string; overdueRecord: OverdueRecord }>(
+      `/renewals/overdue/records/${id}/request-liquidation`,
+      { notes },
+    );
+  },
+
+  // Danh sách đơn thanh lý kho quá hạn cho Staff / Manager chi nhánh
+  getLiquidations: async (params?: { facilityId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.facilityId) q.append('facilityId', params.facilityId);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return api.get<OverdueRecord[]>(`/renewals/overdue/liquidations${qs}`);
+  },
+
+  // Staff hoàn tất quy trình thanh lý kho quá hạn
+  completeLiquidation: async (
+    id: string,
+    dto: {
+      condition: string;
+      notes?: string;
+      photos?: string[];
+      newAccessCode: string;
+      unitCondition?: 'AVAILABLE' | 'UNDER_MAINTENANCE';
+    },
+  ) => {
+    return api.post<{
+      message: string;
+      overdueRecord: OverdueRecord;
+      forfeitedDeposit: number;
+      overdueFine: number;
+      remainingDebt: number;
+    }>(`/renewals/overdue/records/${id}/complete-liquidation`, dto);
   },
 };

@@ -266,7 +266,7 @@ export default function ManagerOverviewDashboard({
             onClick={() => onNavigateTab('checkout')}
             className="mt-5 w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 text-amber-700 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
           >
-            <span>Thủ Tục Trả Kho &amp; Hợp Đồng</span>
+            <span>Quản Lí Kho Thuê</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>

@@ -119,6 +119,7 @@ export default function StaffPortalPage() {
         'queue',
         'dashboard',
         'checkout',
+        'liquidation',
         'facility',
         'support',
         'settings',
@@ -1277,6 +1278,14 @@ export default function StaffPortalPage() {
             {/* TAB THỦ TỤC TRẢ KHO, GIA HẠN & XỬ LÝ QUÁ HẠN (FLOW 5 & 6) */}
             {activeTab === 'checkout' && (
               <StaffRenewalsOverdueView facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''} />
+            )}
+
+            {/* TAB RIÊNG: THANH LÝ KHO QUÁ HẠN (NHẬN LỆNH TỪ MANAGER) */}
+            {activeTab === 'liquidation' && (
+              <StaffRenewalsOverdueView
+                facilityId={currentUser?.facilityId || currentUser?.assignedFacility?.id || ''}
+                initialTab="liquidation"
+              />
             )}
 
             {/* TAB TIẾP NHẬN HỖ TRỢ & XỬ LÝ SỰ CỐ (FLOW 7) */}

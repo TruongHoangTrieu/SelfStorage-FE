@@ -194,11 +194,9 @@ export default function StaffSupportTicketsView({
 
     const SOCKET_URL =
       process.env.NEXT_PUBLIC_SOCKET_URL ||
-      (typeof window !== 'undefined' &&
-      window.location.hostname !== 'localhost' &&
-      window.location.hostname !== '127.0.0.1'
-        ? 'https://selfstorage-be-1.onrender.com'
-        : 'http://localhost:5000');
+      (process.env.NEXT_PUBLIC_API_URL
+        ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, '')
+        : 'https://selfstorage-be-1.onrender.com');
     const token =
       typeof window !== 'undefined'
         ? localStorage.getItem('token') || localStorage.getItem('access_token')
@@ -218,7 +216,7 @@ export default function StaffSupportTicketsView({
         facilityId: facilityId || storedUser?.facilityId,
       },
       withCredentials: true,
-      transports: ['polling', 'websocket'],
+      transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       timeout: 45000,
@@ -306,8 +304,22 @@ export default function StaffSupportTicketsView({
       loadTickets(true);
     }, 5000);
 
+    const handleFocusOrVisible = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        loadTickets(true);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocusOrVisible);
+      document.addEventListener('visibilitychange', handleFocusOrVisible);
+    }
+
     return () => {
       clearInterval(syncInterval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleFocusOrVisible);
+        document.removeEventListener('visibilitychange', handleFocusOrVisible);
+      }
       unsubRealtime();
       socket.disconnect();
     };

@@ -33,8 +33,19 @@ export function normalizeCustomerContract(contract: any): CustomerUnit[] {
   }
 
   const activeCheckoutRequest = contract.checkoutRequest || localCheckoutReq;
+  const liquidationStatus: 'REQUESTED' | 'COMPLETED' | null =
+    contract.overdueRecords?.[0]?.liquidationStatus || null;
+  const isLiquidationRequested = liquidationStatus === 'REQUESTED';
+  const isLiquidatedOrTerminated =
+    contract.status === 'TERMINATED' || liquidationStatus === 'COMPLETED';
 
-  if (contract.status === 'TERMINATED' || contract.status === 'EXPIRED') {
+  if (isLiquidatedOrTerminated) {
+    uiStatus = 'terminated';
+    uiStatusLabel = 'Đã thanh lý';
+  } else if (isLiquidationRequested) {
+    uiStatus = 'checkout_pending';
+    uiStatusLabel = 'Đang xử lý thanh lý';
+  } else if (contract.status === 'EXPIRED') {
     uiStatus = 'overdue';
     uiStatusLabel = 'Hợp đồng đã đến hạn';
   } else if (contract.status === 'CHECKOUT_REQUESTED' || contract.status === 'CHECKING_OUT' || activeCheckoutRequest) {
@@ -134,7 +145,12 @@ export function normalizeCustomerContract(contract: any): CustomerUnit[] {
       currentBalance: '0 đ (Đã thanh toán đủ)',
       temperature: unitType.climateControlled ? '22°C (Mát mẻ)' : '28°C (Thông thoáng)',
       humidity: unitType.climateControlled ? '50% (Tối ưu chống ẩm)' : '65%',
-      mainPin: item.accessCode || '******',
+      mainPin:
+        item.accessCodeStatus === 'REVOKED' ||
+        isLiquidatedOrTerminated ||
+        isLiquidationRequested
+          ? 'Đã thu hồi'
+          : item.accessCode || '******',
       rfidCard: `RFID-${9900 + item.id}`,
       isClimateControlled: unitType.climateControlled ?? true,
       guestPasses: [],
@@ -154,7 +170,10 @@ export function normalizeCustomerContract(contract: any): CustomerUnit[] {
       isSigned: Boolean(contract.signedAt || contract.status === 'ACTIVE'),
       contractStatus: contract.status || 'ACTIVE',
       terms: contract.terms || 'Điều khoản thuê kho tiêu chuẩn: Tuân thủ quy định PCCC và an toàn kho bãi.',
-      smartLockStatus: item.accessCodeStatus || 'ACTIVE',
+      smartLockStatus:
+        item.accessCodeStatus ||
+        (isLiquidatedOrTerminated || isLiquidationRequested ? 'REVOKED' : 'ACTIVE'),
+      liquidationStatus,
       rawContractId: contract.id,
       rawContractItemId: item.id,
       rawUnitId: unit.id || item.unitId,

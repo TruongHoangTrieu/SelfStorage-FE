@@ -290,7 +290,12 @@ export default function MyUnitsGrid({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
               {units.map((unit) => {
-                const isPinVisible = !!visiblePins[unit.id];
+                const isPinRevoked =
+                  unit.status === 'terminated' ||
+                  unit.smartLockStatus === 'REVOKED' ||
+                  unit.liquidationStatus === 'REQUESTED' ||
+                  unit.liquidationStatus === 'COMPLETED';
+                const isPinVisible = !isPinRevoked && !!visiblePins[unit.id];
 
                 return (
                   <div
@@ -356,28 +361,48 @@ export default function MyUnitsGrid({
                       </div>
 
                       {/* Mã PIN mở cửa Smart Lock */}
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200/80">
+                      <div
+                        className={`flex items-center justify-between p-3.5 rounded-2xl border ${
+                          isPinRevoked
+                            ? 'bg-slate-100 border-slate-200'
+                            : 'bg-blue-50/70 border-blue-200/80'
+                        }`}
+                      >
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                              isPinRevoked
+                                ? 'bg-slate-200 text-slate-500'
+                                : 'bg-blue-100 text-blue-600'
+                            }`}
+                          >
                             <Key className="w-4 h-4" />
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
                               Mã Smart Lock
                             </span>
-                            <span className="tabular-nums text-base font-extrabold tracking-widest text-slate-900 font-mono">
-                              {isPinVisible ? unit.mainPin : '••••••'}
-                            </span>
+                            {isPinRevoked ? (
+                              <span className="text-xs font-bold text-rose-600">
+                                Đã thu hồi (Khóa)
+                              </span>
+                            ) : (
+                              <span className="tabular-nums text-base font-extrabold tracking-widest text-slate-900 font-mono">
+                                {isPinVisible ? unit.mainPin : '••••••'}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => togglePin(unit.id)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg border border-transparent hover:border-blue-200/80 transition-all cursor-pointer"
-                          title={isPinVisible ? 'Ẩn mã' : 'Hiện mã'}
-                        >
-                          {isPinVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
+                        {!isPinRevoked && (
+                          <button
+                            type="button"
+                            onClick={() => togglePin(unit.id)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg border border-transparent hover:border-blue-200/80 transition-all cursor-pointer"
+                            title={isPinVisible ? 'Ẩn mã' : 'Hiện mã'}
+                          >
+                            {isPinVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        )}
                       </div>
 
                       {/* Dòng trạng thái hiệu lực hợp đồng cho mọi thẻ */}

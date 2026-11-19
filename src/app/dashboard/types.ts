@@ -113,6 +113,7 @@ export interface CustomerUnit {
   isSigned?: boolean;
   terms?: string;
   smartLockStatus?: string;
+  liquidationStatus?: 'REQUESTED' | 'COMPLETED' | null;
   facilityId?: number;
   rawContractId?: number;
   rawContractItemId?: number;

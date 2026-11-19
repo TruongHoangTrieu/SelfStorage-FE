@@ -89,5 +89,5 @@ export interface StaffUser {
   };
 }
 
-export type StaffTab = 'queue' | 'dashboard' | 'checkout' | 'facility' | 'support' | 'settings' | 'profile' | 'unit_types';
+export type StaffTab = 'queue' | 'dashboard' | 'checkout' | 'liquidation' | 'facility' | 'support' | 'settings' | 'profile' | 'unit_types';
 export type FlowStep = 'queue' | 'handover' | 'success';

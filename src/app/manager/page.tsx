@@ -60,7 +60,7 @@ import UnitTypesPricingManager from "../staff/components/UnitTypesPricingManager
 import FacilityLayoutView from "../staff/components/FacilityLayoutView";
 
 import StaffSupportTicketsView from "../staff/components/StaffSupportTicketsView";
-import StaffRenewalsOverdueView from "../staff/components/StaffRenewalsOverdueView";
+import ManagerRentalOperationsView from "./components/ManagerRentalOperationsView";
 import StaffLoginModal from "../staff/components/StaffLoginModal";
 import NotificationDetailModal from "@/components/NotificationDetailModal";
 
@@ -784,7 +784,7 @@ export default function ManagerPortalPage() {
     unit_types: "Quản Lý Loại Kho & Bảng Giá",
     contracts: "Quản Lý Hợp Đồng Chi Nhánh",
     fee_types: "Cấu Hình Phí Phạt",
-    checkout: "Thủ Tục Trả Kho & Phê Duyệt Gia Hạn",
+    checkout: "Quản lí kho thuê",
     queue: "Giám Sát Quầy Nhận Kho",
     support: "Giám Sát Xử Lý Sự Cố & Khiếu Nại",
     profile: "Hồ Sơ Quản Lý & Bảo Mật",
@@ -1042,9 +1042,9 @@ export default function ManagerPortalPage() {
               />
             )}
 
-            {/* TAB 4: PHÊ DUYỆT GIA HẠN & XỬ LÝ QUÁ HẠN (CRON SCAN & MIỄN GIẢM PHẠT) */}
+            {/* TAB 4: QUẢN LÍ KHO THUÊ (TRẢ KHO, GIA HẠN, KHO QUÁ HẠN, THANH LÝ) */}
             {activeTab === "checkout" && (
-              <StaffRenewalsOverdueView
+              <ManagerRentalOperationsView
                 facilityId={
                   currentUser?.facilityId ||
                   currentUser?.assignedFacility?.id ||
